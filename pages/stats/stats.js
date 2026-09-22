@@ -1,6 +1,5 @@
-const app = getApp();
+const api = require('../../services/cloud');
 
-const PAGE_SIZE = 20;
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const fmtDate = (d) =>
   d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
@@ -34,20 +33,7 @@ Page({
   async loadStats(isPullDown) {
     if (!isPullDown) wx.showLoading({ title: '统计中' });
     try {
-      const db = wx.cloud.database();
-      const all = [];
-      let skip = 0;
-      for (;;) {
-        const res = await db
-          .collection(app.globalData.COLLECTION)
-          .orderBy('date', 'desc')
-          .skip(skip)
-          .limit(PAGE_SIZE)
-          .get();
-        all.push.apply(all, res.data || []);
-        if (!res.data || res.data.length < PAGE_SIZE) break;
-        skip += PAGE_SIZE;
-      }
+      const all = await api.listRatings();
 
       const map = {};
       all.forEach((it) => (map[it.date] = it));
@@ -147,7 +133,25 @@ Page({
         () => this.drawRing(totalCount ? goodRate / 100 : 0)
       );
     } catch (e) {
-      wx.showToast({ title: '统计失败：' + (e.errMsg || e.message || ''), icon: 'none' });
+      if (api.isBindingError(e)) {
+        if (!this.bindingPrompted) {
+          this.bindingPrompted = true;
+          wx.showModal({
+            title: '先完成双人绑定',
+            content: '绑定后才能生成两个人的共同成绩单。',
+            confirmText: '去绑定',
+            confirmColor: '#ff6b81',
+            success: (res) => {
+              if (res.confirm) wx.navigateTo({ url: '/pages/bind/bind' });
+            },
+            complete: () => {
+              this.bindingPrompted = false;
+            },
+          });
+        }
+      } else {
+        wx.showToast({ title: '统计失败：' + (e.message || ''), icon: 'none' });
+      }
     } finally {
       if (!isPullDown) wx.hideLoading();
       else wx.stopPullDownRefresh();
