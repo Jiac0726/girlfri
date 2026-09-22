@@ -1,0 +1,90 @@
+<view class="container bind-page">
+  <view class="hero">
+    <view class="hero-mark">♥</view>
+    <view class="hero-title">两个人，才是完整的热念</view>
+    <view class="hero-sub">绑定后只有这两个人能看到共同记录，且只有「评价方」能写入当天评价。</view>
+  </view>
+
+  <view class="card" wx:if="{{bindingStatus === 'unbound'}}">
+    <view class="card-title">发起绑定</view>
+    <view class="section-tip">先选你自己的角色，对方加入后会自动成为另一个角色。</view>
+
+    <view class="role-row">
+      <view
+        class="role-option {{selectedRole === 'viewer' ? 'role-active' : ''}}"
+        data-role="viewer"
+        bindtap="selectRole"
+      >
+        <view class="role-emoji">👀</view>
+        <view class="role-name">我是查看方</view>
+        <view class="role-desc">看记录、月报和成绩单</view>
+      </view>
+      <view
+        class="role-option {{selectedRole === 'rater' ? 'role-active' : ''}}"
+        data-role="rater"
+        bindtap="selectRole"
+      >
+        <view class="role-emoji">✍️</view>
+        <view class="role-name">我是评价方</view>
+        <view class="role-desc">每天负责写一条评价</view>
+      </view>
+    </view>
+
+    <button class="primary-btn" bindtap="createInvite" loading="{{loading}}">
+      生成 8 位绑定码
+    </button>
+  </view>
+
+  <view class="or" wx:if="{{bindingStatus === 'unbound'}}">或者</view>
+
+  <view class="card" wx:if="{{bindingStatus === 'unbound'}}">
+    <view class="card-title">加入对方的热念</view>
+    <input
+      class="code-input"
+      value="{{joinCode}}"
+      bindinput="onJoinInput"
+      maxlength="8"
+      placeholder="输入对方发来的 8 位绑定码"
+    />
+    <button
+      class="secondary-btn"
+      bindtap="joinPair"
+      loading="{{loading}}"
+      disabled="{{joinCode.length !== 8}}"
+    >
+      完成绑定
+    </button>
+  </view>
+
+  <view class="card waiting-card" wx:if="{{bindingStatus === 'waiting'}}">
+    <view class="waiting-icon">💌</view>
+    <view class="waiting-title">等待对方加入</view>
+    <view class="waiting-sub">你的角色：{{roleLabel}}</view>
+    <view class="invite-code" bindtap="copyCode">{{inviteCode}}</view>
+    <view class="invite-tip">点击复制 · 有效至 {{inviteExpiresText}}</view>
+    <button class="primary-btn" bindtap="copyCode">复制绑定码</button>
+    <view class="action-row">
+      <view class="text-action" bindtap="refreshInvite">换一个绑定码</view>
+      <view class="text-action muted" bindtap="refresh">刷新状态</view>
+      <view class="text-action danger" bindtap="cancelInvite">取消邀请</view>
+    </view>
+  </view>
+
+  <view class="card active-card" wx:if="{{bindingStatus === 'active'}}">
+    <view class="active-icon">💕</view>
+    <view class="active-title">已经绑定成功</view>
+    <view class="active-role">你是「{{roleLabel}}」</view>
+    <view class="active-desc" wx:if="{{canRate}}">
+      你负责记录每天的相处感受；对方可以共同查看历史、月报和成绩单。
+    </view>
+    <view class="active-desc" wx:else>
+      你可以查看共同记录、月报和成绩单；每天的评价由对方填写。
+    </view>
+    <button class="primary-btn" bindtap="backHome">回到今天</button>
+  </view>
+
+  <view class="security-note">
+    <view class="security-title">🔒 绑定方式</view>
+    <view>身份由微信云函数读取 OPENID 校验，不使用前端传入的用户身份。绑定码仅用于建立两个人之间的关系。</view>
+  </view>
+</view>
