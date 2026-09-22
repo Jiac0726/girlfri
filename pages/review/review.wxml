@@ -168,7 +168,8 @@
         wx:if="{{historyTotal > 12}}"
         bindtap="toggleHistory"
       >
-        {{showAllHistory ? '收起记录' : '展开全部 ' + historyTotal + ' 条'}}
+        <text wx:if="{{showAllHistory}}">收起记录</text>
+        <text wx:else>展开全部 {{historyTotal}} 条</text>
       </view>
     </view>
 
