@@ -35,6 +35,16 @@ if (-not $AppId -and (Test-Path "project.config.json")) {
     } catch {}
 }
 
+if (-not $AppId -and (Test-Path "project.config.local.bak.json")) {
+    try {
+        $backup = Get-Content "project.config.local.bak.json" -Raw | ConvertFrom-Json
+        $candidate = [string]$backup.appid
+        if ($candidate -and $candidate -ne "wxYOUR_APPID") {
+            $AppId = $candidate
+        }
+    } catch {}
+}
+
 if (-not $CloudEnv -and (Test-Path "config/env.local.js")) {
     $text = Get-Content "config/env.local.js" -Raw
     $m = [regex]::Match($text, "cloudEnv\s*:\s*['""]([^'""]+)['""]")
@@ -45,6 +55,14 @@ if (-not $CloudEnv -and (Test-Path "config/env.local.js")) {
 
 if (-not $CloudEnv -and (Test-Path "app.js")) {
     $text = Get-Content "app.js" -Raw
+    $m = [regex]::Match($text, "env\s*:\s*['""]([^'""]+)['""]")
+    if ($m.Success -and $m.Groups[1].Value -ne "YOUR_ENV_ID") {
+        $CloudEnv = $m.Groups[1].Value
+    }
+}
+
+if (-not $CloudEnv -and (Test-Path "app.local.bak.js")) {
+    $text = Get-Content "app.local.bak.js" -Raw
     $m = [regex]::Match($text, "env\s*:\s*['""]([^'""]+)['""]")
     if ($m.Success -and $m.Groups[1].Value -ne "YOUR_ENV_ID") {
         $CloudEnv = $m.Groups[1].Value
