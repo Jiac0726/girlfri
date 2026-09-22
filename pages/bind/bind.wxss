@@ -197,3 +197,85 @@
   font-weight: 700;
   margin-bottom: 6rpx;
 }
+
+
+.incoming-invite {
+  text-align: center;
+  padding-top: 48rpx;
+}
+
+.incoming-icon {
+  font-size: 72rpx;
+}
+
+.incoming-title {
+  margin-top: 14rpx;
+  font-size: 36rpx;
+  font-weight: 800;
+  color: #4a3540;
+}
+
+.incoming-desc {
+  margin: 18rpx auto 0;
+  max-width: 560rpx;
+  color: #b08090;
+  font-size: 24rpx;
+  line-height: 1.7;
+}
+
+.incoming-code {
+  display: inline-block;
+  margin-top: 26rpx;
+  padding: 10rpx 20rpx;
+  border-radius: 999rpx;
+  background: #fff0f3;
+  color: #ff6b81;
+  font-size: 22rpx;
+  letter-spacing: 2rpx;
+}
+
+.incoming-other {
+  margin-top: 26rpx;
+}
+
+.wechat-share-btn {
+  margin-top: 34rpx;
+  height: 96rpx;
+  line-height: 96rpx;
+  border-radius: 999rpx;
+  background: #07c160 !important;
+  color: #fff !important;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.wechat-share-btn::after {
+  border: none;
+}
+
+.wechat-share-icon {
+  margin-right: 10rpx;
+  font-size: 34rpx;
+}
+
+.invite-divider {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin: 34rpx 0 10rpx;
+}
+
+.invite-divider-line {
+  flex: 1;
+  height: 1rpx;
+  background: #f2dfe5;
+}
+
+.invite-divider-text {
+  color: #c0a8b0;
+  font-size: 21rpx;
+}
+
+.copy-btn {
+  margin-top: 22rpx;
+}

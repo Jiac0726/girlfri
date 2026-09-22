@@ -1,5 +1,12 @@
 const api = require('../../services/cloud');
 
+function normalizeInviteCode(value) {
+  return String(value || '')
+    .toUpperCase()
+    .replace(/[^A-Z2-9]/g, '')
+    .slice(0, 8);
+}
+
 function formatExpire(value) {
   if (!value) return '';
   const d = new Date(value);
@@ -24,10 +31,39 @@ Page({
     inviteExpiresText: '',
     joinCode: '',
     isCreator: false,
+    openedFromInvite: false,
+  },
+
+  onLoad(options) {
+    const code = normalizeInviteCode(options && options.inviteCode);
+    if (code.length === 8) {
+      this.setData({
+        joinCode: code,
+        openedFromInvite: true,
+      });
+    }
   },
 
   onShow() {
     this.refresh();
+  },
+
+  onShareAppMessage() {
+    const code = this.data.inviteCode;
+    if (!code) {
+      return {
+        title: '来和我一起用「热念」💕',
+        path: '/pages/bind/bind',
+      };
+    }
+
+    return {
+      title: '我想和你一起记录「热念」💕 点开接受我的邀请',
+      path:
+        '/pages/bind/bind?inviteCode=' +
+        encodeURIComponent(code) +
+        '&source=wechat_invite',
+    };
   },
 
   async refresh(showToast) {
@@ -54,11 +90,14 @@ Page({
   },
 
   onJoinInput(e) {
-    const value = String(e.detail.value || '')
-      .toUpperCase()
-      .replace(/[^A-Z2-9]/g, '')
-      .slice(0, 8);
-    this.setData({ joinCode: value });
+    this.setData({ joinCode: normalizeInviteCode(e.detail.value) });
+  },
+
+  useOtherCode() {
+    this.setData({
+      openedFromInvite: false,
+      joinCode: '',
+    });
   },
 
   async createInvite() {
@@ -78,7 +117,7 @@ Page({
 
   async joinPair() {
     if (this.data.loading) return;
-    const code = this.data.joinCode.trim();
+    const code = normalizeInviteCode(this.data.joinCode);
     if (code.length !== 8) {
       wx.showToast({ title: '请输入 8 位绑定码', icon: 'none' });
       return;
@@ -120,7 +159,7 @@ Page({
   cancelInvite() {
     wx.showModal({
       title: '取消这次邀请？',
-      content: '取消后当前绑定码会立即失效，可以重新发起绑定。',
+      content: '取消后当前微信邀请和绑定码都会立即失效，可以重新发起绑定。',
       confirmColor: '#ff6b81',
       success: async (res) => {
         if (!res.confirm) return;

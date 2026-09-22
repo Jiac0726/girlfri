@@ -5,18 +5,37 @@
     <view class="hero-sub">绑定后双方地位完全对等：你可以评价 TA，TA 也可以评价你；两个人都能查看共同记录。</view>
   </view>
 
-  <view class="card" wx:if="{{bindingStatus === 'unbound'}}">
+  <view
+    class="card incoming-invite"
+    wx:if="{{bindingStatus === 'unbound' && openedFromInvite && joinCode.length === 8}}"
+  >
+    <view class="incoming-icon">💌</view>
+    <view class="incoming-title">TA 邀请你加入「热念」</view>
+    <view class="incoming-desc">接受后，你们会建立双人关系。双方每天都可以互相评价，也能查看共同记录。</view>
+    <view class="incoming-code">邀请 {{joinCode}}</view>
+    <button
+      class="primary-btn"
+      bindtap="joinPair"
+      loading="{{loading}}"
+      disabled="{{loading}}"
+    >
+      接受邀请并绑定
+    </button>
+    <view class="text-action muted incoming-other" bindtap="useOtherCode">不是这个邀请？手动输入绑定码</view>
+  </view>
+
+  <view class="card" wx:if="{{bindingStatus === 'unbound' && !openedFromInvite}}">
     <view class="card-title">发起双人绑定</view>
-    <view class="section-tip">生成一个 8 位绑定码发给 TA。绑定完成后，双方每天都可以各写一条评价。</view>
+    <view class="section-tip">生成邀请后，可以直接通过微信把小程序邀请卡片发给 TA。</view>
     <button class="primary-btn" bindtap="createInvite" loading="{{loading}}">
-      生成 8 位绑定码
+      创建微信邀请
     </button>
   </view>
 
-  <view class="or" wx:if="{{bindingStatus === 'unbound'}}">或者</view>
+  <view class="or" wx:if="{{bindingStatus === 'unbound' && !openedFromInvite}}">或者</view>
 
-  <view class="card" wx:if="{{bindingStatus === 'unbound'}}">
-    <view class="card-title">加入 TA 的热念</view>
+  <view class="card" wx:if="{{bindingStatus === 'unbound' && !openedFromInvite}}">
+    <view class="card-title">输入绑定码加入</view>
     <input
       class="code-input"
       value="{{joinCode}}"
@@ -36,13 +55,26 @@
 
   <view class="card waiting-card" wx:if="{{bindingStatus === 'waiting'}}">
     <view class="waiting-icon">💌</view>
-    <view class="waiting-title">等待 TA 加入</view>
-    <view class="waiting-sub">绑定成功后，你们双方都可以评价对方。</view>
+    <view class="waiting-title">邀请已经准备好</view>
+    <view class="waiting-sub">优先直接发微信邀请卡片；绑定码保留作为备用。</view>
+
+    <button class="wechat-share-btn" open-type="share">
+      <text class="wechat-share-icon">↗</text>
+      微信邀请 TA
+    </button>
+
+    <view class="invite-divider">
+      <view class="invite-divider-line"></view>
+      <view class="invite-divider-text">备用绑定码</view>
+      <view class="invite-divider-line"></view>
+    </view>
+
     <view class="invite-code" bindtap="copyCode">{{inviteCode}}</view>
-    <view class="invite-tip">点击复制 · 有效至 {{inviteExpiresText}}</view>
-    <button class="primary-btn" bindtap="copyCode">复制绑定码</button>
+    <view class="invite-tip">有效至 {{inviteExpiresText}}</view>
+    <button class="secondary-btn copy-btn" bindtap="copyCode">复制绑定码</button>
+
     <view class="action-row">
-      <view class="text-action" bindtap="refreshInvite">换一个绑定码</view>
+      <view class="text-action" bindtap="refreshInvite">换一个邀请</view>
       <view class="text-action muted" bindtap="refresh">刷新状态</view>
       <view class="text-action danger" bindtap="cancelInvite">取消邀请</view>
     </view>
@@ -58,7 +90,7 @@
   </view>
 
   <view class="security-note">
-    <view class="security-title">🔒 双向但不混写</view>
-    <view>身份由微信云函数读取 OPENID 校验。每条评价都记录评价人和被评价人，因此双方互评不会互相覆盖。</view>
+    <view class="security-title">🔒 邀请只建立这一对关系</view>
+    <view>微信邀请卡片只携带一次性绑定码。真正绑定仍由云函数校验双方身份、邀请码状态和有效期。</view>
   </view>
 </view>
