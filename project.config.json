@@ -3,8 +3,8 @@
   "cloudfunctionRoot": "cloudfunctions/",
   "compileType": "miniprogram",
   "appid": "wxYOUR_APPID",
-  "projectname": "girlfriend-rating",
-  "description": "女朋友对我的每日评价系统",
+  "projectname": "renian",
+  "description": "热念 · 双人每日关系记录小程序",
   "setting": {
     "es6": true,
     "enhance": true,
