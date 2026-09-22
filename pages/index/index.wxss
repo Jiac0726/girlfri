@@ -1,3 +1,60 @@
+/* 热念品牌区 */
+.brand-hero {
+  display: flex;
+  align-items: center;
+  padding: 12rpx 10rpx 20rpx;
+}
+
+.brand-mark {
+  position: relative;
+  width: 86rpx;
+  height: 86rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(145deg, #ff5f79, #ff8da0);
+  box-shadow: 0 12rpx 30rpx rgba(255, 107, 129, 0.24);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.brand-heart {
+  color: #ffffff;
+  font-size: 50rpx;
+  line-height: 1;
+  transform: translateY(-1rpx);
+}
+
+.brand-spark {
+  position: absolute;
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #fff4b8;
+  right: 14rpx;
+  top: 13rpx;
+  box-shadow: 0 0 0 7rpx rgba(255, 244, 184, 0.2);
+}
+
+.brand-copy {
+  margin-left: 22rpx;
+}
+
+.brand-name {
+  font-size: 42rpx;
+  font-weight: 800;
+  color: #4a3540;
+  letter-spacing: 6rpx;
+  line-height: 1.15;
+}
+
+.brand-tagline {
+  margin-top: 8rpx;
+  font-size: 23rpx;
+  color: #b08090;
+  letter-spacing: 1rpx;
+}
+
 /* 日期头 */
 .date-header {
   display: flex;

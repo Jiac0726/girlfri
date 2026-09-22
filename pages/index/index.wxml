@@ -1,4 +1,16 @@
 <view class="container">
+  <!-- 热念品牌区 -->
+  <view class="brand-hero">
+    <view class="brand-mark">
+      <view class="brand-heart">♥</view>
+      <view class="brand-spark"></view>
+    </view>
+    <view class="brand-copy">
+      <view class="brand-name">热念</view>
+      <view class="brand-tagline">把每天的喜欢和在意，好好记下来</view>
+    </view>
+  </view>
+
   <!-- 日期头 -->
   <view class="date-header">
     <view class="date-day">{{dayNum}}</view>
@@ -13,7 +25,7 @@
 
   <!-- 好评 / 差评 -->
   <view class="card">
-    <view class="card-title">今天表现如何？</view>
+    <view class="card-title">今天的相处感受</view>
     <view class="choice-row">
       <view
         class="choice {{type === 'good' ? 'choice-good-active' : ''}}"
@@ -41,7 +53,7 @@
     </view>
     <textarea
       class="reason-input"
-      placeholder="今天做了什么值得表扬 / 批评的事？写下来让他心服口服～"
+      placeholder="今天有什么值得记住的事？开心、委屈、感谢或小情绪，都可以写下来～"
       placeholder-class="reason-ph"
       value="{{reason}}"
       bindinput="onReasonInput"
@@ -63,5 +75,5 @@
   <view class="tip" wx:if="{{submitted}}">
     今天已经评价过啦，再次提交会覆盖原来的哦～
   </view>
-  <view class="tip" wx:else>每天只能评价一次，想清楚再下手 🌹</view>
+  <view class="tip" wx:else>每天留下一条，把普通日子慢慢变成共同回忆 🌹</view>
 </view>

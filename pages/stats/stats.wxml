@@ -68,10 +68,10 @@
     </view>
   </view>
 
-  <view class="footnote">数据由女朋友亲自填写，最终解释权归她所有 💁‍♀️</view>
+  <view class="footnote">热念 · 把每天的相处认真留住 💕</view>
 
   <!-- 导出图片成绩单 -->
-  <button class="poster-btn" bindtap="makePoster">📷 生成图片成绩单</button>
+  <button class="poster-btn" bindtap="makePoster">📷 生成热念成绩单</button>
 
   <!-- 离屏画布，仅供出图 -->
   <canvas type="2d" id="poster" class="poster-canvas"></canvas>

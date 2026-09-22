@@ -316,7 +316,7 @@ Page({
     // 标题
     ctx.fillStyle = '#4a3540';
     ctx.font = 'bold 44px sans-serif';
-    ctx.fillText('男友表现成绩单', cx, 118);
+    ctx.fillText('热念 · 男友表现成绩单', cx, 118);
 
     const now = new Date();
     const dateLabel =
@@ -452,6 +452,6 @@ Page({
 
     ctx.fillStyle = '#d8c0c8';
     ctx.font = '22px sans-serif';
-    ctx.fillText('数据由女朋友亲自填写 · 最终解释权归她所有', cx, 1116);
+    ctx.fillText('热念 · 把每天的相处认真留住', cx, 1116);
   },
 });
