@@ -1,0 +1,4 @@
+{
+  "description": "Local WeChat DevTools overrides. Copy to project.private.config.json and fill your AppID.",
+  "appid": "wxYOUR_APPID"
+}
