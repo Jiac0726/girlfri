@@ -1,3 +1,5 @@
+const env = require('./config/env');
+
 // app.js
 App({
   onLaunch() {
@@ -5,9 +7,16 @@ App({
       console.error('基础库版本过低，请使用 2.2.3 及以上版本，或升级微信客户端');
       return;
     }
+
+    if (!env.configured) {
+      console.error(
+        '未配置云开发环境。请先运行 setup-local.cmd，生成 config/env.local.js。'
+      );
+      return;
+    }
+
     wx.cloud.init({
-      // ⚠️ 替换成你自己的云开发环境 ID（云开发控制台首页可见）
-      env: 'YOUR_ENV_ID',
+      env: env.cloudEnv,
       traceUser: true,
     });
   },
