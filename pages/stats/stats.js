@@ -4,6 +4,48 @@ const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const fmtDate = (d) =>
   d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 
+function groupByDate(list) {
+  const map = {};
+  list.forEach((it) => {
+    if (!map[it.date]) map[it.date] = [];
+    map[it.date].push(it);
+  });
+  return map;
+}
+
+function emojiFor(type) {
+  return type === 'good' ? '👍' : '👎';
+}
+
+function dailyState(records) {
+  const rows = records || [];
+  const mine = rows.find((x) => x.fromMe);
+  const partner = rows.find((x) => !x.fromMe);
+
+  if (!rows.length) {
+    return { emoji: '·', cls: 'cell-none', mutualGood: false };
+  }
+
+  const mutualGood =
+    rows.length === 2 && rows.every((x) => x.type === 'good');
+  const allBad = rows.every((x) => x.type === 'bad');
+  const hasBad = rows.some((x) => x.type === 'bad');
+
+  return {
+    emoji:
+      (mine ? emojiFor(mine.type) : '·') +
+      (partner ? emojiFor(partner.type) : '·'),
+    cls: mutualGood
+      ? 'cell-good'
+      : allBad
+      ? 'cell-bad'
+      : hasBad
+      ? 'cell-mixed'
+      : 'cell-partial',
+    mutualGood,
+  };
+}
+
 Page({
   data: {
     ready: false,
@@ -34,63 +76,59 @@ Page({
     if (!isPullDown) wx.showLoading({ title: '统计中' });
     try {
       const all = await api.listRatings();
-
-      const map = {};
-      all.forEach((it) => (map[it.date] = it));
+      const byDate = groupByDate(all);
 
       const goodCount = all.filter((x) => x.type === 'good').length;
       const totalCount = all.length;
       const goodRate = totalCount ? Math.round((goodCount / totalCount) * 100) : 0;
 
-      // 连续好评：从「今天」或「最近有记录的一天」往回数连续 good
-      let cur = new Date();
-      if (!map[fmtDate(cur)]) {
-        cur = all.length ? new Date(all[0].date + 'T00:00:00') : null;
-      }
+      // “连续好评”改为更严格的双向口径：同一天双方都提交，且两条都是好评。
+      const uniqueDates = Object.keys(byDate).sort();
       let goodStreak = 0;
-      while (cur) {
-        const rec = map[fmtDate(cur)];
-        if (rec && rec.type === 'good') {
+      if (uniqueDates.length) {
+        let cur = new Date(uniqueDates[uniqueDates.length - 1] + 'T00:00:00');
+        while (cur) {
+          const state = dailyState(byDate[fmtDate(cur)]);
+          if (!state.mutualGood) break;
           goodStreak += 1;
           cur.setDate(cur.getDate() - 1);
-        } else {
-          break;
         }
       }
 
-      // 历史最长连续好评
       let bestStreak = 0;
       let run = 0;
-      const asc = all.slice().sort((a, b) => (a.date < b.date ? -1 : 1));
-      let prev = null;
-      asc.forEach((it) => {
-        const d = new Date(it.date + 'T00:00:00');
+      let prevDate = null;
+      uniqueDates.forEach((date) => {
+        const d = new Date(date + 'T00:00:00');
         const contiguous =
-          prev !== null &&
-          Math.round((d - prev) / 86400000) === 1;
-        run = it.type === 'good' ? (contiguous ? run + 1 : 1) : 0;
-        if (run > bestStreak) bestStreak = run;
-        prev = d;
+          prevDate !== null && Math.round((d - prevDate) / 86400000) === 1;
+        const mutualGood = dailyState(byDate[date]).mutualGood;
+
+        if (mutualGood) {
+          run = contiguous ? run + 1 : 1;
+          if (run > bestStreak) bestStreak = run;
+        } else {
+          run = 0;
+        }
+        prevDate = d;
       });
 
-      // 最近 14 天小格子
       const recent14 = [];
       const today = new Date();
       for (let i = 13; i >= 0; i--) {
         const d = new Date(today.getTime());
         d.setDate(today.getDate() - i);
         const key = fmtDate(d);
-        const rec = map[key];
+        const state = dailyState(byDate[key]);
         recent14.push({
           date: key,
           dayNum: d.getDate(),
-          emoji: rec ? (rec.type === 'good' ? '👍' : '👎') : '·',
-          cls: rec ? (rec.type === 'good' ? 'cell-good' : 'cell-bad') : 'cell-none',
+          emoji: state.emoji,
+          cls: state.cls,
           isToday: i === 0,
         });
       }
 
-      // 本月统计
       const monthPrefix = fmtDate(today).slice(0, 7);
       const monthName = today.getFullYear() + ' 年 ' + (today.getMonth() + 1) + ' 月';
       const monthGood = all.filter(
@@ -104,13 +142,13 @@ Page({
       const monthGoodPct = monthTotal ? (monthGood * 100) / monthTotal : 0;
       const monthBadPct = monthTotal ? (monthBad * 100) / monthTotal : 0;
 
-      let verdict = '还没开始记录';
+      let verdict = '还没开始互评';
       if (totalCount) {
-        if (goodRate >= 90) verdict = '模范男友，无可挑剔 ✨';
-        else if (goodRate >= 70) verdict = '表现优秀，继续保持 💕';
-        else if (goodRate >= 50) verdict = '勉强及格，还需努力 🤔';
-        else if (goodRate >= 30) verdict = '问题不少，注意整改 ⚠️';
-        else verdict = '情况危急，速速反省 🚨';
+        if (goodRate >= 90) verdict = '你们最近很会彼此肯定 ✨';
+        else if (goodRate >= 70) verdict = '相处状态不错，继续认真回应 💕';
+        else if (goodRate >= 50) verdict = '有甜有刺，值得多聊聊 🤝';
+        else if (goodRate >= 30) verdict = '小摩擦偏多，记得及时沟通 🌧';
+        else verdict = '最近低气压偏多，先把感受说开 🌱';
       }
 
       this.setData(
@@ -320,7 +358,7 @@ Page({
     // 标题
     ctx.fillStyle = '#4a3540';
     ctx.font = 'bold 44px sans-serif';
-    ctx.fillText('热念 · 男友表现成绩单', cx, 118);
+    ctx.fillText('热念 · 双向相处成绩单', cx, 118);
 
     const now = new Date();
     const dateLabel =
@@ -331,7 +369,7 @@ Page({
       pad(now.getDate()) +
       '  ·  累计评价 ' +
       d.totalCount +
-      ' 天';
+      ' 条';
     ctx.fillStyle = '#c0a8b0';
     ctx.font = '22px sans-serif';
     ctx.fillText(dateLabel, cx, 172);
@@ -365,7 +403,7 @@ Page({
     ctx.fillText(d.goodRate + '%', cx, ringY - 8);
     ctx.fillStyle = '#b08090';
     ctx.font = '22px sans-serif';
-    ctx.fillText('好评率', cx, ringY + 52);
+    ctx.fillText('双方好评率', cx, ringY + 52);
 
     // 评语胶囊
     ctx.font = 'bold 28px sans-serif';
@@ -379,9 +417,9 @@ Page({
 
     // KPI 三列
     const kpis = [
-      [d.goodCount + ' 天', '好评'],
-      [d.badCount + ' 天', '差评'],
-      [d.goodStreak + ' 天', '连续好评'],
+      [d.goodCount + ' 条', '好评'],
+      [d.badCount + ' 条', '差评'],
+      [d.goodStreak + ' 天', '双向连好'],
     ];
     const kx = [175, 375, 575];
     const kcolors = ['#ff6b81', '#90a4ae', '#ff8fab'];
@@ -426,6 +464,10 @@ Page({
           ? '#ffe3e8'
           : it.cls === 'cell-bad'
           ? '#eceff1'
+          : it.cls === 'cell-mixed'
+          ? '#fff3d8'
+          : it.cls === 'cell-partial'
+          ? '#fff7f9'
           : '#faf3f5';
       ctx.fill();
       if (it.isToday) {
