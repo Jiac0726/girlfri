@@ -1,0 +1,55 @@
+/* 全局样式 */
+page {
+  background: #fff0f3;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica,
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  color: #4a3540;
+  font-size: 28rpx;
+  line-height: 1.6;
+}
+
+.container {
+  padding: 30rpx 30rpx 60rpx;
+  box-sizing: border-box;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 28rpx;
+  padding: 36rpx;
+  margin-bottom: 28rpx;
+  box-shadow: 0 6rpx 24rpx rgba(255, 107, 129, 0.1);
+}
+
+.card-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #4a3540;
+  margin-bottom: 24rpx;
+  display: flex;
+  align-items: center;
+}
+
+.card-title::before {
+  content: "";
+  width: 8rpx;
+  height: 28rpx;
+  background: #ff6b81;
+  border-radius: 4rpx;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.empty {
+  text-align: center;
+  color: #c0a8b0;
+  padding: 100rpx 0;
+  font-size: 26rpx;
+}
+
+.text-good {
+  color: #ff6b81;
+}
+.text-bad {
+  color: #90a4ae;
+}

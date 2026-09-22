@@ -1,0 +1,149 @@
+/* 日期头 */
+.date-header {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 10rpx 44rpx;
+}
+
+.date-day {
+  font-size: 108rpx;
+  font-weight: 700;
+  color: #ff6b81;
+  line-height: 1;
+  margin-right: 26rpx;
+  letter-spacing: -4rpx;
+}
+
+.date-meta {
+  flex: 1;
+}
+.date-ym {
+  font-size: 32rpx;
+  color: #4a3540;
+  font-weight: 600;
+}
+.date-week {
+  font-size: 24rpx;
+  color: #b08090;
+  margin-top: 6rpx;
+}
+
+.date-tip {
+  font-size: 22rpx;
+  color: #ff6b81;
+  background: #ffe3e8;
+  padding: 10rpx 24rpx;
+  border-radius: 999rpx;
+  font-weight: 600;
+}
+.date-tip-done {
+  color: #ffffff;
+  background: #ff6b81;
+}
+
+/* 选择卡片 */
+.choice-row {
+  display: flex;
+  gap: 24rpx;
+}
+
+.choice {
+  flex: 1;
+  border: 3rpx solid #f2dfe5;
+  border-radius: 26rpx;
+  padding: 44rpx 0 36rpx;
+  text-align: center;
+  transition: all 0.15s ease;
+  background: #fffafb;
+}
+
+.choice-emoji {
+  font-size: 84rpx;
+  line-height: 1;
+}
+.choice-label {
+  font-size: 32rpx;
+  margin-top: 18rpx;
+  color: #4a3540;
+  font-weight: 700;
+}
+.choice-sub {
+  font-size: 22rpx;
+  color: #c0a8b0;
+  margin-top: 6rpx;
+}
+
+.choice-good-active {
+  border-color: #ff6b81;
+  background: #ffe3e8;
+  transform: scale(1.02);
+}
+.choice-good-active .choice-sub {
+  color: #ff6b81;
+}
+
+.choice-bad-active {
+  border-color: #90a4ae;
+  background: #eceff1;
+  transform: scale(1.02);
+}
+.choice-bad-active .choice-sub {
+  color: #78909c;
+}
+
+.optional {
+  font-size: 24rpx;
+  color: #c0a8b0;
+  font-weight: 400;
+  margin-left: 8rpx;
+}
+
+/* 备注 */
+.reason-input {
+  width: 100%;
+  min-height: 150rpx;
+  background: #fffafb;
+  border-radius: 20rpx;
+  padding: 26rpx;
+  box-sizing: border-box;
+  font-size: 28rpx;
+  color: #4a3540;
+  line-height: 1.7;
+}
+.reason-ph {
+  color: #d8c0c8;
+}
+.reason-count {
+  text-align: right;
+  font-size: 22rpx;
+  color: #c0a8b0;
+  margin-top: 14rpx;
+}
+
+/* 提交按钮 */
+.submit-btn {
+  margin-top: 12rpx;
+  background: #ff6b81 !important;
+  color: #ffffff !important;
+  border-radius: 999rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+  height: 100rpx;
+  line-height: 100rpx;
+  box-shadow: 0 12rpx 26rpx rgba(255, 107, 129, 0.32);
+}
+.submit-btn::after {
+  border: none;
+}
+.submit-btn-disabled {
+  background: #f2dfe5 !important;
+  color: #c0a8b0 !important;
+  box-shadow: none;
+}
+
+.tip {
+  text-align: center;
+  color: #c0a8b0;
+  font-size: 24rpx;
+  margin-top: 26rpx;
+}

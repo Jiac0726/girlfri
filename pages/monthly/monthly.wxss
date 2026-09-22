@@ -1,0 +1,203 @@
+/* 月份切换 */
+.month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10rpx 20rpx 34rpx;
+}
+.nav-btn {
+  width: 76rpx;
+  height: 76rpx;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #ff6b81;
+  font-size: 48rpx;
+  line-height: 72rpx;
+  text-align: center;
+  box-shadow: 0 6rpx 18rpx rgba(255, 107, 129, 0.14);
+}
+.nav-disabled {
+  color: #e0ccd4;
+  box-shadow: none;
+  background: #faf0f3;
+}
+.nav-label {
+  font-size: 38rpx;
+  font-weight: 700;
+  color: #4a3540;
+}
+
+/* 概览 */
+.rate-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 44rpx 40rpx;
+}
+.rate-big {
+  font-size: 96rpx;
+  font-weight: 700;
+  color: #ff6b81;
+  line-height: 1;
+  letter-spacing: -3rpx;
+}
+.rate-pct {
+  font-size: 36rpx;
+  margin-left: 4rpx;
+}
+.rate-label {
+  font-size: 24rpx;
+  color: #b08090;
+  margin: 14rpx 0 30rpx;
+}
+
+.month-bar {
+  display: flex;
+  width: 100%;
+  height: 24rpx;
+  border-radius: 999rpx;
+  overflow: hidden;
+  background: #faf3f5;
+}
+.month-good {
+  background: #ff6b81;
+  transition: width 0.3s ease;
+}
+.month-bad {
+  background: #cfd8dc;
+  transition: width 0.3s ease;
+}
+.month-legend {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 20rpx;
+  font-size: 24rpx;
+}
+
+/* 日历 */
+.week-row {
+  display: flex;
+  gap: 12rpx;
+  margin-bottom: 14rpx;
+}
+.week-cell {
+  width: calc((100% - 72rpx) / 7);
+  text-align: center;
+  font-size: 22rpx;
+  color: #c0a8b0;
+}
+
+.cal-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+.cal-cell {
+  width: calc((100% - 72rpx) / 7);
+  height: 104rpx;
+  border-radius: 18rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #faf3f5;
+}
+.cal-empty {
+  background: transparent;
+}
+.cal-emoji {
+  font-size: 32rpx;
+  line-height: 1.2;
+}
+.cal-day {
+  font-size: 20rpx;
+  color: #c0a8b0;
+  margin-top: 2rpx;
+}
+
+.cal-good {
+  background: #ffe3e8;
+}
+.cal-good .cal-day {
+  color: #ff6b81;
+}
+.cal-bad {
+  background: #eceff1;
+}
+.cal-bad .cal-day {
+  color: #78909c;
+}
+.cal-none .cal-day {
+  color: #dcc6ce;
+}
+.cal-today {
+  box-shadow: inset 0 0 0 3rpx #ff6b81;
+}
+
+/* 本月之最 */
+.best-row {
+  display: flex;
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid #faeef1;
+}
+.best-row:last-of-type {
+  border-bottom: none;
+}
+.best-emoji {
+  font-size: 40rpx;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+.best-body {
+  flex: 1;
+  min-width: 0;
+}
+.best-head {
+  display: flex;
+  align-items: center;
+}
+.best-title {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #4a3540;
+}
+.best-date {
+  margin-left: auto;
+  font-size: 20rpx;
+  color: #d8c0c8;
+}
+.best-reason {
+  margin-top: 10rpx;
+  font-size: 26rpx;
+  color: #6b5560;
+  line-height: 1.7;
+  word-break: break-all;
+}
+.best-empty {
+  text-align: center;
+  color: #c0a8b0;
+  font-size: 26rpx;
+  padding: 30rpx 0;
+}
+
+.streak-line {
+  margin-top: 26rpx;
+  background: #fff0f3;
+  border-radius: 18rpx;
+  padding: 22rpx 26rpx;
+  font-size: 26rpx;
+  color: #6b5560;
+}
+.streak-num {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #ff6b81;
+}
+
+.footnote {
+  text-align: center;
+  color: #d8c0c8;
+  font-size: 22rpx;
+  margin-top: 20rpx;
+}

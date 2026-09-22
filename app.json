@@ -1,0 +1,30 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/history/history",
+    "pages/monthly/monthly",
+    "pages/stats/stats"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#ff6b81",
+    "navigationBarTitleText": "女朋友评价系统",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#fff0f3",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#b08090",
+    "selectedColor": "#ff6b81",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/index/index", "text": "今日评价" },
+      { "pagePath": "pages/history/history", "text": "历史记录" },
+      { "pagePath": "pages/monthly/monthly", "text": "月报" },
+      { "pagePath": "pages/stats/stats", "text": "成绩单" }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

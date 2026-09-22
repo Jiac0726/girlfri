@@ -1,0 +1,90 @@
+<view class="container">
+  <!-- 月份切换 -->
+  <view class="month-nav">
+    <view class="nav-btn {{canPrev ? '' : 'nav-disabled'}}" bindtap="prevMonth">‹</view>
+    <view class="nav-label">{{monthLabel}}</view>
+    <view class="nav-btn {{canNext ? '' : 'nav-disabled'}}" bindtap="nextMonth">›</view>
+  </view>
+
+  <!-- 本月概览 -->
+  <view class="card rate-card">
+    <view class="rate-big">
+      {{goodRate}}<text class="rate-pct">%</text>
+    </view>
+    <view class="rate-label">本月好评率</view>
+    <view class="month-bar">
+      <view class="month-good" style="width: {{goodRate}}%"></view>
+      <view class="month-bad" style="width: {{100 - goodRate}}%"></view>
+    </view>
+    <view class="month-legend">
+      <view class="text-good">👍 好评 {{goodCount}} 天</view>
+      <view class="text-bad">👎 差评 {{badCount}} 天</view>
+    </view>
+  </view>
+
+  <!-- 本月日历 -->
+  <view class="card">
+    <view class="card-title">本月日历</view>
+    <view class="week-row">
+      <view class="week-cell" wx:for="{{weeks}}" wx:key="*this">{{item}}</view>
+    </view>
+    <view class="cal-grid">
+      <view
+        wx:for="{{calendar}}"
+        wx:key="key"
+        class="cal-cell {{item.empty ? 'cal-empty' : item.cls}} {{item.isToday ? 'cal-today' : ''}}"
+      >
+        <view class="cal-emoji">{{item.emoji}}</view>
+        <view class="cal-day">{{item.empty ? '' : item.dayNum}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 本月之最 -->
+  <view class="card">
+    <view class="card-title">本月之最</view>
+
+    <view class="best-row" wx:if="{{star}}">
+      <view class="best-emoji">🌟</view>
+      <view class="best-body">
+        <view class="best-head">
+          <text class="best-title text-good">高光时刻</text>
+          <text class="best-date">{{star.date}}</text>
+        </view>
+        <view class="best-reason">{{star.reason || '（没写原因，但就是好）'}}</view>
+      </view>
+    </view>
+
+    <view class="best-row" wx:if="{{fail}}">
+      <view class="best-emoji">💥</view>
+      <view class="best-body">
+        <view class="best-head">
+          <text class="best-title text-bad">翻车现场</text>
+          <text class="best-date">{{fail.date}}</text>
+        </view>
+        <view class="best-reason">{{fail.reason || '（懒得写了，自己体会）'}}</view>
+      </view>
+    </view>
+
+    <view class="best-row" wx:if="{{essay}}">
+      <view class="best-emoji">✍️</view>
+      <view class="best-body">
+        <view class="best-head">
+          <text class="best-title">本月小作文奖</text>
+          <text class="best-date">{{essay.date}}</text>
+        </view>
+        <view class="best-reason">{{essay.reason}}</view>
+      </view>
+    </view>
+
+    <view class="best-empty" wx:if="{{!star && !fail && !essay}}">
+      这个月还没留下任何故事 ✨
+    </view>
+
+    <view class="streak-line" wx:if="{{hasData}}">
+      🔥 本月最长连续好评：<text class="streak-num">{{monthBestStreak}}</text> 天
+    </view>
+  </view>
+
+  <view class="footnote">翻页看看历史上的今天过得怎么样 🗓</view>
+</view>
