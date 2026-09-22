@@ -1,10 +1,11 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/review/review",
+    "pages/bind/bind",
     "pages/history/history",
     "pages/monthly/monthly",
-    "pages/stats/stats",
-    "pages/bind/bind"
+    "pages/stats/stats"
   ],
   "window": {
     "navigationBarBackgroundColor": "#ff6b81",
@@ -19,10 +20,8 @@
     "backgroundColor": "#ffffff",
     "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/index/index", "text": "今日评价" },
-      { "pagePath": "pages/history/history", "text": "历史记录" },
-      { "pagePath": "pages/monthly/monthly", "text": "月报" },
-      { "pagePath": "pages/stats/stats", "text": "成绩单" }
+      { "pagePath": "pages/index/index", "text": "今天" },
+      { "pagePath": "pages/review/review", "text": "回顾" }
     ]
   },
   "style": "v2",
