@@ -80,7 +80,7 @@
   margin-left: 14rpx;
 }
 .record-tag {
-  margin-left: auto;
+  margin-left: 10rpx;
   font-size: 20rpx;
   padding: 4rpx 16rpx;
   border-radius: 999rpx;
@@ -103,4 +103,27 @@
 }
 .record-reason-empty {
   color: #d8c0c8;
+}
+
+
+.direction-tag {
+  margin-left: auto;
+  font-size: 19rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 999rpx;
+  white-space: nowrap;
+}
+
+.direction-mine {
+  color: #ff6b81;
+  background: #fff0f3;
+}
+
+.direction-partner {
+  color: #7b6a72;
+  background: #f5eef1;
+}
+
+.direction-tag + .record-tag {
+  margin-left: 10rpx;
 }
