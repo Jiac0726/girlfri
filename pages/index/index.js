@@ -18,9 +18,8 @@ Page({
     loading: false,
     authLoading: true,
     bindingStatus: 'loading',
-    role: '',
-    roleLabel: '',
     canRate: false,
+    partnerRating: null,
   },
 
   onLoad() {
@@ -45,15 +44,18 @@ Page({
       this.setData({
         authLoading: false,
         bindingStatus: session.bindingStatus || 'unbound',
-        role: session.role || '',
-        roleLabel: session.roleLabel || '',
-        canRate: active && !!session.canRate,
+        canRate: active,
       });
 
       if (active) {
         await this.loadToday();
       } else {
-        this.setData({ type: '', reason: '', submitted: false });
+        this.setData({
+          type: '',
+          reason: '',
+          submitted: false,
+          partnerRating: null,
+        });
       }
     } catch (e) {
       this.setData({ authLoading: false, bindingStatus: 'error' });
@@ -71,6 +73,7 @@ Page({
         reason: doc.reason || '',
         submitted: !!doc.type,
         canRate: !!data.canRate,
+        partnerRating: data.partnerRating || null,
       });
     } catch (e) {
       if (api.isBindingError(e)) {
@@ -80,6 +83,7 @@ Page({
           reason: '',
           submitted: false,
           canRate: false,
+          partnerRating: null,
         });
         return;
       }
@@ -121,7 +125,7 @@ Page({
         submitted: true,
       });
       wx.showToast({
-        title: this.data.type === 'good' ? '好评收到 💕' : '差评已记录 🥺',
+        title: this.data.type === 'good' ? '给 TA 的好评已记录 💕' : '给 TA 的差评已记录 🥺',
         icon: 'none',
       });
     } catch (e) {
