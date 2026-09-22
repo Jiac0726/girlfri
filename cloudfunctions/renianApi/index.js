@@ -27,21 +27,6 @@ function fail(code, message) {
   return { ok: false, error: { code, message } };
 }
 
-function normalizeRole(role) {
-  if (role !== 'rater' && role !== 'viewer') {
-    throw new ApiError('INVALID_ROLE', '请选择“评价方”或“查看方”');
-  }
-  return role;
-}
-
-function oppositeRole(role) {
-  return role === 'rater' ? 'viewer' : 'rater';
-}
-
-function roleLabel(role) {
-  return role === 'rater' ? '评价方' : role === 'viewer' ? '查看方' : '';
-}
-
 function todayInUTC8() {
   return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
@@ -57,6 +42,14 @@ function makeInviteCode() {
     code += INVITE_ALPHABET[bytes[i] % INVITE_ALPHABET.length];
   }
   return code;
+}
+
+function memberKey(openid) {
+  return crypto.createHash('sha256').update(openid).digest('hex').slice(0, 16);
+}
+
+function ratingId(coupleId, date, authorOpenid) {
+  return coupleId + '_' + date + '_' + memberKey(authorOpenid);
 }
 
 async function safeGet(ref) {
@@ -87,8 +80,6 @@ function publicSession(openid, membership) {
     return {
       bound: false,
       bindingStatus: 'unbound',
-      role: '',
-      roleLabel: '',
       canRate: false,
       isCreator: false,
       inviteCode: '',
@@ -96,16 +87,14 @@ function publicSession(openid, membership) {
     };
   }
 
-  const { user, pair } = membership;
+  const { pair } = membership;
   const active = pair.status === 'active';
   const creator = pair.creatorOpenid === openid;
 
   return {
     bound: active,
     bindingStatus: pair.status || 'waiting',
-    role: user.role,
-    roleLabel: roleLabel(user.role),
-    canRate: active && user.role === 'rater',
+    canRate: active,
     isCreator: creator,
     inviteCode: creator && pair.status === 'waiting' ? pair.inviteCode || '' : '',
     inviteExpiresAt:
@@ -130,8 +119,7 @@ async function getSession(openid) {
   return publicSession(openid, await getMembership(openid));
 }
 
-async function createInvite(openid, rawRole) {
-  const role = normalizeRole(rawRole);
+async function createInvite(openid) {
   const existing = await getMembership(openid);
 
   if (existing) {
@@ -167,6 +155,7 @@ async function createInvite(openid, rawRole) {
     } catch (e) {
       alreadyExists = null;
     }
+
     if (alreadyExists) {
       throw new ApiError('ALREADY_BOUND', '你已经存在绑定关系');
     }
@@ -175,7 +164,6 @@ async function createInvite(openid, rawRole) {
       data: {
         status: 'waiting',
         creatorOpenid: openid,
-        creatorRole: role,
         partnerOpenid: '',
         memberOpenids: [openid],
         inviteCode,
@@ -188,7 +176,6 @@ async function createInvite(openid, rawRole) {
     await transaction.collection(COLLECTIONS.users).doc(openid).set({
       data: {
         coupleId: pairId,
-        role,
         status: 'waiting',
         createdAt: now,
         updatedAt: now,
@@ -299,8 +286,6 @@ async function joinPair(openid, rawCode) {
       throw new ApiError('ALREADY_BOUND', '你已经存在绑定关系');
     }
 
-    const joinerRole = oppositeRole(pair.creatorRole);
-
     await transaction.collection(COLLECTIONS.couples).doc(pairId).update({
       data: {
         status: 'active',
@@ -315,7 +300,6 @@ async function joinPair(openid, rawCode) {
     await transaction.collection(COLLECTIONS.users).doc(openid).set({
       data: {
         coupleId: pairId,
-        role: joinerRole,
         status: 'active',
         createdAt: now,
         updatedAt: now,
@@ -342,36 +326,57 @@ async function requireActive(openid) {
   if (membership.pair.status !== 'active') {
     throw new ApiError('PAIR_NOT_ACTIVE', '还在等待另一位加入');
   }
+
+  const members = membership.pair.memberOpenids || [];
+  if (!members.includes(openid) || members.length !== 2) {
+    throw new ApiError('PAIR_INVALID', '双人关系数据异常');
+  }
+
   return membership;
 }
 
-function ratingId(coupleId, date) {
-  return coupleId + '_' + date;
+function partnerOf(pair, openid) {
+  const members = pair.memberOpenids || [];
+  return members.find((id) => id !== openid) || '';
 }
 
-function cleanRating(doc) {
+function cleanRating(doc, openid) {
   if (!doc) return null;
+  const fromMe = doc.ratedBy === openid;
   return {
     date: doc.date,
     type: doc.type,
     reason: String(doc.reason || '').slice(0, 200),
+    fromMe,
+    direction: fromMe ? 'sent' : 'received',
+    directionLabel: fromMe ? '我给 TA' : 'TA 给我',
   };
 }
 
 async function getToday(openid) {
   const membership = await requireActive(openid);
   const date = todayInUTC8();
-  const doc = await safeGet(
+  const partnerOpenid = partnerOf(membership.pair, openid);
+
+  const myDoc = await safeGet(
     db
       .collection(COLLECTIONS.ratings)
-      .doc(ratingId(membership.pair._id, date))
+      .doc(ratingId(membership.pair._id, date, openid))
   );
+
+  const partnerDoc = partnerOpenid
+    ? await safeGet(
+        db
+          .collection(COLLECTIONS.ratings)
+          .doc(ratingId(membership.pair._id, date, partnerOpenid))
+      )
+    : null;
 
   return {
     date,
-    rating: cleanRating(doc),
-    role: membership.user.role,
-    canRate: membership.user.role === 'rater',
+    rating: cleanRating(myDoc, openid),
+    partnerRating: cleanRating(partnerDoc, openid),
+    canRate: true,
   };
 }
 
@@ -395,19 +400,27 @@ async function listRatings(openid) {
     skip += limit;
   }
 
-  all.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-  return all.map(cleanRating);
+  all.sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+    if (a.ratedBy === openid && b.ratedBy !== openid) return -1;
+    if (a.ratedBy !== openid && b.ratedBy === openid) return 1;
+    return 0;
+  });
+
+  return all.map((item) => cleanRating(item, openid));
 }
 
 async function saveToday(openid, event) {
   const membership = await requireActive(openid);
-  if (membership.user.role !== 'rater') {
-    throw new ApiError('READ_ONLY_ROLE', '你是查看方，不能修改评价');
-  }
 
   const type = event.type;
   if (type !== 'good' && type !== 'bad') {
     throw new ApiError('INVALID_RATING', '请选择好评或差评');
+  }
+
+  const targetOpenid = partnerOf(membership.pair, openid);
+  if (!targetOpenid) {
+    throw new ApiError('PAIR_INVALID', '找不到绑定对象');
   }
 
   const reason = String(event.reason || '').trim().slice(0, 200);
@@ -416,7 +429,7 @@ async function saveToday(openid, event) {
 
   await db
     .collection(COLLECTIONS.ratings)
-    .doc(ratingId(membership.pair._id, date))
+    .doc(ratingId(membership.pair._id, date, openid))
     .set({
       data: {
         coupleId: membership.pair._id,
@@ -424,13 +437,21 @@ async function saveToday(openid, event) {
         type,
         reason,
         ratedBy: openid,
+        targetOpenid,
         updatedAt: now,
       },
     });
 
   return {
     date,
-    rating: { date, type, reason },
+    rating: {
+      date,
+      type,
+      reason,
+      fromMe: true,
+      direction: 'sent',
+      directionLabel: '我给 TA',
+    },
   };
 }
 
@@ -445,7 +466,7 @@ exports.main = async (event) => {
       case 'session.get':
         return ok(await getSession(OPENID));
       case 'pair.create':
-        return ok(await createInvite(OPENID, event.role));
+        return ok(await createInvite(OPENID));
       case 'pair.refresh':
         return ok(await refreshInvite(OPENID));
       case 'pair.cancel':
