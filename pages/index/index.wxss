@@ -266,3 +266,41 @@
   color: #8d7680;
   background: #faf5f7;
 }
+
+
+.partner-today {
+  margin-bottom: 28rpx;
+  padding: 28rpx 30rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #fff, #fff2f5);
+  border: 2rpx solid #ffdbe2;
+}
+
+.partner-title {
+  color: #b08090;
+  font-size: 23rpx;
+}
+
+.partner-main {
+  display: flex;
+  align-items: center;
+  margin-top: 12rpx;
+}
+
+.partner-emoji {
+  font-size: 42rpx;
+  margin-right: 12rpx;
+}
+
+.partner-label {
+  color: #4a3540;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.partner-reason {
+  margin-top: 14rpx;
+  color: #6b5560;
+  font-size: 25rpx;
+  line-height: 1.7;
+}
