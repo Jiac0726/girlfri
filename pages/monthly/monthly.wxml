@@ -1,30 +1,28 @@
 <view class="container">
-  <!-- 月份切换 -->
   <view class="month-nav">
     <view class="nav-btn {{canPrev ? '' : 'nav-disabled'}}" bindtap="prevMonth">‹</view>
     <view class="nav-label">{{monthLabel}}</view>
     <view class="nav-btn {{canNext ? '' : 'nav-disabled'}}" bindtap="nextMonth">›</view>
   </view>
 
-  <!-- 本月概览 -->
   <view class="card rate-card">
     <view class="rate-big">
       {{goodRate}}<text class="rate-pct">%</text>
     </view>
-    <view class="rate-label">本月好评率</view>
+    <view class="rate-label">本月双方评价好评率</view>
     <view class="month-bar">
       <view class="month-good" style="width: {{goodRate}}%"></view>
       <view class="month-bad" style="width: {{100 - goodRate}}%"></view>
     </view>
     <view class="month-legend">
-      <view class="text-good">👍 好评 {{goodCount}} 天</view>
-      <view class="text-bad">👎 差评 {{badCount}} 天</view>
+      <view class="text-good">👍 好评 {{goodCount}} 条</view>
+      <view class="text-bad">👎 差评 {{badCount}} 条</view>
     </view>
   </view>
 
-  <!-- 本月日历 -->
   <view class="card">
-    <view class="card-title">本月日历</view>
+    <view class="card-title">双向日历</view>
+    <view class="calendar-note">每格左边是「我给 TA」，右边是「TA 给我」；· 表示当天还没写。</view>
     <view class="week-row">
       <view class="week-cell" wx:for="{{weeks}}" wx:key="*this">{{item}}</view>
     </view>
@@ -40,7 +38,6 @@
     </view>
   </view>
 
-  <!-- 本月之最 -->
   <view class="card">
     <view class="card-title">本月之最</view>
 
@@ -49,6 +46,7 @@
       <view class="best-body">
         <view class="best-head">
           <text class="best-title text-good">高光时刻</text>
+          <text class="best-direction">{{star.directionLabel}}</text>
           <text class="best-date">{{star.date}}</text>
         </view>
         <view class="best-reason">{{star.reason || '（没写原因，但就是好）'}}</view>
@@ -60,9 +58,10 @@
       <view class="best-body">
         <view class="best-head">
           <text class="best-title text-bad">翻车现场</text>
+          <text class="best-direction">{{fail.directionLabel}}</text>
           <text class="best-date">{{fail.date}}</text>
         </view>
-        <view class="best-reason">{{fail.reason || '（懒得写了，自己体会）'}}</view>
+        <view class="best-reason">{{fail.reason || '（没写原因，留待复盘）'}}</view>
       </view>
     </view>
 
@@ -71,6 +70,7 @@
       <view class="best-body">
         <view class="best-head">
           <text class="best-title">本月小作文奖</text>
+          <text class="best-direction">{{essay.directionLabel}}</text>
           <text class="best-date">{{essay.date}}</text>
         </view>
         <view class="best-reason">{{essay.reason}}</view>
@@ -82,9 +82,9 @@
     </view>
 
     <view class="streak-line" wx:if="{{hasData}}">
-      🔥 本月最长连续好评：<text class="streak-num">{{monthBestStreak}}</text> 天
+      🔥 双方连续互给好评：<text class="streak-num">{{monthBestStreak}}</text> 天
     </view>
   </view>
 
-  <view class="footnote">翻页看看历史上的今天过得怎么样 🗓</view>
+  <view class="footnote">同一天最多两条：你给 TA 一条，TA 给你一条 🗓</view>
 </view>

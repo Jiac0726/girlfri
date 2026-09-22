@@ -3,7 +3,8 @@
     "pages/index/index",
     "pages/history/history",
     "pages/monthly/monthly",
-    "pages/stats/stats"
+    "pages/stats/stats",
+    "pages/bind/bind"
   ],
   "window": {
     "navigationBarBackgroundColor": "#ff6b81",

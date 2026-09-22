@@ -1,7 +1,6 @@
-const app = getApp();
+const api = require('../../services/cloud');
 
 const WEEKS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-const PAGE_SIZE = 20;
 
 Page({
   data: {
@@ -20,31 +19,35 @@ Page({
     this.loadHistory(true);
   },
 
-  // 拉取全部记录（云数据库小程序端单次上限 20 条，分页取完）
+  promptBinding() {
+    if (this.bindingPrompted) return;
+    this.bindingPrompted = true;
+    wx.showModal({
+      title: '先完成双人绑定',
+      content: '绑定后才能查看两个人的共同记录。',
+      confirmText: '去绑定',
+      confirmColor: '#ff6b81',
+      success: (res) => {
+        if (res.confirm) wx.navigateTo({ url: '/pages/bind/bind' });
+      },
+      complete: () => {
+        this.bindingPrompted = false;
+      },
+    });
+  },
+
   async loadHistory(isPullDown) {
     if (this.data.loading) return;
     this.setData({ loading: true });
     if (!isPullDown) wx.showLoading({ title: '加载中' });
 
     try {
-      const db = wx.cloud.database();
-      const all = [];
-      let skip = 0;
-      for (;;) {
-        const res = await db
-          .collection(app.globalData.COLLECTION)
-          .orderBy('date', 'desc')
-          .skip(skip)
-          .limit(PAGE_SIZE)
-          .get();
-        all.push.apply(all, res.data || []);
-        if (!res.data || res.data.length < PAGE_SIZE) break;
-        skip += PAGE_SIZE;
-      }
+      const all = await api.listRatings();
 
       const list = all.map((it) => {
         const d = new Date(it.date + 'T00:00:00');
         return Object.assign({}, it, {
+          key: it.date + '-' + (it.fromMe ? 'mine' : 'partner'),
           weekDay: WEEKS[d.getDay()] || '',
           reason: (it.reason || '').trim(),
         });
@@ -59,7 +62,12 @@ Page({
         totalCount: list.length,
       });
     } catch (e) {
-      wx.showToast({ title: '加载失败：' + (e.errMsg || e.message || ''), icon: 'none' });
+      if (api.isBindingError(e)) {
+        this.setData({ list: [], goodCount: 0, badCount: 0, totalCount: 0 });
+        this.promptBinding();
+      } else {
+        wx.showToast({ title: '加载失败：' + (e.message || ''), icon: 'none' });
+      }
     } finally {
       this.setData({ loading: false });
       if (!isPullDown) wx.hideLoading();

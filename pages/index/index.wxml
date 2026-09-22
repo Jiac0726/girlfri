@@ -1,5 +1,4 @@
 <view class="container">
-  <!-- 热念品牌区 -->
   <view class="brand-hero">
     <view class="brand-mark">
       <view class="brand-heart">♥</view>
@@ -11,7 +10,6 @@
     </view>
   </view>
 
-  <!-- 日期头 -->
   <view class="date-header">
     <view class="date-day">{{dayNum}}</view>
     <view class="date-meta">
@@ -19,16 +17,41 @@
       <view class="date-week">{{weekDay}}</view>
     </view>
     <view class="date-tip {{submitted ? 'date-tip-done' : ''}}">
-      {{submitted ? '✓ 已评价' : '待评价'}}
+      {{bindingStatus !== 'active' ? '未绑定' : (submitted ? '✓ 我已评价' : '待评价')}}
     </view>
   </view>
 
-  <!-- 好评 / 差评 -->
+  <view
+    class="bind-banner"
+    wx:if="{{!authLoading && bindingStatus !== 'active'}}"
+    bindtap="goBind"
+  >
+    <view class="bind-banner-icon">💕</view>
+    <view class="bind-banner-body">
+      <view class="bind-banner-title">
+        {{bindingStatus === 'waiting' ? '等待 TA 加入' : '先完成双人绑定'}}
+      </view>
+      <view class="bind-banner-sub">
+        {{bindingStatus === 'waiting' ? '打开绑定页复制绑定码或刷新状态' : '绑定后你和 TA 每天都可以各评价一次'}}
+      </view>
+    </view>
+    <view class="bind-banner-arrow">›</view>
+  </view>
+
+  <view class="partner-today" wx:if="{{bindingStatus === 'active' && partnerRating}}">
+    <view class="partner-title">TA 今天给你的评价</view>
+    <view class="partner-main">
+      <text class="partner-emoji">{{partnerRating.type === 'good' ? '👍' : '👎'}}</text>
+      <text class="partner-label">{{partnerRating.type === 'good' ? '好评' : '差评'}}</text>
+    </view>
+    <view class="partner-reason" wx:if="{{partnerRating.reason}}">{{partnerRating.reason}}</view>
+  </view>
+
   <view class="card">
-    <view class="card-title">今天的相处感受</view>
+    <view class="card-title">今天你想怎么评价 TA？</view>
     <view class="choice-row">
       <view
-        class="choice {{type === 'good' ? 'choice-good-active' : ''}}"
+        class="choice {{type === 'good' ? 'choice-good-active' : ''}} {{canRate ? '' : 'choice-disabled'}}"
         bindtap="selectGood"
       >
         <view class="choice-emoji">👍</view>
@@ -36,7 +59,7 @@
         <view class="choice-sub">今天很棒</view>
       </view>
       <view
-        class="choice {{type === 'bad' ? 'choice-bad-active' : ''}}"
+        class="choice {{type === 'bad' ? 'choice-bad-active' : ''}} {{canRate ? '' : 'choice-disabled'}}"
         bindtap="selectBad"
       >
         <view class="choice-emoji">👎</view>
@@ -46,34 +69,34 @@
     </view>
   </view>
 
-  <!-- 备注 -->
   <view class="card">
     <view class="card-title">
-      具体原因 <text class="optional">（选填）</text>
+      想对 TA 说的话 <text class="optional">（选填）</text>
     </view>
     <textarea
-      class="reason-input"
-      placeholder="今天有什么值得记住的事？开心、委屈、感谢或小情绪，都可以写下来～"
+      class="reason-input {{canRate ? '' : 'reason-input-disabled'}}"
+      placeholder="开心、委屈、感谢或小情绪，都可以写给 TA～"
       placeholder-class="reason-ph"
       value="{{reason}}"
       bindinput="onReasonInput"
       maxlength="200"
+      disabled="{{!canRate}}"
       auto-height
     />
     <view class="reason-count">{{reason.length}}/200</view>
   </view>
 
-  <!-- 提交 -->
   <button
+    wx:if="{{canRate}}"
     class="submit-btn {{type ? '' : 'submit-btn-disabled'}}"
     bindtap="submit"
     disabled="{{!type || loading}}"
   >
-    {{submitted ? '更新今天的评价' : '提交今天的评价'}}
+    {{submitted ? '更新我给 TA 的评价' : '提交我给 TA 的评价'}}
   </button>
 
-  <view class="tip" wx:if="{{submitted}}">
-    今天已经评价过啦，再次提交会覆盖原来的哦～
+  <view class="tip" wx:if="{{canRate && submitted}}">
+    再次提交只会覆盖你自己今天的这条，不会影响 TA 给你的评价。
   </view>
-  <view class="tip" wx:else>每天留下一条，把普通日子慢慢变成共同回忆 🌹</view>
+  <view class="tip" wx:elif="{{canRate}}">你们每天都可以各留一条，双向记录彼此的感受 🌹</view>
 </view>

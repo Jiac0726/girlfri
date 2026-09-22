@@ -1,4 +1,5 @@
 const app = getApp();
+const api = require('../../services/cloud');
 
 const WEEKS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
@@ -11,10 +12,14 @@ Page({
     dayNum: '',
     yearMonth: '',
     weekDay: '',
-    type: '', // 'good' | 'bad'
+    type: '',
     reason: '',
     submitted: false,
     loading: false,
+    authLoading: true,
+    bindingStatus: 'loading',
+    canRate: false,
+    partnerRating: null,
   },
 
   onLoad() {
@@ -28,69 +33,105 @@ Page({
   },
 
   onShow() {
-    this.loadToday();
+    this.refreshSession();
   },
 
-  // 查询今天是否已经评价过
-  async loadToday() {
+  async refreshSession() {
+    this.setData({ authLoading: true });
     try {
-      const db = wx.cloud.database();
-      const res = await db
-        .collection(app.globalData.COLLECTION)
-        .doc(this.data.dateStr)
-        .get();
-      const doc = res.data || {};
+      const session = await api.getSession();
+      const active = session.bindingStatus === 'active';
       this.setData({
-        type: doc.type || '',
-        reason: doc.reason || '',
-        submitted: !!doc.type,
+        authLoading: false,
+        bindingStatus: session.bindingStatus || 'unbound',
+        canRate: active,
       });
+
+      if (active) {
+        await this.loadToday();
+      } else {
+        this.setData({
+          type: '',
+          reason: '',
+          submitted: false,
+          partnerRating: null,
+        });
+      }
     } catch (e) {
-      // 文档不存在 = 今天还没评价（-1 为 document not found）
-      this.setData({ type: '', reason: '', submitted: false });
+      this.setData({ authLoading: false, bindingStatus: 'error' });
+      wx.showToast({ title: e.message || '身份加载失败', icon: 'none' });
     }
   },
 
+  async loadToday() {
+    try {
+      const data = await api.getToday();
+      const doc = data.rating || {};
+      this.setData({
+        dateStr: data.date || this.data.dateStr,
+        type: doc.type || '',
+        reason: doc.reason || '',
+        submitted: !!doc.type,
+        canRate: !!data.canRate,
+        partnerRating: data.partnerRating || null,
+      });
+    } catch (e) {
+      if (api.isBindingError(e)) {
+        this.setData({
+          bindingStatus: 'unbound',
+          type: '',
+          reason: '',
+          submitted: false,
+          canRate: false,
+          partnerRating: null,
+        });
+        return;
+      }
+      wx.showToast({ title: e.message || '加载失败', icon: 'none' });
+    }
+  },
+
+  goBind() {
+    wx.navigateTo({ url: '/pages/bind/bind' });
+  },
+
   selectGood() {
+    if (!this.data.canRate) return;
     this.setData({ type: app.globalData.GOOD });
   },
 
   selectBad() {
+    if (!this.data.canRate) return;
     this.setData({ type: app.globalData.BAD });
   },
 
   onReasonInput(e) {
+    if (!this.data.canRate) return;
     this.setData({ reason: e.detail.value });
   },
 
-  // 提交/覆盖今天的评价：用日期当 _id，天然保证一天只有一条
   async submit() {
-    if (!this.data.type || this.data.loading) return;
+    if (!this.data.canRate || !this.data.type || this.data.loading) return;
     this.setData({ loading: true });
     wx.showLoading({ title: '提交中', mask: true });
+
     try {
-      const db = wx.cloud.database();
-      await db.collection(app.globalData.COLLECTION).doc(this.data.dateStr).set({
-        data: {
-          date: this.data.dateStr,
-          type: this.data.type,
-          reason: this.data.reason.trim(),
-          updatedAt: db.serverDate(),
-        },
+      const data = await api.saveToday(this.data.type, this.data.reason);
+      const rating = data.rating || {};
+      this.setData({
+        dateStr: data.date || this.data.dateStr,
+        type: rating.type || this.data.type,
+        reason: rating.reason || '',
+        submitted: true,
       });
-      wx.hideLoading();
       wx.showToast({
-        title: this.data.type === 'good' ? '好评收到 💕' : '差评已记录 🥺',
+        title: this.data.type === 'good' ? '给 TA 的好评已记录 💕' : '给 TA 的差评已记录 🥺',
         icon: 'none',
       });
-      this.setData({ submitted: true });
     } catch (e) {
-      wx.hideLoading();
-      wx.showToast({
-        title: '提交失败：' + (e.errMsg || e.message || '未知错误'),
-        icon: 'none',
-      });
+      wx.showToast({ title: e.message || '提交失败', icon: 'none' });
     } finally {
+      wx.hideLoading();
       this.setData({ loading: false });
     }
   },

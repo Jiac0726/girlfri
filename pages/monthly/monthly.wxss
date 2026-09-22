@@ -201,3 +201,32 @@
   font-size: 22rpx;
   margin-top: 20rpx;
 }
+
+
+.calendar-note {
+  margin: -8rpx 0 20rpx;
+  color: #b08090;
+  font-size: 21rpx;
+  line-height: 1.6;
+}
+
+.cal-partial {
+  background: #fff7f9;
+}
+
+.cal-mixed {
+  background: #fff3d8;
+}
+
+.cal-mixed .cal-day {
+  color: #9c7a35;
+}
+
+.best-direction {
+  margin-left: 12rpx;
+  padding: 2rpx 10rpx;
+  border-radius: 999rpx;
+  background: #f8eef2;
+  color: #a18a94;
+  font-size: 18rpx;
+}

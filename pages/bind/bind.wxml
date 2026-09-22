@@ -1,0 +1,64 @@
+<view class="container bind-page">
+  <view class="hero">
+    <view class="hero-mark">♥</view>
+    <view class="hero-title">两个人，才是完整的热念</view>
+    <view class="hero-sub">绑定后双方地位完全对等：你可以评价 TA，TA 也可以评价你；两个人都能查看共同记录。</view>
+  </view>
+
+  <view class="card" wx:if="{{bindingStatus === 'unbound'}}">
+    <view class="card-title">发起双人绑定</view>
+    <view class="section-tip">生成一个 8 位绑定码发给 TA。绑定完成后，双方每天都可以各写一条评价。</view>
+    <button class="primary-btn" bindtap="createInvite" loading="{{loading}}">
+      生成 8 位绑定码
+    </button>
+  </view>
+
+  <view class="or" wx:if="{{bindingStatus === 'unbound'}}">或者</view>
+
+  <view class="card" wx:if="{{bindingStatus === 'unbound'}}">
+    <view class="card-title">加入 TA 的热念</view>
+    <input
+      class="code-input"
+      value="{{joinCode}}"
+      bindinput="onJoinInput"
+      maxlength="8"
+      placeholder="输入对方发来的 8 位绑定码"
+    />
+    <button
+      class="secondary-btn"
+      bindtap="joinPair"
+      loading="{{loading}}"
+      disabled="{{joinCode.length !== 8}}"
+    >
+      完成绑定
+    </button>
+  </view>
+
+  <view class="card waiting-card" wx:if="{{bindingStatus === 'waiting'}}">
+    <view class="waiting-icon">💌</view>
+    <view class="waiting-title">等待 TA 加入</view>
+    <view class="waiting-sub">绑定成功后，你们双方都可以评价对方。</view>
+    <view class="invite-code" bindtap="copyCode">{{inviteCode}}</view>
+    <view class="invite-tip">点击复制 · 有效至 {{inviteExpiresText}}</view>
+    <button class="primary-btn" bindtap="copyCode">复制绑定码</button>
+    <view class="action-row">
+      <view class="text-action" bindtap="refreshInvite">换一个绑定码</view>
+      <view class="text-action muted" bindtap="refresh">刷新状态</view>
+      <view class="text-action danger" bindtap="cancelInvite">取消邀请</view>
+    </view>
+  </view>
+
+  <view class="card active-card" wx:if="{{bindingStatus === 'active'}}">
+    <view class="active-icon">💕</view>
+    <view class="active-title">双向绑定成功</view>
+    <view class="active-desc">
+      现在你和 TA 每天都可以各评价一次。你的评价只覆盖你自己当天写的那一条，不会覆盖 TA 的评价。
+    </view>
+    <button class="primary-btn" bindtap="backHome">回到今天</button>
+  </view>
+
+  <view class="security-note">
+    <view class="security-title">🔒 双向但不混写</view>
+    <view>身份由微信云函数读取 OPENID 校验。每条评价都记录评价人和被评价人，因此双方互评不会互相覆盖。</view>
+  </view>
+</view>

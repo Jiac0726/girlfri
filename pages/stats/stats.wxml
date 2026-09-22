@@ -7,7 +7,7 @@
         <view class="ring-num">
           {{goodRate}}<text class="ring-pct">%</text>
         </view>
-        <view class="ring-label">好评率</view>
+        <view class="ring-label">双方好评率</view>
       </view>
     </view>
     <view class="verdict">{{verdict}}</view>
@@ -17,7 +17,7 @@
   <view class="card kpi-card">
     <view class="kpi">
       <view class="kpi-num text-good">{{goodStreak}}</view>
-      <view class="kpi-label">当前连续好评</view>
+      <view class="kpi-label">双方连续好评</view>
     </view>
     <view class="kpi">
       <view class="kpi-num">{{bestStreak}}</view>
@@ -31,7 +31,7 @@
 
   <!-- 最近 14 天 -->
   <view class="card">
-    <view class="card-title">最近 14 天</view>
+    <view class="card-title">最近 14 天 · 左我右 TA</view>
     <view class="days">
       <view
         class="day-cell {{item.cls}} {{item.isToday ? 'cell-today' : ''}}"
@@ -63,8 +63,8 @@
       <view class="month-bad" style="width: {{monthBadPct}}%"></view>
     </view>
     <view class="month-legend">
-      <view class="month-legend-item text-good">👍 好评 {{monthGood}} 天</view>
-      <view class="month-legend-item text-bad">👎 差评 {{monthBad}} 天</view>
+      <view class="month-legend-item text-good">👍 好评 {{monthGood}} 条</view>
+      <view class="month-legend-item text-bad">👎 差评 {{monthBad}} 条</view>
     </view>
   </view>
 

@@ -15,7 +15,5 @@ App({
   globalData: {
     GOOD: 'good',
     BAD: 'bad',
-    // 数据库集合名，需在云开发控制台创建同名集合
-    COLLECTION: 'ratings',
   },
 });
