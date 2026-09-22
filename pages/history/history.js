@@ -47,6 +47,7 @@ Page({
       const list = all.map((it) => {
         const d = new Date(it.date + 'T00:00:00');
         return Object.assign({}, it, {
+          key: it.date + '-' + (it.fromMe ? 'mine' : 'partner'),
           weekDay: WEEKS[d.getDay()] || '',
           reason: (it.reason || '').trim(),
         });
