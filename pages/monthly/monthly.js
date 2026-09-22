@@ -13,6 +13,48 @@ function pickLongest(arr) {
   return best;
 }
 
+function groupByDate(list) {
+  const map = {};
+  list.forEach((it) => {
+    if (!map[it.date]) map[it.date] = [];
+    map[it.date].push(it);
+  });
+  return map;
+}
+
+function emojiFor(type) {
+  return type === 'good' ? '👍' : '👎';
+}
+
+function dayCell(records) {
+  const rows = records || [];
+  const mine = rows.find((x) => x.fromMe);
+  const partner = rows.find((x) => !x.fromMe);
+
+  if (!rows.length) {
+    return { emoji: '', cls: 'cal-none', mutualGood: false };
+  }
+
+  const mutualGood =
+    rows.length === 2 && rows.every((x) => x.type === 'good');
+  const allBad = rows.every((x) => x.type === 'bad');
+  const hasBad = rows.some((x) => x.type === 'bad');
+
+  return {
+    emoji:
+      (mine ? emojiFor(mine.type) : '·') +
+      (partner ? emojiFor(partner.type) : '·'),
+    cls: mutualGood
+      ? 'cal-good'
+      : allBad
+      ? 'cal-bad'
+      : hasBad
+      ? 'cal-mixed'
+      : 'cal-partial',
+    mutualGood,
+  };
+}
+
 Page({
   data: {
     year: 0,
@@ -127,9 +169,7 @@ Page({
       .filter((it) => it.date >= startStr && it.date <= endStr)
       .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
-    const map = {};
-    all.forEach((it) => (map[it.date] = it));
-
+    const byDate = groupByDate(all);
     const goodList = all.filter((x) => x.type === 'good');
     const goodCount = goodList.length;
     const badCount = all.length - goodCount;
@@ -138,8 +178,9 @@ Page({
     let run = 0;
     let monthBestStreak = 0;
     for (let d = 1; d <= daysInMonth; d++) {
-      const rec = map[y + '-' + pad(m + 1) + '-' + pad(d)];
-      run = rec && rec.type === 'good' ? run + 1 : 0;
+      const key = y + '-' + pad(m + 1) + '-' + pad(d);
+      const status = dayCell(byDate[key]);
+      run = status.mutualGood ? run + 1 : 0;
       if (run > monthBestStreak) monthBestStreak = run;
     }
 
@@ -155,17 +196,13 @@ Page({
 
     for (let d = 1; d <= daysInMonth; d++) {
       const key = y + '-' + pad(m + 1) + '-' + pad(d);
-      const rec = map[key];
+      const status = dayCell(byDate[key]);
       calendar.push({
         key,
         empty: false,
         dayNum: d,
-        emoji: rec ? (rec.type === 'good' ? '👍' : '👎') : '',
-        cls: rec
-          ? rec.type === 'good'
-            ? 'cal-good'
-            : 'cal-bad'
-          : 'cal-none',
+        emoji: status.emoji,
+        cls: status.cls,
         isToday: key === todayStr,
       });
     }
