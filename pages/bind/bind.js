@@ -1,9 +1,5 @@
 const api = require('../../services/cloud');
 
-function roleLabel(role) {
-  return role === 'rater' ? '评价方' : role === 'viewer' ? '查看方' : '';
-}
-
 function formatExpire(value) {
   if (!value) return '';
   const d = new Date(value);
@@ -24,14 +20,10 @@ Page({
   data: {
     loading: true,
     bindingStatus: 'loading',
-    role: '',
-    roleLabel: '',
-    selectedRole: 'viewer',
     inviteCode: '',
     inviteExpiresText: '',
     joinCode: '',
     isCreator: false,
-    canRate: false,
   },
 
   onShow() {
@@ -55,17 +47,10 @@ Page({
     const status = session.bindingStatus || (session.bound ? 'active' : 'unbound');
     this.setData({
       bindingStatus: status,
-      role: session.role || '',
-      roleLabel: session.roleLabel || roleLabel(session.role),
       inviteCode: session.inviteCode || '',
       inviteExpiresText: formatExpire(session.inviteExpiresAt),
       isCreator: !!session.isCreator,
-      canRate: !!session.canRate,
     });
-  },
-
-  selectRole(e) {
-    this.setData({ selectedRole: e.currentTarget.dataset.role });
   },
 
   onJoinInput(e) {
@@ -81,7 +66,7 @@ Page({
     this.setData({ loading: true });
     wx.showLoading({ title: '生成中', mask: true });
     try {
-      const session = await api.createInvite(this.data.selectedRole);
+      const session = await api.createInvite();
       this.applySession(session);
     } catch (e) {
       wx.showToast({ title: e.message || '生成失败', icon: 'none' });
@@ -98,6 +83,7 @@ Page({
       wx.showToast({ title: '请输入 8 位绑定码', icon: 'none' });
       return;
     }
+
     this.setData({ loading: true });
     wx.showLoading({ title: '绑定中', mask: true });
     try {
