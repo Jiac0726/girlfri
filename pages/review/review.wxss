@@ -75,7 +75,6 @@
 }
 
 .overview-verdict {
-  width: fit-content;
   max-width: 92%;
   margin: 26rpx auto 0;
   padding: 14rpx 28rpx;
