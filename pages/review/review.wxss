@@ -1,0 +1,519 @@
+.review-page {
+  padding-bottom: 100rpx;
+}
+
+.review-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 20rpx 10rpx 34rpx;
+}
+
+.review-eyebrow {
+  color: #ff6b81;
+  font-size: 22rpx;
+  font-weight: 700;
+  letter-spacing: 3rpx;
+}
+
+.review-title {
+  margin-top: 8rpx;
+  color: #4a3540;
+  font-size: 40rpx;
+  font-weight: 800;
+}
+
+.review-sub {
+  margin-top: 8rpx;
+  color: #b08090;
+  font-size: 23rpx;
+}
+
+.review-total {
+  text-align: right;
+  flex-shrink: 0;
+  margin-left: 20rpx;
+}
+
+.review-total-num {
+  color: #ff6b81;
+  font-size: 52rpx;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.review-total-label {
+  margin-top: 8rpx;
+  color: #b08090;
+  font-size: 20rpx;
+}
+
+.overview-card {
+  padding-top: 44rpx;
+}
+
+.overview-rate {
+  text-align: center;
+}
+
+.overview-rate-num {
+  color: #ff6b81;
+  font-size: 92rpx;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.overview-rate-num text {
+  font-size: 34rpx;
+  margin-left: 4rpx;
+}
+
+.overview-rate-label {
+  margin-top: 12rpx;
+  color: #b08090;
+  font-size: 23rpx;
+}
+
+.overview-verdict {
+  width: fit-content;
+  max-width: 92%;
+  margin: 26rpx auto 0;
+  padding: 14rpx 28rpx;
+  border-radius: 999rpx;
+  background: #fff0f3;
+  color: #5d4651;
+  font-size: 25rpx;
+  text-align: center;
+}
+
+.overview-kpis {
+  display: flex;
+  align-items: center;
+  margin-top: 36rpx;
+  padding-top: 30rpx;
+  border-top: 1rpx solid #faeef1;
+}
+
+.overview-kpi {
+  flex: 1;
+  text-align: center;
+}
+
+.overview-kpi-num {
+  color: #4a3540;
+  font-size: 38rpx;
+  font-weight: 800;
+}
+
+.overview-kpi-label {
+  margin-top: 6rpx;
+  color: #b08090;
+  font-size: 20rpx;
+}
+
+.overview-divider {
+  width: 1rpx;
+  height: 58rpx;
+  background: #f0dce3;
+}
+
+.month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10rpx 10rpx 28rpx;
+}
+
+.nav-btn {
+  width: 70rpx;
+  height: 70rpx;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #ff6b81;
+  font-size: 46rpx;
+  line-height: 66rpx;
+  text-align: center;
+  box-shadow: 0 6rpx 18rpx rgba(255, 107, 129, 0.12);
+}
+
+.nav-disabled {
+  color: #dcc7ce;
+  box-shadow: none;
+  background: #f8ecef;
+}
+
+.nav-center {
+  text-align: center;
+}
+
+.nav-label {
+  color: #4a3540;
+  font-size: 34rpx;
+  font-weight: 800;
+}
+
+.nav-sub {
+  margin-top: 2rpx;
+  color: #c0a8b0;
+  font-size: 20rpx;
+}
+
+.month-summary {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.month-rate {
+  color: #ff6b81;
+  font-size: 64rpx;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.month-rate text {
+  font-size: 28rpx;
+}
+
+.month-rate-label {
+  margin-top: 8rpx;
+  color: #b08090;
+  font-size: 21rpx;
+}
+
+.month-counts {
+  text-align: right;
+}
+
+.month-count {
+  font-size: 23rpx;
+  line-height: 1.8;
+}
+
+.month-bar {
+  display: flex;
+  width: 100%;
+  height: 20rpx;
+  margin-top: 24rpx;
+  overflow: hidden;
+  border-radius: 999rpx;
+  background: #faf3f5;
+}
+
+.month-good {
+  background: #ff6b81;
+}
+
+.month-bad {
+  background: #cfd8dc;
+}
+
+.calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 36rpx;
+}
+
+.calendar-title {
+  margin-bottom: 0;
+}
+
+.calendar-note {
+  color: #c0a8b0;
+  font-size: 19rpx;
+}
+
+.week-row {
+  display: flex;
+  gap: 10rpx;
+  margin-top: 22rpx;
+  margin-bottom: 12rpx;
+}
+
+.week-cell {
+  width: calc((100% - 60rpx) / 7);
+  text-align: center;
+  color: #c0a8b0;
+  font-size: 20rpx;
+}
+
+.cal-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+
+.cal-cell {
+  width: calc((100% - 60rpx) / 7);
+  height: 94rpx;
+  border-radius: 16rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #faf3f5;
+  box-sizing: border-box;
+}
+
+.cal-empty {
+  background: transparent;
+}
+
+.cal-emoji {
+  font-size: 27rpx;
+  line-height: 1.2;
+}
+
+.cal-day {
+  margin-top: 2rpx;
+  color: #c0a8b0;
+  font-size: 18rpx;
+}
+
+.cal-good {
+  background: #ffe3e8;
+}
+
+.cal-good .cal-day {
+  color: #ff6b81;
+}
+
+.cal-bad {
+  background: #eceff1;
+}
+
+.cal-bad .cal-day {
+  color: #78909c;
+}
+
+.cal-mixed {
+  background: #fff3d8;
+}
+
+.cal-mixed .cal-day {
+  color: #9c7a35;
+}
+
+.cal-partial {
+  background: #fff7f9;
+}
+
+.cal-today {
+  box-shadow: inset 0 0 0 3rpx #ff6b81;
+}
+
+.mutual-streak {
+  margin-top: 28rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 18rpx;
+  background: #fff0f3;
+  color: #6b5560;
+  font-size: 23rpx;
+}
+
+.mutual-streak text {
+  color: #ff6b81;
+  font-size: 30rpx;
+  font-weight: 800;
+  margin: 0 6rpx;
+}
+
+.highlight-row {
+  display: flex;
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid #faeef1;
+}
+
+.highlight-row:last-child {
+  border-bottom: none;
+}
+
+.highlight-icon {
+  margin-right: 18rpx;
+  font-size: 38rpx;
+  flex-shrink: 0;
+}
+
+.highlight-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.highlight-head {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.highlight-title {
+  color: #4a3540;
+  font-size: 25rpx;
+  font-weight: 700;
+}
+
+.direction-chip {
+  margin-left: 10rpx;
+  padding: 2rpx 10rpx;
+  border-radius: 999rpx;
+  background: #f8eef2;
+  color: #a18a94;
+  font-size: 17rpx;
+  white-space: nowrap;
+}
+
+.highlight-date {
+  margin-left: auto;
+  color: #d0b7c0;
+  font-size: 18rpx;
+  white-space: nowrap;
+}
+
+.highlight-reason {
+  margin-top: 8rpx;
+  color: #6b5560;
+  font-size: 25rpx;
+  line-height: 1.7;
+  word-break: break-all;
+}
+
+.history-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.history-title {
+  margin-bottom: 0;
+}
+
+.history-count {
+  color: #c0a8b0;
+  font-size: 21rpx;
+}
+
+.record {
+  display: flex;
+  padding: 25rpx 0;
+  border-bottom: 1rpx solid #faeef1;
+}
+
+.record-last {
+  border-bottom: none;
+}
+
+.record-badge {
+  width: 68rpx;
+  height: 68rpx;
+  margin-right: 18rpx;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34rpx;
+  flex-shrink: 0;
+}
+
+.badge-good {
+  background: #ffe3e8;
+}
+
+.badge-bad {
+  background: #eceff1;
+}
+
+.record-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.record-top {
+  display: flex;
+  align-items: center;
+}
+
+.record-date {
+  color: #4a3540;
+  font-size: 25rpx;
+  font-weight: 700;
+}
+
+.record-week {
+  margin-left: 10rpx;
+  color: #c0a8b0;
+  font-size: 19rpx;
+}
+
+.direction-tag {
+  margin-left: auto;
+  padding: 3rpx 11rpx;
+  border-radius: 999rpx;
+  font-size: 18rpx;
+  white-space: nowrap;
+}
+
+.direction-mine {
+  color: #ff6b81;
+  background: #fff0f3;
+}
+
+.direction-partner {
+  color: #7b6a72;
+  background: #f5eef1;
+}
+
+.record-reason {
+  margin-top: 8rpx;
+  color: #6b5560;
+  font-size: 24rpx;
+  line-height: 1.65;
+  word-break: break-all;
+}
+
+.record-reason-empty {
+  color: #d8c0c8;
+}
+
+.history-toggle {
+  margin-top: 20rpx;
+  padding: 20rpx;
+  text-align: center;
+  color: #ff6b81;
+  font-size: 23rpx;
+  border-radius: 18rpx;
+  background: #fff7f9;
+}
+
+.compact-empty {
+  padding: 40rpx 0 24rpx;
+}
+
+.poster-btn {
+  margin-top: 8rpx;
+  height: 96rpx;
+  line-height: 96rpx;
+  border-radius: 999rpx;
+  background: #ff6b81 !important;
+  color: #ffffff !important;
+  font-size: 29rpx;
+  font-weight: 700;
+}
+
+.poster-btn::after {
+  border: none;
+}
+
+.review-footnote {
+  margin-top: 28rpx;
+  text-align: center;
+  color: #d0b7c0;
+  font-size: 21rpx;
+}
+
+.poster-canvas {
+  position: fixed;
+  left: -2000px;
+  top: 0;
+  width: 750px;
+  height: 1080px;
+}
