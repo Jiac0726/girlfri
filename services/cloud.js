@@ -27,7 +27,7 @@ function isBindingError(err) {
 
 module.exports = {
   getSession: () => call('session.get'),
-  createInvite: (role) => call('pair.create', { role }),
+  createInvite: () => call('pair.create'),
   refreshInvite: () => call('pair.refresh'),
   cancelInvite: () => call('pair.cancel'),
   joinPair: (inviteCode) => call('pair.join', { inviteCode }),
