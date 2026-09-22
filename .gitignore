@@ -19,6 +19,7 @@ Thumbs.db
 config/env.local.js
 .renian-local-config.json
 project.config.local.bak.json
+app.local.bak.js
 
 # 本地更新脚本/压缩包临时产物
 renian_one_click_update/
