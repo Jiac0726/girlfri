@@ -53,6 +53,13 @@ renian/
 ├── app.js
 ├── app.json
 ├── app.wxss
+├── config/
+│   ├── env.js
+│   └── env.local.js            # 本机云环境 ID，不入 Git
+├── project.private.config.json # 本机 AppID，不入 Git
+├── setup-local.cmd             # 首次本机配置
+├── update-main.cmd             # 安全更新
+├── update-main-force.cmd       # 丢弃本地代码修改后强制更新
 ├── services/
 │   └── cloud.js
 ├── cloudfunctions/
@@ -74,22 +81,58 @@ renian/
 
 ## 部署
 
-### 1. 配置云环境
+### 1. 首次配置本机环境
 
-`app.js`：
+代码与本机配置已经分离。不要再直接修改 `app.js` 或 `project.config.json` 填 AppID / 云环境 ID。
 
-```js
-wx.cloud.init({
-  env: '你的环境ID',
-  traceUser: true,
-});
+首次拉取后，在仓库根目录双击：
+
+```text
+setup-local.cmd
 ```
 
-`project.config.json`：
+按提示输入：
 
-```json
-"appid": "你的AppID"
+- 微信小程序 AppID
+- 云开发环境 ID
+
+脚本会生成两个只存在于本机的文件：
+
+```text
+project.private.config.json
+config/env.local.js
 ```
+
+其中：
+
+- `project.private.config.json` 覆盖公共 `project.config.json` 中的 AppID；
+- `config/env.local.js` 由 `app.js` 读取，用于初始化 `wx.cloud`；
+- 两个文件都已加入 `.gitignore`，不会提交到仓库，也不会被 Git 更新覆盖。
+
+示例文件：
+
+```text
+project.private.config.example.json
+config/env.local.example.js
+```
+
+### 1.1 拉取最新版
+
+正常更新：
+
+```text
+update-main.cmd
+```
+
+该模式如果检测到已跟踪代码被本地修改，会停止，避免误删工作。
+
+明确要丢弃本地代码修改并完全同步远程 `main` 时：
+
+```text
+update-main-force.cmd
+```
+
+强制模式会执行硬重置，但不会删除 Git 忽略的 `project.private.config.json` 和 `config/env.local.js`，因此本机 AppID / 云环境 ID 会保留。
 
 ### 2. 创建集合
 
