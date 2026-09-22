@@ -208,3 +208,21 @@
   width: 750px;
   height: 1200px;
 }
+
+
+.cell-partial {
+  background: #fff7f9;
+}
+
+.cell-mixed {
+  background: #fff3d8;
+}
+
+.cell-mixed .day-num {
+  color: #9c7a35;
+}
+
+.cell-mixed .day-emoji,
+.cell-partial .day-emoji {
+  font-size: 27rpx;
+}
