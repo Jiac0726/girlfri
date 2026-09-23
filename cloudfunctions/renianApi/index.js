@@ -570,8 +570,14 @@ exports.main = async (event) => {
         throw new ApiError('UNKNOWN_ACTION', '未知操作');
     }
   } catch (e) {
-    console.error('[renianApi]', e);
-    if (e instanceof ApiError) return fail(e.code, e.message);
+    // 【日志分级】ApiError 是业务规则的【正常拒绝】（CANNOT_CANCEL /
+    // NOT_BOUND / INVITE_NOT_FOUND 等），不是故障 —— 走 warn，不污染
+    // error 日志、不触发误告警。只有未预期异常才打 error。
+    if (e instanceof ApiError) {
+      console.warn('[renianApi]', e.code, e.message);
+      return fail(e.code, e.message);
+    }
+    console.error('[renianApi] UNEXPECTED', e);
     return fail('INTERNAL', '服务暂时不可用，请稍后再试');
   }
 };

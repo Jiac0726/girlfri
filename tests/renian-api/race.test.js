@@ -239,6 +239,45 @@ async function main() {
     r9 && r9.ok === false ? '返回 ' + r9.error.code : '未失败'
   );
 
+  // ── T7｜日志分级：预期业务错误不应污染 error 日志 ─────────
+  console.log('\n[T7] 日志分级 —— 预期业务错误不打 error');
+  reset();
+  const logs = { warn: [], error: [] };
+  const origWarn = console.warn;
+  const origErr = console.error;
+  console.warn = (...a) => logs.warn.push(a.map(String).join(' '));
+  console.error = (...a) => logs.error.push(a.map(String).join(' '));
+
+  // 预期业务错误：未绑定用户调 rating.today → NOT_BOUND (ApiError)
+  sdk.__setOpenid('OPENID_NOBODY');
+  await call('rating.today');
+  const warnN = logs.warn.length;
+  const errN = logs.error.length;
+
+  // 未预期异常：让 get 抛非 notFound 类错误 → 应走 error
+  hooks.beforeGet = () => {
+    const e = new Error('boom');
+    e.errCode = -2000;
+    throw e;
+  };
+  await call('rating.today');
+  delete hooks.beforeGet;
+
+  console.warn = origWarn;
+  console.error = origErr;
+  sdk.__setOpenid('OPENID_A');
+
+  record(
+    '预期业务错误只走 warn（error 计数不变）',
+    warnN >= 1 && errN === 0,
+    'warn=' + warnN + ' error=' + errN
+  );
+  record(
+    '未预期异常才走 error',
+    logs.error.length >= 1,
+    'error=' + logs.error.length
+  );
+
   const passed = results.filter((r) => r.pass).length;
   console.log(`\n══════ ${passed}/${results.length} 通过 ══════`);
   process.exit(passed === results.length ? 0 : 1);
