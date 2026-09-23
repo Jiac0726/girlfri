@@ -11,6 +11,7 @@ const COLLECTIONS = {
 };
 const INVITE_TTL_MS = 24 * 60 * 60 * 1000;
 const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const INVITE_WRITE_RETRIES = 8;
 
 class ApiError extends Error {
   constructor(code, message) {
@@ -62,6 +63,20 @@ function isDocMissing(e) {
     code === -1 ||
     /document\s*(not\s*)?(exists|exist)/i.test(msg) ||
     /not\s*found/i.test(msg)
+  );
+}
+
+function isDuplicateWrite(e) {
+  const code = e && (e.errCode !== undefined ? e.errCode : e.code);
+  const msg = String((e && (e.errMsg || e.message)) || '');
+  return (
+    code === 'DATABASE_DUPLICATE_WRITE' ||
+    code === 11000 ||
+    String(code || '') === '11000' ||
+    /DATABASE_DUPLICATE_WRITE/i.test(msg) ||
+    /E11000/i.test(msg) ||
+    /duplicate\s+key/i.test(msg) ||
+    /index\s+key\s+duplicate/i.test(msg)
   );
 }
 
@@ -153,51 +168,82 @@ async function createInvite(openid) {
     throw new ApiError('ALREADY_BOUND', '你已经存在绑定关系');
   }
 
-  const pairId = makePairId();
-  const inviteCode = await uniqueInviteCode();
-  const now = new Date();
-  const inviteExpiresAt = new Date(now.getTime() + INVITE_TTL_MS);
+  // uniqueInviteCode() 的查询只是提前避开绝大多数碰撞；
+  // 最终唯一性由 couples.inviteCode 的唯一索引保证。
+  // 如果两个请求在“查询不存在”后同时写入，唯一索引会拒绝其中一个，
+  // 此处捕获 duplicate write 后更换 pairId + inviteCode 重试整个事务。
+  for (let attempt = 0; attempt < INVITE_WRITE_RETRIES; attempt += 1) {
+    const pairId = makePairId();
+    const inviteCode = await uniqueInviteCode();
+    const now = new Date();
+    const inviteExpiresAt = new Date(now.getTime() + INVITE_TTL_MS);
 
-  await db.runTransaction(async (transaction) => {
-    let alreadyExists = null;
     try {
-      const current = await transaction
-        .collection(COLLECTIONS.users)
-        .doc(openid)
-        .get();
-      alreadyExists = current && current.data;
+      await db.runTransaction(async (transaction) => {
+        let alreadyExists = null;
+        try {
+          const current = await transaction
+            .collection(COLLECTIONS.users)
+            .doc(openid)
+            .get();
+          alreadyExists = current && current.data;
+        } catch (e) {
+          alreadyExists = null;
+        }
+
+        if (alreadyExists) {
+          throw new ApiError('ALREADY_BOUND', '你已经存在绑定关系');
+        }
+
+        await transaction.collection(COLLECTIONS.couples).doc(pairId).set({
+          data: {
+            status: 'waiting',
+            creatorOpenid: openid,
+            partnerOpenid: '',
+            memberOpenids: [openid],
+            inviteCode,
+            inviteExpiresAt,
+            createdAt: now,
+            updatedAt: now,
+          },
+        });
+
+        await transaction.collection(COLLECTIONS.users).doc(openid).set({
+          data: {
+            coupleId: pairId,
+            status: 'waiting',
+            createdAt: now,
+            updatedAt: now,
+          },
+        });
+      });
+
+      return getSession(openid);
     } catch (e) {
-      alreadyExists = null;
+      if (!isDuplicateWrite(e)) throw e;
+
+      // duplicate write 也可能来自同一个用户的并发 pair.create。
+      // 先重读 membership；若另一请求已经成功，就直接返回现有会话。
+      const afterDuplicate = await getMembership(openid);
+      if (afterDuplicate) {
+        if (
+          afterDuplicate.pair.status === 'active' ||
+          (afterDuplicate.pair.status === 'waiting' &&
+            afterDuplicate.pair.creatorOpenid === openid)
+        ) {
+          return publicSession(openid, afterDuplicate);
+        }
+        throw new ApiError('ALREADY_BOUND', '你已经存在绑定关系');
+      }
+
+      console.warn(
+        '[renianApi] duplicate write during pair.create, retrying',
+        attempt + 1
+      );
     }
+  }
 
-    if (alreadyExists) {
-      throw new ApiError('ALREADY_BOUND', '你已经存在绑定关系');
-    }
-
-    await transaction.collection(COLLECTIONS.couples).doc(pairId).set({
-      data: {
-        status: 'waiting',
-        creatorOpenid: openid,
-        partnerOpenid: '',
-        memberOpenids: [openid],
-        inviteCode,
-        inviteExpiresAt,
-        createdAt: now,
-        updatedAt: now,
-      },
-    });
-
-    await transaction.collection(COLLECTIONS.users).doc(openid).set({
-      data: {
-        coupleId: pairId,
-        status: 'waiting',
-        createdAt: now,
-        updatedAt: now,
-      },
-    });
-  });
-
-  return getSession(openid);
+  throw new ApiError('INVITE_CREATE_FAILED', '暂时无法生成绑定码，请稍后重试');
 }
 
 async function refreshInvite(openid) {
@@ -205,36 +251,51 @@ async function refreshInvite(openid) {
   if (!membership) throw new ApiError('NOT_BOUND', '请先发起绑定');
 
   const pairId = membership.pair._id;
-  const inviteCode = await uniqueInviteCode();
-  const now = new Date();
-  const inviteExpiresAt = new Date(now.getTime() + INVITE_TTL_MS);
 
-  await db.runTransaction(async (transaction) => {
-    // 【P2 修复】同 P1：校验移进事务内重读，否则可能往已 active 的 pair
-    // 上写入一个仍然有效的邀请码。（joinPair 事务内还会再校验 status，
-    // 所以原写法只是数据卫生问题、非越权，但不应依赖那边兜底。）
-    let pair = null;
+  for (let attempt = 0; attempt < INVITE_WRITE_RETRIES; attempt += 1) {
+    const inviteCode = await uniqueInviteCode();
+    const now = new Date();
+    const inviteExpiresAt = new Date(now.getTime() + INVITE_TTL_MS);
+
     try {
-      const res = await transaction.collection(COLLECTIONS.couples).doc(pairId).get();
-      pair = res && res.data;
+      await db.runTransaction(async (transaction) => {
+        // 【P2 修复】状态校验在事务内重读，避免 active pair 被刷新邀请码。
+        let pair = null;
+        try {
+          const res = await transaction
+            .collection(COLLECTIONS.couples)
+            .doc(pairId)
+            .get();
+          pair = res && res.data;
+        } catch (e) {
+          pair = null;
+        }
+
+        if (!pair || pair.status !== 'waiting' || pair.creatorOpenid !== openid) {
+          throw new ApiError('INVITE_NOT_AVAILABLE', '当前没有可更新的绑定邀请');
+        }
+
+        await transaction.collection(COLLECTIONS.couples).doc(pairId).update({
+          data: {
+            inviteCode,
+            inviteExpiresAt,
+            updatedAt: now,
+          },
+        });
+      });
+
+      return getSession(openid);
     } catch (e) {
-      pair = null;
+      if (!isDuplicateWrite(e)) throw e;
+
+      console.warn(
+        '[renianApi] duplicate write during pair.refresh, retrying',
+        attempt + 1
+      );
     }
+  }
 
-    if (!pair || pair.status !== 'waiting' || pair.creatorOpenid !== openid) {
-      throw new ApiError('INVITE_NOT_AVAILABLE', '当前没有可更新的绑定邀请');
-    }
-
-    await transaction.collection(COLLECTIONS.couples).doc(pairId).update({
-      data: {
-        inviteCode,
-        inviteExpiresAt,
-        updatedAt: now,
-      },
-    });
-  });
-
-  return getSession(openid);
+  throw new ApiError('INVITE_CREATE_FAILED', '暂时无法生成绑定码，请稍后重试');
 }
 
 async function cancelInvite(openid) {

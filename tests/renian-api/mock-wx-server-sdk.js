@@ -32,10 +32,12 @@ function docRef(col, id) {
       return out;
     },
     async set({ data }) {
+      if (hooks.beforeSet) await hooks.beforeSet(col, id, data);
       colStore(col).set(id, structuredClone(data));
       return { _id: id };
     },
     async update({ data }) {
+      if (hooks.beforeUpdate) await hooks.beforeUpdate(col, id, data);
       const cs = colStore(col);
       if (!cs.has(id)) throw notFound();
       cs.set(id, Object.assign(cs.get(id), structuredClone(data)));
