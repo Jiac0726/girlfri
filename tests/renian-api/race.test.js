@@ -393,6 +393,118 @@ async function main() {
       colStore('couple_users').size
   );
 
+
+  // ── T11｜自定义权限：授予 / 查看 / 修改 / 暂停 / 删除 ────────
+  console.log('\n[T11] 自定义权限 —— 双方权限管理与归属校验');
+  reset();
+  await call('pair.create');
+  const permissionPairId = [...colStore('couples').keys()][0];
+  const permissionInvite = colStore('couples').get(permissionPairId).inviteCode;
+
+  sdk.__setOpenid('OPENID_B');
+  await call('pair.join', { inviteCode: permissionInvite });
+
+  sdk.__setOpenid('OPENID_A');
+  const pCreate = await call('permission.create', {
+    name: '抱抱权',
+    note: '每天都可以来一个',
+  });
+  const permissionId =
+    pCreate && pCreate.ok === true && pCreate.data ? pCreate.data.id : '';
+
+  record(
+    'A 可以给 B 创建自定义权限',
+    pCreate &&
+      pCreate.ok === true &&
+      pCreate.data.name === '抱抱权' &&
+      pCreate.data.fromMe === true &&
+      pCreate.data.canManage === true &&
+      !!permissionId
+  );
+
+  const pListA = await call('permission.list');
+  const aView = (pListA && pListA.data && pListA.data[0]) || {};
+  record(
+    'A 看到“我给 TA”且输出不泄露 openid',
+    pListA &&
+      pListA.ok === true &&
+      aView.direction === 'sent' &&
+      aView.grantedBy === undefined &&
+      aView.grantedTo === undefined,
+    '输出字段: ' + Object.keys(aView).join(',')
+  );
+
+  sdk.__setOpenid('OPENID_B');
+  const pListB = await call('permission.list');
+  const bView = (pListB && pListB.data && pListB.data[0]) || {};
+  record(
+    'B 看到“TA 给我”且不可管理',
+    pListB &&
+      pListB.ok === true &&
+      bView.direction === 'received' &&
+      bView.canManage === false
+  );
+
+  const bToggle = await call('permission.toggle', {
+    permissionId,
+    enabled: false,
+  });
+  record(
+    '接收方不能擅自暂停对方授予的权限',
+    bToggle &&
+      bToggle.ok === false &&
+      bToggle.error &&
+      bToggle.error.code === 'PERMISSION_FORBIDDEN',
+    bToggle && bToggle.error ? bToggle.error.code : 'no error'
+  );
+
+  sdk.__setOpenid('OPENID_A');
+  const pUpdate = await call('permission.update', {
+    permissionId,
+    name: '抱抱权 Pro',
+    note: '不开心时也可以申请',
+  });
+  record(
+    '授予方可以修改权限名称和备注',
+    pUpdate &&
+      pUpdate.ok === true &&
+      pUpdate.data.name === '抱抱权 Pro' &&
+      pUpdate.data.note === '不开心时也可以申请'
+  );
+
+  const pToggle = await call('permission.toggle', {
+    permissionId,
+    enabled: false,
+  });
+  record(
+    '授予方可以暂停权限',
+    pToggle && pToggle.ok === true && pToggle.data.enabled === false
+  );
+
+  sdk.__setOpenid('OPENID_B');
+  const pAfterToggle = await call('permission.list');
+  const bAfterToggle =
+    (pAfterToggle && pAfterToggle.data && pAfterToggle.data[0]) || {};
+  record(
+    '对方能看到修改后的名称和暂停状态',
+    pAfterToggle &&
+      pAfterToggle.ok === true &&
+      bAfterToggle.name === '抱抱权 Pro' &&
+      bAfterToggle.enabled === false
+  );
+
+  sdk.__setOpenid('OPENID_A');
+  const pDelete = await call('permission.delete', { permissionId });
+  const pEmpty = await call('permission.list');
+  record(
+    '授予方删除后双方列表移除该权限',
+    pDelete &&
+      pDelete.ok === true &&
+      pDelete.data.deleted === true &&
+      Array.isArray(pEmpty.data) &&
+      pEmpty.data.length === 0
+  );
+
   const passed = results.filter((r) => r.pass).length;
   console.log(`\n══════ ${passed}/${results.length} 通过 ══════`);
   process.exit(passed === results.length ? 0 : 1);
