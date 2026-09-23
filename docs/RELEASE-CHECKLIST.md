@@ -161,4 +161,4 @@ IPv6 出口必被拒（`errCode: -10008 invalid ip: 2408:...`），且**白名�
 | P6 `pair.join` 限流（内存桶，冷启动重置） | ✅ |
 | 日志分级（预期业务错误走 warn） | ✅ |
 | 依赖锁版本 `wx-server-sdk: 4.0.2` | ✅ |
-| 回归测试 `node tests/renian-api/race.test.js` → 17/17 | ✅ |
+| 回归测试 `node tests/renian-api/race.test.js` → 23/23 | ✅ |
