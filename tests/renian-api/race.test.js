@@ -40,6 +40,14 @@ function reset() {
 
 const call = (action, data) => api.main(Object.assign({ action }, data || {}));
 
+function duplicateWriteError() {
+  const e = new Error(
+    'DATABASE_DUPLICATE_WRITE E11000 duplicate key index: idx_inviteCode_unique'
+  );
+  e.code = 'DATABASE_DUPLICATE_WRITE';
+  return e;
+}
+
 // 让「发起人读到 waiting」之后、「事务执行之前」对方恰好加入。
 // 挂在 afterGet：第一次 couples.get 已把 waiting 快照交给调用方，
 // 随后立刻把 store 篡改成 active —— 旧代码拿旧快照检查就会误放行。
@@ -276,6 +284,113 @@ async function main() {
     '未预期异常才走 error',
     logs.error.length >= 1,
     'error=' + logs.error.length
+  );
+
+
+  // ── T8｜邀请码唯一索引：pair.create 撞码自动重试 ───────────
+  console.log('\n[T8] 唯一索引 —— pair.create 撞码自动重试');
+  reset();
+  const createCodes = [];
+  let createInjected = false;
+  hooks.beforeSet = async (col, id, data) => {
+    if (col !== 'couples') return;
+    createCodes.push(data.inviteCode);
+    if (!createInjected) {
+      createInjected = true;
+      throw duplicateWriteError();
+    }
+  };
+
+  const r10 = await call('pair.create');
+  delete hooks.beforeSet;
+
+  record(
+    '首次 duplicate write 后自动重试并创建成功',
+    r10 &&
+      r10.ok === true &&
+      r10.data &&
+      r10.data.bindingStatus === 'waiting' &&
+      createCodes.length >= 2,
+    'couples.set 尝试 ' + createCodes.length + ' 次'
+  );
+  record(
+    '失败事务已回滚，只留下一个 pair / user',
+    colStore('couples').size === 1 && colStore('couple_users').size === 1,
+    'couples=' +
+      colStore('couples').size +
+      ' users=' +
+      colStore('couple_users').size
+  );
+
+  // ── T9｜邀请码唯一索引：pair.refresh 撞码自动重试 ──────────
+  console.log('\n[T9] 唯一索引 —— pair.refresh 撞码自动重试');
+  const refreshPairId = [...colStore('couples').keys()][0];
+  const beforeRefreshCode = colStore('couples').get(refreshPairId).inviteCode;
+  let refreshAttempts = 0;
+  hooks.beforeUpdate = async (col, id, data) => {
+    if (
+      col === 'couples' &&
+      id === refreshPairId &&
+      Object.prototype.hasOwnProperty.call(data, 'inviteCode')
+    ) {
+      refreshAttempts += 1;
+      if (refreshAttempts === 1) throw duplicateWriteError();
+    }
+  };
+
+  const r11 = await call('pair.refresh');
+  delete hooks.beforeUpdate;
+
+  const afterRefreshCode = colStore('couples').get(refreshPairId).inviteCode;
+  record(
+    'refresh 首次 duplicate write 后自动重试成功',
+    r11 &&
+      r11.ok === true &&
+      r11.data &&
+      r11.data.bindingStatus === 'waiting' &&
+      refreshAttempts >= 2,
+    'update 尝试 ' + refreshAttempts + ' 次'
+  );
+  record(
+    'refresh 最终写入新的合法 8 位邀请码',
+    typeof afterRefreshCode === 'string' &&
+      /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/.test(afterRefreshCode) &&
+      afterRefreshCode !== beforeRefreshCode,
+    beforeRefreshCode + ' -> ' + afterRefreshCode
+  );
+
+  // ── T10｜连续撞唯一索引：达到上限后明确失败且无脏数据 ─────
+  console.log('\n[T10] 唯一索引 —— 连续撞码达到重试上限');
+  reset();
+  let exhaustedAttempts = 0;
+  hooks.beforeSet = async (col) => {
+    if (col !== 'couples') return;
+    exhaustedAttempts += 1;
+    throw duplicateWriteError();
+  };
+
+  const r12 = await call('pair.create');
+  delete hooks.beforeSet;
+
+  record(
+    '连续 duplicate write 最终返回 INVITE_CREATE_FAILED',
+    r12 &&
+      r12.ok === false &&
+      r12.error &&
+      r12.error.code === 'INVITE_CREATE_FAILED',
+    r12 && r12.error ? r12.error.code : 'no error'
+  );
+  record(
+    '重试耗尽后事务无残留',
+    exhaustedAttempts === 8 &&
+      colStore('couples').size === 0 &&
+      colStore('couple_users').size === 0,
+    'attempts=' +
+      exhaustedAttempts +
+      ' couples=' +
+      colStore('couples').size +
+      ' users=' +
+      colStore('couple_users').size
   );
 
   const passed = results.filter((r) => r.pass).length;
