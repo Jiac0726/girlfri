@@ -79,10 +79,108 @@ function ConvertTo-TcbMgoCommandsJson {
     }
 
     if ($trimmed.StartsWith("[")) {
-        return $trimmed
+        $items = @($parsed)
+        if ($items.Count -gt 0 -and
+            $null -ne $items[0].PSObject.Properties["TableName"] -and
+            $null -ne $items[0].PSObject.Properties["CommandType"] -and
+            $null -ne $items[0].PSObject.Properties["Command"]) {
+            return $trimmed
+        }
+        throw "CloudBase --command array must contain MgoCommandParam objects with TableName, CommandType, and Command."
     }
 
-    return "[" + $trimmed + "]"
+    $tableName = $null
+    $commandType = $null
+
+    if ($null -ne $parsed.PSObject.Properties["find"]) {
+        $tableName = [string]$parsed.find
+        $commandType = "QUERY"
+    } elseif ($null -ne $parsed.PSObject.Properties["insert"]) {
+        $tableName = [string]$parsed.insert
+        $commandType = "INSERT"
+    } elseif ($null -ne $parsed.PSObject.Properties["update"]) {
+        $tableName = [string]$parsed.update
+        $commandType = "UPDATE"
+    } elseif ($null -ne $parsed.PSObject.Properties["delete"]) {
+        $tableName = [string]$parsed.delete
+        $commandType = "DELETE"
+    } elseif ($null -ne $parsed.PSObject.Properties["createIndexes"]) {
+        $tableName = [string]$parsed.createIndexes
+        $commandType = "COMMAND"
+    } elseif ($null -ne $parsed.PSObject.Properties["count"]) {
+        $tableName = [string]$parsed.count
+        $commandType = "COMMAND"
+    } elseif ($null -ne $parsed.PSObject.Properties["aggregate"]) {
+        $tableName = [string]$parsed.aggregate
+        $commandType = "COMMAND"
+    } elseif ($null -ne $parsed.PSObject.Properties["distinct"]) {
+        $tableName = [string]$parsed.distinct
+        $commandType = "COMMAND"
+    } else {
+        throw "Unsupported Mongo command. Expected find/insert/update/delete/createIndexes/count/aggregate/distinct."
+    }
+
+    if (-not $tableName) {
+        throw "CloudBase Mongo command collection name is empty."
+    }
+
+    $commands = @(
+        [ordered]@{
+            TableName = $tableName
+            CommandType = $commandType
+            Command = $trimmed
+        }
+    )
+
+    return ConvertTo-Json -InputObject $commands -Depth 12 -Compress
+}
+
+function Invoke-TcbExactArgs {
+    param(
+        [Parameter(Mandatory = $true)][string[]]$TcbArgs,
+        [switch]$Capture
+    )
+
+    $tcbCommand = Get-Command tcb -ErrorAction Stop
+    $shimDir = Split-Path -Parent $tcbCommand.Source
+    $cliJs = Join-Path $shimDir "node_modules/@cloudbase/cli/dist/standalone/cli.js"
+    $bridgeJs = Join-Path $script:RenianRepoRoot "scripts/tcb-argv-bridge.js"
+
+    if (-not (Test-Path -LiteralPath $cliJs)) {
+        throw ("CloudBase CLI entry not found: " + $cliJs)
+    }
+    if (-not (Test-Path -LiteralPath $bridgeJs)) {
+        throw ("TCB argv bridge not found: " + $bridgeJs)
+    }
+
+    $argsFile = Join-Path ([System.IO.Path]::GetTempPath()) ("renian-tcb-args-" + [Guid]::NewGuid().ToString("N") + ".json")
+
+    try {
+        $argsJson = ConvertTo-Json -InputObject $TcbArgs -Compress
+        [System.IO.File]::WriteAllText(
+            $argsFile,
+            $argsJson,
+            [System.Text.UTF8Encoding]::new($false)
+        )
+
+        $lines = @(& node.exe $bridgeJs $cliJs $argsFile 2>&1)
+        $code = $LASTEXITCODE
+        $text = ($lines | ForEach-Object { [string]$_ }) -join [Environment]::NewLine
+
+        if ($code -ne 0) {
+            throw ("tcb " + ($TcbArgs -join " ") + " failed with exit code " + $code + [Environment]::NewLine + $text)
+        }
+
+        if ($Capture) {
+            return $text
+        }
+
+        if ($text) {
+            $text | Write-Host
+        }
+    } finally {
+        Remove-Item -LiteralPath $argsFile -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function Invoke-NoSql {
@@ -91,14 +189,11 @@ function Invoke-NoSql {
         [Parameter(Mandatory = $true)][string]$CommandJson
     )
 
-    # CloudBase CLI 3.8.x validates --command as an MgoCommands JSON array.
-    # Keep callers ergonomic by accepting one command object and wrapping it.
     $commandsJson = ConvertTo-TcbMgoCommandsJson -CommandJson $CommandJson
-    $commandArg = ConvertTo-TcbJsonArgument -Json $commandsJson
 
-    return Invoke-Tcb -Capture -TcbArgs @(
+    return Invoke-TcbExactArgs -Capture -TcbArgs @(
         "db", "nosql", "execute",
-        "--command", $commandArg,
+        "--command", $commandsJson,
         "--env-id", $EnvId,
         "--json"
     )
