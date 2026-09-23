@@ -58,6 +58,10 @@ renian/
 ├── setup-local.cmd             # 首次本机配置/迁移
 ├── update-main.cmd             # 安全更新
 ├── update-main-force.cmd       # 强制同步远程 main
+├── database-preflight.cmd      # 只读备份 + 数据审计
+├── database-migrate.cmd        # 明确确认后执行迁移/建索引
+├── scripts/
+│   └── database-common.ps1
 ├── services/
 │   └── cloud.js
 ├── cloudfunctions/
@@ -123,29 +127,58 @@ update-main-force.cmd
 
 强制更新只重置 Git 跟踪文件，不会删除 `project.private.config.json` 和 `config/env.local.js`。
 
-### 1.2 保存现有数据并建立数据库索引
+### 1.2 数据库预检与索引迁移
 
-当前版本提供一次性维护脚本：
+数据库维护拆成两个阶段，**先只读预检，再明确执行迁移**。
 
-```text
-database-maintenance.cmd
-```
-
-运行前需要：
+首次使用前需要：
 
 ```text
 npm i -g @cloudbase/cli
 tcb login
 ```
 
-脚本会自动读取 `config/env.local.js` 中的云环境 ID，并严格按以下顺序执行：
+第一步运行：
 
-1. 导出 `couples`、`couple_users`、`ratings` 三个集合的当前完整 JSON 数据；
-2. 备份保存到 `backups/cloudbase/<时间戳>/`；
-3. 保存旧邀请码异常/重复情况审计结果；
-4. 仅对已经不是 `waiting`、且旧 `inviteCode` 为空/缺失的关系，改成 `USED_<pairId>`；
-5. 再次检查重复邀请码；
-6. 创建索引：
+```text
+database-preflight.cmd
+```
+
+它只做以下事情，不修改云数据库：
+
+1. 全量导出 `couples`、`couple_users`、`ratings`；
+2. 保存到 `backups/cloudbase/<时间戳>/raw/`；
+3. 直接读取导出的 JSON Lines 做本地数据审计；
+4. 检查 waiting 邀请码是否合法、是否重复；
+5. 列出所有需要规范化为 `USED_<pairId>` 的非 waiting 关系；
+6. 检查评价记录是否缺少 `coupleId/date/ratedBy`；
+7. 输出 `PRECHECK.txt` 和 `preflight-report.json`。
+
+只有看到：
+
+```text
+SAFE TO MIGRATE: True
+```
+
+才进入第二步：
+
+```text
+database-migrate.cmd
+```
+
+迁移脚本会**重新做一次最新全量备份和预检**，然后要求手工输入：
+
+```text
+MIGRATE
+```
+
+才会写库。写入规则为：
+
+- `status == waiting`：保留合法 8 位邀请码；
+- 所有非 `waiting` 关系：统一规范为 `USED_<pairId>`；
+- 每条旧数据按具体 `_id` 精确更新，并再次要求 `status != waiting`，避免误改正在变化的邀请。
+
+随后创建：
 
 ```text
 couples
@@ -161,15 +194,9 @@ ratings
   ratedBy ASC
 ```
 
-备份目录已加入 `.gitignore`，因为其中可能包含 OPENID 和评价内容，不应提交到 GitHub。
+迁移完成后会再生成一份 post-flight 全量备份和审计报告。
 
-如果只想先备份、审计和修复旧邀请码，不创建索引：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\database-maintenance.ps1 -SkipIndexes
-```
-
-索引创建失败时，脚本会停止，不会删除已经生成的备份文件。
+备份目录已经加入 `.gitignore`，因为其中可能包含 OPENID、绑定关系和评价内容，不应提交到 GitHub。恢复说明见 `docs/DATABASE-RECOVERY.md`。
 
 ### 2. 创建集合
 

@@ -51,10 +51,25 @@
   - `couple_users`（**注意不是 `users`**，`COLLECTIONS.users = 'couple_users'`）
   - `ratings`
 
-### 6. 唯一索引（本仓库已为它改造过，别浪费）
-P3B 修复后邀请码用完写 `USED_<pairId>` 而非 `null`，所以**普通唯一索引即可**，无需稀疏/过滤。
-- [ ] `couples.inviteCode` → **唯一索引**
-- [ ] `ratings` → `coupleId ASC + date DESC + ratedBy ASC` 复合普通索引 `idx_couple_date_ratedBy`（与 `listRatings()` 的实际排序完全一致）
+### 6. 数据预检 + 索引
+不要直接手工改历史数据后就建索引。先运行只读预检：
+
+```text
+database-preflight.cmd
+```
+
+只有报告出现 `SAFE TO MIGRATE: True` 才运行：
+
+```text
+database-migrate.cmd
+```
+
+迁移脚本会再次做全量备份，并要求输入 `MIGRATE` 才写库。
+
+最终索引：
+- [ ] `couples.idx_inviteCode_unique` → **唯一索引**：`inviteCode ASC`
+- [ ] `ratings.idx_couple_date_ratedBy` → 普通复合索引：`coupleId ASC + date DESC + ratedBy ASC`
+- [ ] 保留迁移前后的 `PRECHECK.txt` 和备份目录，确认双账号链路正常后再清理
 
 ### 7. 云函数部署前必须装齐 `node_modules`（坑 #7）
 `tcb fn deploy` 上传的是**本地目录**，Tencent SCF 不会云端自动装依赖。
