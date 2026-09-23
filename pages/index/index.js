@@ -8,7 +8,7 @@ Page({
   data: {
     dateStr: '', dayNum: '', yearMonth: '', weekDay: '', type: '', reason: '', submitted: false,
     loading: false, authLoading: true, bindingStatus: 'loading', canRate: false, partnerRating: null,
-    monthStreak: 0, monthGoodRate: 0, streakHearts: [0,0,0,0,0,0,0,0]
+    monthStreak: 0, monthGoodRate: 0, streakHearts: [0,0,0,0,0,0,0,0], reviewBg: app.globalData.REVIEW_BG
   },
   onLoad() {
     const now = new Date();
