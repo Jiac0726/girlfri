@@ -51,15 +51,30 @@ function Invoke-Tcb {
     }
 }
 
+function ConvertTo-TcbJsonArgument {
+    param([Parameter(Mandatory = $true)][string]$Json)
+
+    # Windows PowerShell 5.1 rebuilds the native command line and strips the
+    # unescaped quotes inside JSON when an npm PowerShell shim ultimately calls
+    # node.exe. Backslash-escaping preserves the JSON quotes for the native argv.
+    if ($PSVersionTable.PSEdition -eq "Desktop" -and $env:OS -eq "Windows_NT") {
+        return $Json.Replace('"', '\"')
+    }
+
+    return $Json
+}
+
 function Invoke-NoSql {
     param(
         [Parameter(Mandatory = $true)][string]$EnvId,
         [Parameter(Mandatory = $true)][string]$CommandJson
     )
 
+    $commandArg = ConvertTo-TcbJsonArgument -Json $CommandJson
+
     return Invoke-Tcb -Capture -TcbArgs @(
         "db", "nosql", "execute",
-        "--command", $CommandJson,
+        "--command", $commandArg,
         "--env-id", $EnvId,
         "--json"
     )
