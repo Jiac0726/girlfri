@@ -1,96 +1,70 @@
-<view class="container bind-page">
-  <view class="hero">
-    <view class="hero-mark">♥</view>
-    <view class="hero-title">两个人，才是完整的热念</view>
-    <view class="hero-sub">绑定后双方地位完全对等：你可以评价 TA，TA 也可以评价你；两个人都能查看共同记录。</view>
-  </view>
+<view class="love-page">
+  <image class="paper-bg" src="/assets/review-blush.jpg" mode="aspectFill"></image>
 
-  <view
-    class="card incoming-invite"
-    wx:if="{{bindingStatus === 'unbound' && openedFromInvite && joinCode.length === 8}}"
-  >
-    <view class="incoming-icon">💌</view>
-    <view class="incoming-title">TA 邀请你加入「热念」</view>
-    <view class="incoming-desc">接受后，你们会建立双人关系。双方每天都可以互相评价，也能查看共同记录。</view>
-    <view class="incoming-code">邀请 {{joinCode}}</view>
-    <button
-      class="primary-btn"
-      bindtap="joinPair"
-      loading="{{loading}}"
-      disabled="{{loading}}"
-    >
-      接受邀请并绑定
-    </button>
-    <view class="text-action muted incoming-other" bindtap="useOtherCode">不是这个邀请？手动输入绑定码</view>
-  </view>
+  <block wx:if="{{bindingStatus === 'unbound' && !openedFromInvite}}">
+    <view class="welcome-stage">
+      <view class="brand-heart">♡</view>
+      <view class="brand-name">热念</view>
+      <view class="brand-sub">两个人的相处记录</view>
+      <view class="hand-note note-left">平凡的日子\n因为有你\n而闪闪发光 ♡</view>
 
-  <view class="card" wx:if="{{bindingStatus === 'unbound' && !openedFromInvite}}">
-    <view class="card-title">发起双人绑定</view>
-    <view class="section-tip">生成邀请后，可以直接通过微信把小程序邀请卡片发给 TA。</view>
-    <button class="primary-btn" bindtap="createInvite" loading="{{loading}}">
-      创建微信邀请
-    </button>
-  </view>
+      <image class="welcome-photo" src="/assets/hero-sunset.jpg" mode="aspectFill"></image>
 
-  <view class="or" wx:if="{{bindingStatus === 'unbound' && !openedFromInvite}}">或者</view>
+      <button class="love-btn" bindtap="createInvite" loading="{{loading}}">和 TA 绑定</button>
+      <view class="text-link" bindtap="showManualJoin">我已经收到邀请 →</view>
 
-  <view class="card" wx:if="{{bindingStatus === 'unbound' && !openedFromInvite}}">
-    <view class="card-title">输入绑定码加入</view>
-    <input
-      class="code-input"
-      value="{{joinCode}}"
-      bindinput="onJoinInput"
-      maxlength="8"
-      placeholder="输入对方发来的 8 位绑定码"
-    />
-    <button
-      class="secondary-btn"
-      bindtap="joinPair"
-      loading="{{loading}}"
-      disabled="{{joinCode.length !== 8}}"
-    >
-      完成绑定
-    </button>
-  </view>
-
-  <view class="card waiting-card" wx:if="{{bindingStatus === 'waiting'}}">
-    <view class="waiting-icon">💌</view>
-    <view class="waiting-title">邀请已经准备好</view>
-    <view class="waiting-sub">优先直接发微信邀请卡片；绑定码保留作为备用。</view>
-
-    <button class="wechat-share-btn" open-type="share">
-      <text class="wechat-share-icon">↗</text>
-      微信邀请 TA
-    </button>
-
-    <view class="invite-divider">
-      <view class="invite-divider-line"></view>
-      <view class="invite-divider-text">备用绑定码</view>
-      <view class="invite-divider-line"></view>
+      <view class="manual-join" wx:if="{{manualJoin}}">
+        <view class="manual-title">输入 TA 发来的绑定码</view>
+        <input class="code-input" value="{{joinCode}}" bindinput="onJoinInput" maxlength="8" placeholder="8 位绑定码" />
+        <button class="outline-btn" bindtap="joinPair" disabled="{{joinCode.length !== 8 || loading}}">完成绑定</button>
+      </view>
     </view>
+  </block>
 
-    <view class="invite-code" bindtap="copyCode">{{inviteCode}}</view>
-    <view class="invite-tip">有效至 {{inviteExpiresText}}</view>
-    <button class="secondary-btn copy-btn" bindtap="copyCode">复制绑定码</button>
-
-    <view class="action-row">
-      <view class="text-action" bindtap="refreshInvite">换一个邀请</view>
-      <view class="text-action muted" bindtap="refresh">刷新状态</view>
-      <view class="text-action danger" bindtap="cancelInvite">取消邀请</view>
+  <block wx:if="{{bindingStatus === 'unbound' && openedFromInvite}}">
+    <view class="flow-stage">
+      <view class="flow-title">邀请 TA</view>
+      <view class="envelope">♡</view>
+      <view class="invite-main">TA 邀请你<br/>一起使用热念</view>
+      <view class="invite-sub">记录平凡日子里的特别时刻<br/>让爱被看见 ♡</view>
+      <view class="invite-code">{{joinCode}}</view>
+      <button class="love-btn" bindtap="joinPair" loading="{{loading}}">接受邀请并绑定</button>
+      <view class="text-link" bindtap="useOtherCode">使用其他绑定码</view>
     </view>
-  </view>
+  </block>
 
-  <view class="card active-card" wx:if="{{bindingStatus === 'active'}}">
-    <view class="active-icon">💕</view>
-    <view class="active-title">双向绑定成功</view>
-    <view class="active-desc">
-      现在你和 TA 每天都可以各评价一次。你的评价只覆盖你自己当天写的那一条，不会覆盖 TA 的评价。
+  <block wx:if="{{bindingStatus === 'waiting'}}">
+    <view class="flow-stage">
+      <view class="flow-title">邀请 TA</view>
+      <view class="envelope">♡</view>
+      <view class="invite-main">邀请 TA<br/>和你一起使用热念</view>
+      <view class="invite-sub">记录平凡日子里的特别时刻<br/>让爱被看见 ♡</view>
+      <button class="love-btn wechat-btn" open-type="share">微信邀请</button>
+      <view class="divider"><text></text><view>或使用邀请码</view><text></text></view>
+      <view class="invite-code" bindtap="copyCode">{{inviteCode}}</view>
+      <view class="expire">邀请码 {{inviteExpiresText ? '有效至 ' + inviteExpiresText : '7 天内有效'}}</view>
+      <view class="mini-actions">
+        <view bindtap="copyCode">复制邀请码</view>
+        <view bindtap="refreshInvite">换一个</view>
+        <view bindtap="cancelInvite">取消</view>
+      </view>
     </view>
-    <button class="primary-btn" bindtap="backHome">回到今天</button>
-  </view>
+  </block>
 
-  <view class="security-note">
-    <view class="security-title">🔒 邀请只建立这一对关系</view>
-    <view>微信邀请卡片只携带一次性绑定码。真正绑定仍由云函数校验双方身份、邀请码状态和有效期。</view>
-  </view>
+  <block wx:if="{{bindingStatus === 'active'}}">
+    <view class="success-stage">
+      <view class="flow-title">绑定成功</view>
+      <view class="pair-line">
+        <view class="avatar me">你</view>
+        <view class="pair-heart">♥</view>
+        <view class="avatar ta">TA</view>
+      </view>
+      <view class="success-title">连接成功</view>
+      <view class="invite-sub">从今天开始，<br/>留下一点属于你们的记录。</view>
+      <button class="love-btn" bindtap="backHome">开始记录</button>
+      <view class="hand-note success-note">好的关系<br/>是一起把平凡的日子<br/>过成特别的回忆 ♡</view>
+    </view>
+  </block>
+
+  <view class="loading-cover" wx:if="{{bindingStatus === 'loading'}}">正在准备你们的空间…</view>
 </view>
