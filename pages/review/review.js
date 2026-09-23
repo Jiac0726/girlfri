@@ -1,4 +1,5 @@
 const api = require('../../services/cloud');
+const app = getApp();
 const WEEK_LABELS=['一','二','三','四','五','六','日'];
 const pad=n=>n<10?'0'+n:''+n;
 const fmtDate=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -10,7 +11,7 @@ Page({
   loading:false,ready:false,reviewMode:'calendar',year:0,month:0,monthLabel:'',canPrev:false,canNext:false,weeks:WEEK_LABELS,calendar:[],
   selectedDate:'',selectedDateLabel:'',selectedRecords:[],
   monthGood:0,monthNeutral:0,monthBad:0,monthGoodRate:0,monthBestStreak:0,monthRecordDays:0,monthMutualGoodDays:0,
-  monthKeyword:'开心',monthQuote:'我们没有每天都完美，但留下了很多值得记住的日子。'
+  heroBg:app.globalData.HERO_BG,reviewBg:app.globalData.REVIEW_BG,monthKeyword:'开心',monthQuote:'我们没有每天都完美，但留下了很多值得记住的日子。'
  },
  onLoad(){const n=new Date();this.viewYear=n.getFullYear();this.viewMonth=n.getMonth();this.allRatings=[];this.earliest=null},
  onShow(){this.refreshAll()},
