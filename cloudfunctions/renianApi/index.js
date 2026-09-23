@@ -864,6 +864,225 @@ async function deletePermission(openid, event) {
 }
 
 
+
+const MAX_PRIVILEGE_CARDS_PER_PAIR = 80;
+
+function makePrivilegeCardId() {
+  return 'card_' + crypto.randomBytes(10).toString('hex');
+}
+
+function privilegeCardsOf(pair) {
+  return Array.isArray(pair && pair.privilegeCards) ? pair.privilegeCards : [];
+}
+
+function normalizePrivilegeCardInput(event) {
+  const name = String((event && event.name) || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, 20);
+  const note = String((event && event.note) || '').trim().slice(0, 100);
+
+  if (!name) {
+    throw new ApiError('INVALID_PRIVILEGE_CARD', '特权卡名称不能为空');
+  }
+
+  return { name, note };
+}
+
+function isoOrEmpty(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '' : d.toISOString();
+}
+
+function cleanPrivilegeCard(item, openid) {
+  if (!item) return null;
+
+  const fromMe = item.issuedBy === openid;
+  const receivedByMe = item.issuedTo === openid;
+  const status = item.status || 'active';
+
+  return {
+    id: item.id,
+    name: String(item.name || '').slice(0, 20),
+    note: String(item.note || '').slice(0, 100),
+    status,
+    fromMe,
+    receivedByMe,
+    direction: fromMe ? 'sent' : 'received',
+    directionLabel: fromMe ? '我给 TA' : 'TA 给我',
+    canUse: status === 'active' && receivedByMe,
+    canRevoke: status === 'active' && fromMe,
+    createdAt: isoOrEmpty(item.createdAt),
+    usedAt: isoOrEmpty(item.usedAt),
+    revokedAt: isoOrEmpty(item.revokedAt),
+  };
+}
+
+async function listPrivilegeCards(openid) {
+  const membership = await requireActive(openid);
+  return privilegeCardsOf(membership.pair)
+    .slice()
+    .sort((a, b) => {
+      const at = new Date(a.createdAt || 0).getTime();
+      const bt = new Date(b.createdAt || 0).getTime();
+      return bt - at;
+    })
+    .map((item) => cleanPrivilegeCard(item, openid));
+}
+
+async function createPrivilegeCard(openid, event) {
+  const input = normalizePrivilegeCardInput(event);
+  const membership = await requireActive(openid);
+  const pairId = membership.pair._id;
+  const id = makePrivilegeCardId();
+  const now = new Date();
+  let created = null;
+
+  await db.runTransaction(async (transaction) => {
+    const pairRes = await transaction
+      .collection(COLLECTIONS.couples)
+      .doc(pairId)
+      .get();
+    const pair = pairRes && pairRes.data;
+    assertActivePairDocument(pair, openid);
+
+    const targetOpenid = partnerOf(pair, openid);
+    if (!targetOpenid) {
+      throw new ApiError('PAIR_INVALID', '找不到绑定对象');
+    }
+
+    const cards = privilegeCardsOf(pair).slice();
+    if (cards.length >= MAX_PRIVILEGE_CARDS_PER_PAIR) {
+      throw new ApiError(
+        'PRIVILEGE_CARD_LIMIT',
+        '这段关系已保存 80 张特权卡，请先保留重要记录后再继续'
+      );
+    }
+
+    created = {
+      id,
+      name: input.name,
+      note: input.note,
+      status: 'active',
+      issuedBy: openid,
+      issuedTo: targetOpenid,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    cards.unshift(created);
+
+    await transaction.collection(COLLECTIONS.couples).doc(pairId).update({
+      data: {
+        privilegeCards: cards,
+        updatedAt: now,
+      },
+    });
+  });
+
+  return cleanPrivilegeCard(created, openid);
+}
+
+async function usePrivilegeCard(openid, event) {
+  const id = String((event && event.cardId) || '').trim();
+  if (!id) throw new ApiError('INVALID_PRIVILEGE_CARD', '缺少特权卡 ID');
+
+  const membership = await requireActive(openid);
+  const pairId = membership.pair._id;
+  const now = new Date();
+  let used = null;
+
+  await db.runTransaction(async (transaction) => {
+    const pairRes = await transaction
+      .collection(COLLECTIONS.couples)
+      .doc(pairId)
+      .get();
+    const pair = pairRes && pairRes.data;
+    assertActivePairDocument(pair, openid);
+
+    const cards = privilegeCardsOf(pair).slice();
+    const index = cards.findIndex((item) => item && item.id === id);
+    if (index < 0) {
+      throw new ApiError('PRIVILEGE_CARD_NOT_FOUND', '这张特权卡不存在');
+    }
+
+    const current = cards[index];
+    if (current.issuedTo !== openid) {
+      throw new ApiError('PRIVILEGE_CARD_FORBIDDEN', '只有收到这张卡的人可以使用');
+    }
+    if ((current.status || 'active') !== 'active') {
+      throw new ApiError('PRIVILEGE_CARD_ALREADY_USED', '这张特权卡已经不能使用');
+    }
+
+    used = Object.assign({}, current, {
+      status: 'used',
+      usedAt: now,
+      updatedAt: now,
+    });
+    cards[index] = used;
+
+    await transaction.collection(COLLECTIONS.couples).doc(pairId).update({
+      data: {
+        privilegeCards: cards,
+        updatedAt: now,
+      },
+    });
+  });
+
+  return cleanPrivilegeCard(used, openid);
+}
+
+async function revokePrivilegeCard(openid, event) {
+  const id = String((event && event.cardId) || '').trim();
+  if (!id) throw new ApiError('INVALID_PRIVILEGE_CARD', '缺少特权卡 ID');
+
+  const membership = await requireActive(openid);
+  const pairId = membership.pair._id;
+  const now = new Date();
+  let revoked = null;
+
+  await db.runTransaction(async (transaction) => {
+    const pairRes = await transaction
+      .collection(COLLECTIONS.couples)
+      .doc(pairId)
+      .get();
+    const pair = pairRes && pairRes.data;
+    assertActivePairDocument(pair, openid);
+
+    const cards = privilegeCardsOf(pair).slice();
+    const index = cards.findIndex((item) => item && item.id === id);
+    if (index < 0) {
+      throw new ApiError('PRIVILEGE_CARD_NOT_FOUND', '这张特权卡不存在');
+    }
+
+    const current = cards[index];
+    if (current.issuedBy !== openid) {
+      throw new ApiError('PRIVILEGE_CARD_FORBIDDEN', '只能撤回自己发给 TA 的卡');
+    }
+    if ((current.status || 'active') !== 'active') {
+      throw new ApiError('PRIVILEGE_CARD_ALREADY_USED', '已使用或已撤回的卡不能再次撤回');
+    }
+
+    revoked = Object.assign({}, current, {
+      status: 'revoked',
+      revokedAt: now,
+      updatedAt: now,
+    });
+    cards[index] = revoked;
+
+    await transaction.collection(COLLECTIONS.couples).doc(pairId).update({
+      data: {
+        privilegeCards: cards,
+        updatedAt: now,
+      },
+    });
+  });
+
+  return cleanPrivilegeCard(revoked, openid);
+}
+
+
 exports.main = async (event) => {
   try {
     const { OPENID } = cloud.getWXContext();
@@ -898,6 +1117,14 @@ exports.main = async (event) => {
         return ok(await togglePermission(OPENID, event));
       case 'permission.delete':
         return ok(await deletePermission(OPENID, event));
+      case 'privilege.list':
+        return ok(await listPrivilegeCards(OPENID));
+      case 'privilege.create':
+        return ok(await createPrivilegeCard(OPENID, event));
+      case 'privilege.use':
+        return ok(await usePrivilegeCard(OPENID, event));
+      case 'privilege.revoke':
+        return ok(await revokePrivilegeCard(OPENID, event));
       default:
         throw new ApiError('UNKNOWN_ACTION', '未知操作');
     }
