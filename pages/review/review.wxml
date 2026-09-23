@@ -62,7 +62,7 @@
       <image src="{{heroBg}}" mode="aspectFill"></image>
       <view class="hero-shade"></view>
       <view class="hero-copy">
-        <view class="hero-en">SEPTEMBER</view>
+        <view class="hero-en">{{monthEn}}</view>
         <view class="hero-title">我们的{{month}}月 ♡</view>
         <view class="hero-sub">平凡的日子里，因为有你，变得闪闪发光。</view>
       </view>
