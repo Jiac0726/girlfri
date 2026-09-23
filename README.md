@@ -126,6 +126,54 @@ update-main-force.cmd
 
 强制更新只重置 Git 跟踪文件，不会删除 `project.private.config.json` 和 `config/env.local.js`。
 
+### 1.2 保存现有数据并建立数据库索引
+
+当前版本提供一次性维护脚本：
+
+```text
+database-maintenance.cmd
+```
+
+运行前需要：
+
+```text
+npm i -g @cloudbase/cli
+tcb login
+```
+
+脚本会自动读取 `config/env.local.js` 中的云环境 ID，并严格按以下顺序执行：
+
+1. 导出 `couples`、`couple_users`、`ratings` 三个集合的当前完整 JSON 数据；
+2. 备份保存到 `backups/cloudbase/<时间戳>/`；
+3. 保存旧邀请码异常/重复情况审计结果；
+4. 仅对已经不是 `waiting`、且旧 `inviteCode` 为空/缺失的关系，改成 `USED_<pairId>`；
+5. 再次检查重复邀请码；
+6. 创建索引：
+
+```text
+couples
+  idx_inviteCode_unique
+  UNIQUE
+  inviteCode ASC
+
+ratings
+  idx_couple_date_ratedBy
+  NON-UNIQUE
+  coupleId ASC
+  date DESC
+  ratedBy ASC
+```
+
+备份目录已加入 `.gitignore`，因为其中可能包含 OPENID 和评价内容，不应提交到 GitHub。
+
+如果只想先备份、审计和修复旧邀请码，不创建索引：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\database-maintenance.ps1 -SkipIndexes
+```
+
+索引创建失败时，脚本会停止，不会删除已经生成的备份文件。
+
 ### 2. 创建集合
 
 在云开发数据库创建：

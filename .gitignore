@@ -24,3 +24,6 @@ app.local.bak.js
 # 本地更新脚本/压缩包临时产物
 renian_one_click_update/
 renian_one_click_update.zip
+
+# CloudBase 数据导出备份（可能包含 OPENID / 评价内容，只保留本机）
+backups/cloudbase/
