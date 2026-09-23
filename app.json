@@ -2,10 +2,7 @@
   "pages": [
     "pages/index/index",
     "pages/review/review",
-    "pages/bind/bind",
-    "pages/history/history",
-    "pages/monthly/monthly",
-    "pages/stats/stats"
+    "pages/bind/bind"
   ],
   "window": {
     "navigationBarBackgroundColor": "#ff6b81",
@@ -20,8 +17,14 @@
     "backgroundColor": "#ffffff",
     "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/index/index", "text": "今天" },
-      { "pagePath": "pages/review/review", "text": "回顾" }
+      {
+        "pagePath": "pages/index/index",
+        "text": "今天"
+      },
+      {
+        "pagePath": "pages/review/review",
+        "text": "回顾"
+      }
     ]
   },
   "style": "v2",
