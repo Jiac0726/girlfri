@@ -1,4 +1,5 @@
 const api = require('../../services/cloud');
+const app = getApp();
 
 function normalizeInviteCode(value) {
   return String(value || '').toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 8);
@@ -12,7 +13,7 @@ function formatExpire(value) {
 }
 
 Page({
-  data: { loading: true, bindingStatus: 'loading', inviteCode: '', inviteExpiresText: '', joinCode: '', isCreator: false, openedFromInvite: false, manualJoin: false },
+  data: { loading: true, bindingStatus: 'loading', inviteCode: '', inviteExpiresText: '', joinCode: '', isCreator: false, openedFromInvite: false, manualJoin: false, heroBg: app.globalData.HERO_BG, reviewBg: app.globalData.REVIEW_BG },
   onLoad(options) {
     const code = normalizeInviteCode(options && options.inviteCode);
     if (code.length === 8) this.setData({ joinCode: code, openedFromInvite: true });
