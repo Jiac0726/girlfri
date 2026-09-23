@@ -13,7 +13,7 @@
     "urlCheck": false,
     "coverView": true,
     "lazyloadPlaceholderEnable": false,
-    "ignoreUploadUnusedFiles": true
+    "ignoreUploadUnusedFiles": false
   },
   "editorSetting": {
     "tabIndent": "insertSpaces",
