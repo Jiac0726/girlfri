@@ -51,17 +51,51 @@ function Invoke-Tcb {
     }
 }
 
-function ConvertTo-TcbJsonArgument {
-    param([Parameter(Mandatory = $true)][string]$Json)
+function Invoke-TcbExactArgs {
+    param(
+        [Parameter(Mandatory = $true)][string[]]$TcbArgs,
+        [switch]$Capture
+    )
 
-    # Windows PowerShell 5.1 rebuilds the native command line and strips the
-    # unescaped quotes inside JSON when an npm PowerShell shim ultimately calls
-    # node.exe. Backslash-escaping preserves the JSON quotes for the native argv.
-    if ($PSVersionTable.PSEdition -eq "Desktop" -and $env:OS -eq "Windows_NT") {
-        return $Json.Replace('"', '\"')
+    $tcbCommand = Get-Command tcb -ErrorAction Stop
+    $shimDir = Split-Path -Parent $tcbCommand.Source
+    $cliJs = Join-Path $shimDir "node_modules/@cloudbase/cli/dist/standalone/cli.js"
+    $bridgeJs = Join-Path $script:RenianRepoRoot "scripts/tcb-argv-bridge.js"
+
+    if (-not (Test-Path -LiteralPath $cliJs)) {
+        throw ("CloudBase CLI entry not found: " + $cliJs)
+    }
+    if (-not (Test-Path -LiteralPath $bridgeJs)) {
+        throw ("TCB argv bridge not found: " + $bridgeJs)
     }
 
-    return $Json
+    $argsFile = Join-Path ([System.IO.Path]::GetTempPath()) ("renian-tcb-args-" + [Guid]::NewGuid().ToString("N") + ".json")
+    try {
+        $argsJson = ConvertTo-Json -InputObject $TcbArgs -Compress
+        [System.IO.File]::WriteAllText(
+            $argsFile,
+            $argsJson,
+            [System.Text.UTF8Encoding]::new($false)
+        )
+
+        $lines = @(& node.exe $bridgeJs $cliJs $argsFile 2>&1)
+        $code = $LASTEXITCODE
+        $text = ($lines | ForEach-Object { [string]$_ }) -join [Environment]::NewLine
+
+        if ($code -ne 0) {
+            throw ("tcb " + ($TcbArgs -join " ") + " failed with exit code " + $code + [Environment]::NewLine + $text)
+        }
+
+        if ($Capture) {
+            return $text
+        }
+
+        if ($text) {
+            $text | Write-Host
+        }
+    } finally {
+        Remove-Item -LiteralPath $argsFile -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function ConvertTo-MgoCommandsJson {
@@ -128,11 +162,10 @@ function Invoke-NoSql {
     )
 
     $mgoCommandsJson = ConvertTo-MgoCommandsJson -CommandJson $CommandJson
-    $commandArg = ConvertTo-TcbJsonArgument -Json $mgoCommandsJson
 
-    return Invoke-Tcb -Capture -TcbArgs @(
+    return Invoke-TcbExactArgs -Capture -TcbArgs @(
         "db", "nosql", "execute",
-        "--command", $commandArg,
+        "--command", $mgoCommandsJson,
         "--env-id", $EnvId,
         "--json"
     )
