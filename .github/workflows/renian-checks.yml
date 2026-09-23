@@ -1,0 +1,65 @@
+name: Renian checks
+
+on:
+  push:
+    branches:
+      - main
+      - "fix/**"
+      - "chore/**"
+      - "feat/**"
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  node-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: JavaScript syntax
+        run: |
+          node --check cloudfunctions/renianApi/index.js
+          node --check tests/renian-api/mock-wx-server-sdk.js
+          node --check tests/renian-api/race.test.js
+      - name: renianApi regression tests
+        run: node tests/renian-api/race.test.js
+
+  powershell-parse:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse PowerShell scripts
+        shell: pwsh
+        run: |
+          $files = @(
+            'setup-local.ps1',
+            'update-main.ps1',
+            'database-preflight.ps1',
+            'database-migrate.ps1',
+            'scripts/database-common.ps1'
+          )
+
+          foreach ($file in $files) {
+            if (-not (Test-Path $file)) {
+              throw "Missing PowerShell script: $file"
+            }
+
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file),
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+
+            if ($errors.Count -gt 0) {
+              Write-Host "PowerShell parse errors in $file" -ForegroundColor Red
+              $errors | ForEach-Object { Write-Host $_.Message -ForegroundColor Red }
+              exit 1
+            }
+          }
+
+          Write-Host "All PowerShell scripts parsed successfully."
