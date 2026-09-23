@@ -54,11 +54,20 @@ function Invoke-Tcb {
 function ConvertTo-TcbJsonArgument {
     param([Parameter(Mandatory = $true)][string]$Json)
 
-    # Windows PowerShell 5.1 rebuilds the native command line and strips the
-    # unescaped quotes inside JSON when an npm PowerShell shim ultimately calls
-    # node.exe. Backslash-escaping preserves the JSON quotes for the native argv.
+    # Windows PowerShell 5.1 rebuilds native command lines using the classic
+    # Windows argv quoting rules. To preserve a literal quote, a run of N
+    # backslashes immediately before it must become (2*N + 1) backslashes.
+    # This matters for RunCommands because its Command field is itself a JSON
+    # string and therefore already contains escaped quotes.
     if ($PSVersionTable.PSEdition -eq "Desktop" -and $env:OS -eq "Windows_NT") {
-        return $Json.Replace('"', '\"')
+        return [regex]::Replace(
+            $Json,
+            '(\\*)"',
+            {
+                param($match)
+                return ('\' * (($match.Groups[1].Value.Length * 2) + 1)) + '"'
+            }
+        )
     }
 
     return $Json
