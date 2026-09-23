@@ -505,6 +505,131 @@ async function main() {
       pEmpty.data.length === 0
   );
 
+
+  // ── T12｜特权卡：发放 / 使用 / 防重复 / 撤回 ───────────────
+  console.log('\n[T12] 特权卡 —— 一次性使用与双方归属');
+  reset();
+  await call('pair.create');
+  const privilegePairId = [...colStore('couples').keys()][0];
+  const privilegeInvite = colStore('couples').get(privilegePairId).inviteCode;
+
+  sdk.__setOpenid('OPENID_B');
+  await call('pair.join', { inviteCode: privilegeInvite });
+
+  sdk.__setOpenid('OPENID_A');
+  const cardCreate = await call('privilege.create', {
+    name: '和好一次',
+    note: '吵架后可以使用',
+  });
+  const cardId =
+    cardCreate && cardCreate.ok === true && cardCreate.data
+      ? cardCreate.data.id
+      : '';
+
+  record(
+    'A 可以给 B 发一张一次性特权卡',
+    cardCreate &&
+      cardCreate.ok === true &&
+      cardCreate.data.name === '和好一次' &&
+      cardCreate.data.status === 'active' &&
+      cardCreate.data.fromMe === true &&
+      cardCreate.data.canRevoke === true &&
+      !!cardId
+  );
+
+  const cardListA = await call('privilege.list');
+  const cardA = (cardListA && cardListA.data && cardListA.data[0]) || {};
+  record(
+    '发卡方视角正确且不泄露 openid',
+    cardListA &&
+      cardListA.ok === true &&
+      cardA.direction === 'sent' &&
+      cardA.issuedBy === undefined &&
+      cardA.issuedTo === undefined,
+    '输出字段: ' + Object.keys(cardA).join(',')
+  );
+
+  const issuerUse = await call('privilege.use', { cardId });
+  record(
+    '发卡方不能替接收方使用',
+    issuerUse &&
+      issuerUse.ok === false &&
+      issuerUse.error &&
+      issuerUse.error.code === 'PRIVILEGE_CARD_FORBIDDEN',
+    issuerUse && issuerUse.error ? issuerUse.error.code : 'no error'
+  );
+
+  sdk.__setOpenid('OPENID_B');
+  const cardListB = await call('privilege.list');
+  const cardB = (cardListB && cardListB.data && cardListB.data[0]) || {};
+  record(
+    '接收方看到可使用状态',
+    cardListB &&
+      cardListB.ok === true &&
+      cardB.direction === 'received' &&
+      cardB.receivedByMe === true &&
+      cardB.canUse === true
+  );
+
+  const cardUse = await call('privilege.use', { cardId });
+  record(
+    '接收方使用后卡变为 used',
+    cardUse &&
+      cardUse.ok === true &&
+      cardUse.data.status === 'used' &&
+      cardUse.data.canUse === false &&
+      !!cardUse.data.usedAt
+  );
+
+  const cardReuse = await call('privilege.use', { cardId });
+  record(
+    '同一张卡不能重复使用',
+    cardReuse &&
+      cardReuse.ok === false &&
+      cardReuse.error &&
+      cardReuse.error.code === 'PRIVILEGE_CARD_ALREADY_USED',
+    cardReuse && cardReuse.error ? cardReuse.error.code : 'no error'
+  );
+
+  sdk.__setOpenid('OPENID_A');
+  const revokeUsed = await call('privilege.revoke', { cardId });
+  record(
+    '已使用的卡不能再撤回',
+    revokeUsed &&
+      revokeUsed.ok === false &&
+      revokeUsed.error &&
+      revokeUsed.error.code === 'PRIVILEGE_CARD_ALREADY_USED',
+    revokeUsed && revokeUsed.error ? revokeUsed.error.code : 'no error'
+  );
+
+  const secondCreate = await call('privilege.create', {
+    name: '选片一次',
+    note: '',
+  });
+  const secondId =
+    secondCreate && secondCreate.ok === true && secondCreate.data
+      ? secondCreate.data.id
+      : '';
+  const revokeActive = await call('privilege.revoke', { cardId: secondId });
+  record(
+    '发卡方可以撤回尚未使用的卡',
+    revokeActive &&
+      revokeActive.ok === true &&
+      revokeActive.data.status === 'revoked' &&
+      revokeActive.data.canRevoke === false
+  );
+
+  sdk.__setOpenid('OPENID_B');
+  const useRevoked = await call('privilege.use', { cardId: secondId });
+  record(
+    '已撤回的卡不能被接收方使用',
+    useRevoked &&
+      useRevoked.ok === false &&
+      useRevoked.error &&
+      useRevoked.error.code === 'PRIVILEGE_CARD_ALREADY_USED',
+    useRevoked && useRevoked.error ? useRevoked.error.code : 'no error'
+  );
+
   const passed = results.filter((r) => r.pass).length;
   console.log(`\n══════ ${passed}/${results.length} 通过 ══════`);
   process.exit(passed === results.length ? 0 : 1);

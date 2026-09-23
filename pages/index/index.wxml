@@ -60,6 +60,19 @@
     <view class="feature-entry-arrow">›</view>
   </view>
 
+  <view
+    class="feature-entry feature-entry-ticket"
+    wx:if="{{bindingStatus === 'active'}}"
+    bindtap="goPrivileges"
+  >
+    <view class="feature-entry-icon feature-entry-icon-ticket">🎟️</view>
+    <view class="feature-entry-body">
+      <view class="feature-entry-title">特权卡</view>
+      <view class="feature-entry-sub">给 TA 一张「和好一次」，收到后可使用一次</view>
+    </view>
+    <view class="feature-entry-arrow">›</view>
+  </view>
+
   <view class="card">
     <view class="card-title">今天你想怎么评价 TA？</view>
     <view class="choice-row">

@@ -1,0 +1,170 @@
+<view class="container privilege-page">
+  <view class="privilege-hero">
+    <view class="privilege-eyebrow">热念 · 特权卡</view>
+    <view class="privilege-title">把一句“这次我答应你”做成一张卡</view>
+    <view class="privilege-sub">
+      发给 TA 的卡一次有效；只有收到卡的人能使用，使用后会留下记录。
+    </view>
+  </view>
+
+  <view class="card issue-card">
+    <view class="card-title">发一张特权卡给 TA</view>
+
+    <view class="preset-row">
+      <view
+        class="preset-chip"
+        wx:for="{{presets}}"
+        wx:key="*this"
+        data-name="{{item}}"
+        bindtap="choosePreset"
+      >
+        {{item}}
+      </view>
+    </view>
+
+    <input
+      class="card-input"
+      value="{{name}}"
+      placeholder="例如：和好一次"
+      maxlength="20"
+      bindinput="onNameInput"
+    />
+
+    <textarea
+      class="card-note"
+      value="{{note}}"
+      placeholder="这张卡怎么用？写一句备注（选填）"
+      maxlength="100"
+      auto-height
+      bindinput="onNoteInput"
+    />
+
+    <button
+      class="issue-btn"
+      bindtap="createCard"
+      disabled="{{saving || !name}}"
+    >
+      发给 TA
+    </button>
+  </view>
+
+  <view class="section-head">
+    <view>
+      <view class="section-title">我收到的可用卡</view>
+      <view class="section-sub">点“使用”后会立即消耗</view>
+    </view>
+    <view class="section-count">{{receivedActive.length}}</view>
+  </view>
+
+  <view wx:if="{{receivedActive.length}}">
+    <view
+      class="ticket ticket-received"
+      wx:for="{{receivedActive}}"
+      wx:key="id"
+    >
+      <view class="ticket-edge ticket-edge-left"></view>
+      <view class="ticket-edge ticket-edge-right"></view>
+      <view class="ticket-top">
+        <view class="ticket-badge">TA 给我的</view>
+        <view class="ticket-status">可使用</view>
+      </view>
+      <view class="ticket-name">{{item.name}}</view>
+      <view class="ticket-note" wx:if="{{item.note}}">{{item.note}}</view>
+      <view class="ticket-note ticket-note-empty" wx:else>没有额外说明</view>
+      <view class="ticket-foot">
+        <view class="ticket-time">{{item.createdLabel}}</view>
+        <button
+          class="use-btn"
+          data-id="{{item.id}}"
+          bindtap="useCard"
+        >
+          使用
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty privilege-empty" wx:else>
+    还没有收到可使用的特权卡 🎟️
+  </view>
+
+  <view class="section-head sent-head">
+    <view>
+      <view class="section-title">我发出的待使用</view>
+      <view class="section-sub">TA 使用前，你可以撤回</view>
+    </view>
+    <view class="section-count">{{sentActive.length}}</view>
+  </view>
+
+  <view wx:if="{{sentActive.length}}">
+    <view
+      class="ticket ticket-sent"
+      wx:for="{{sentActive}}"
+      wx:key="id"
+    >
+      <view class="ticket-edge ticket-edge-left"></view>
+      <view class="ticket-edge ticket-edge-right"></view>
+      <view class="ticket-top">
+        <view class="ticket-badge sent-badge">我给 TA</view>
+        <view class="ticket-status">等待使用</view>
+      </view>
+      <view class="ticket-name">{{item.name}}</view>
+      <view class="ticket-note" wx:if="{{item.note}}">{{item.note}}</view>
+      <view class="ticket-note ticket-note-empty" wx:else>没有额外说明</view>
+      <view class="ticket-foot">
+        <view class="ticket-time">{{item.createdLabel}}</view>
+        <view
+          class="revoke-action"
+          data-id="{{item.id}}"
+          bindtap="revokeCard"
+        >
+          撤回
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty privilege-empty" wx:else>
+    没有等待 TA 使用的卡。
+  </view>
+
+  <view class="section-head history-head">
+    <view>
+      <view class="section-title">历史记录</view>
+      <view class="section-sub">已使用和已撤回的卡都会留在这里</view>
+    </view>
+    <view class="section-count">{{history.length}}</view>
+  </view>
+
+  <view wx:if="{{history.length}}">
+    <view
+      class="history-row"
+      wx:for="{{history}}"
+      wx:key="id"
+    >
+      <view class="history-icon">{{item.status === 'used' ? '✨' : '↩'}}</view>
+      <view class="history-body">
+        <view class="history-top">
+          <view class="history-name">{{item.name}}</view>
+          <view class="history-status {{item.status === 'used' ? 'history-used' : 'history-revoked'}}">
+            {{item.statusLabel}}
+          </view>
+        </view>
+        <view class="history-meta">
+          {{item.directionLabel}}
+          <text wx:if="{{item.status === 'used' && item.usedLabel}}"> · {{item.usedLabel}}</text>
+          <text wx:elif="{{item.status === 'revoked' && item.revokedLabel}}"> · {{item.revokedLabel}}</text>
+        </view>
+        <view class="history-note" wx:if="{{item.note}}">{{item.note}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty privilege-empty" wx:else>
+    暂时还没有使用记录。
+  </view>
+
+  <view class="privilege-footnote">
+    特权卡是双方的小约定，不代表对任何现实行为的强制同意；使用时仍应尊重彼此当下的意愿。
+  </view>
+</view>

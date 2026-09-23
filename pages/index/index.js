@@ -103,6 +103,14 @@ Page({
     wx.navigateTo({ url: '/pages/permissions/permissions' });
   },
 
+  goPrivileges() {
+    if (this.data.bindingStatus !== 'active') {
+      this.goBind();
+      return;
+    }
+    wx.navigateTo({ url: '/pages/privileges/privileges' });
+  },
+
   selectGood() {
     if (!this.data.canRate) return;
     this.setData({ type: app.globalData.GOOD });

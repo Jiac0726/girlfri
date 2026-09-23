@@ -351,3 +351,12 @@
   font-size: 46rpx;
   margin-left: 14rpx;
 }
+
+.feature-entry-ticket {
+  background: linear-gradient(135deg, #ffffff, #fff9ef);
+  border-color: #f3dfc6;
+}
+
+.feature-entry-icon-ticket {
+  background: #fff0d8;
+}

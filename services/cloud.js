@@ -42,5 +42,12 @@ module.exports = {
     call('permission.toggle', { permissionId, enabled }),
   deletePermission: (permissionId) =>
     call('permission.delete', { permissionId }),
+  listPrivilegeCards: () => call('privilege.list'),
+  createPrivilegeCard: (name, note) =>
+    call('privilege.create', { name, note }),
+  usePrivilegeCard: (cardId) =>
+    call('privilege.use', { cardId }),
+  revokePrivilegeCard: (cardId) =>
+    call('privilege.revoke', { cardId }),
   isBindingError,
 };
