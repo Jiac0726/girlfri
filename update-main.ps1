@@ -11,10 +11,10 @@ function Fail([string]$Message, [int]$Code = 1) {
     exit $Code
 }
 
-function RunGit([string[]]$Args) {
-    & git @Args
+function RunGit([string[]]$GitArgs) {
+    & git @GitArgs
     if ($LASTEXITCODE -ne 0) {
-        throw "git $($Args -join ' ') failed with exit code $LASTEXITCODE"
+        throw "git $($GitArgs -join ' ') failed with exit code $LASTEXITCODE"
     }
 }
 

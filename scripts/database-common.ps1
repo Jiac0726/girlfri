@@ -31,23 +31,23 @@ function Get-RenianEnvId {
 
 function Invoke-Tcb {
     param(
-        [Parameter(Mandatory = $true)][string[]]$Args,
+        [Parameter(Mandatory = $true)][string[]]$TcbArgs,
         [switch]$Capture
     )
 
     if ($Capture) {
-        $lines = @(& tcb @Args 2>&1)
+        $lines = @(& tcb @TcbArgs 2>&1)
         $code = $LASTEXITCODE
         $text = ($lines | ForEach-Object { [string]$_ }) -join [Environment]::NewLine
         if ($code -ne 0) {
-            throw ("tcb " + ($Args -join " ") + " failed with exit code " + $code + [Environment]::NewLine + $text)
+            throw ("tcb " + ($TcbArgs -join " ") + " failed with exit code " + $code + [Environment]::NewLine + $text)
         }
         return $text
     }
 
-    & tcb @Args | Out-Host
+    & tcb @TcbArgs | Out-Host
     if ($LASTEXITCODE -ne 0) {
-        throw ("tcb " + ($Args -join " ") + " failed with exit code " + $LASTEXITCODE)
+        throw ("tcb " + ($TcbArgs -join " ") + " failed with exit code " + $LASTEXITCODE)
     }
 }
 
@@ -57,7 +57,7 @@ function Invoke-NoSql {
         [Parameter(Mandatory = $true)][string]$CommandJson
     )
 
-    return Invoke-Tcb -Capture -Args @(
+    return Invoke-Tcb -Capture -TcbArgs @(
         "db", "nosql", "execute",
         "--command", $CommandJson,
         "--env-id", $EnvId,
@@ -74,7 +74,7 @@ function Export-RenianCollection {
 
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
 
-    $log = Invoke-Tcb -Capture -Args @(
+    $log = Invoke-Tcb -Capture -TcbArgs @(
         "db", "nosql", "dump", $Collection,
         "--file-type", "json",
         "--output-dir", $Destination,
@@ -349,7 +349,7 @@ function New-RenianPreflight {
 
     Write-Host ("Environment: " + $envId)
     Write-Host "Checking CloudBase access..."
-    Invoke-Tcb -Args @("env", "info", "--env-id", $envId, "--json")
+    Invoke-Tcb -TcbArgs @("env", "info", "--env-id", $envId, "--json")
 
     $stamp = Get-Date -Format "yyyyMMdd-HHmmss-fff"
     $backupDir = Join-Path $script:RenianRepoRoot ("backups/cloudbase/" + $stamp)
