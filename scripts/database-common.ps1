@@ -72,17 +72,53 @@ function ConvertTo-TcbMgoCommandsJson {
         throw "CloudBase NoSQL command JSON must not be empty."
     }
 
+    # CloudBase CLI 3.8.x passes --command directly as RunCommands.MgoCommands.
+    # If the caller already supplied the proper IMgoCommandParam[] envelope,
+    # preserve it as-is.
+    if ($trimmed.StartsWith("[")) {
+        return $trimmed
+    }
+
     try {
         $parsed = $trimmed | ConvertFrom-Json
     } catch {
         throw ("CloudBase NoSQL command is not valid JSON. " + $_.Exception.Message)
     }
 
-    if ($trimmed.StartsWith("[")) {
-        return $trimmed
+    $tableName = $null
+    $commandType = $null
+
+    foreach ($spec in @(
+        @{ Name = "update";        Type = "UPDATE" },
+        @{ Name = "find";          Type = "QUERY" },
+        @{ Name = "count";         Type = "QUERY" },
+        @{ Name = "aggregate";     Type = "QUERY" },
+        @{ Name = "distinct";      Type = "QUERY" },
+        @{ Name = "insert";        Type = "INSERT" },
+        @{ Name = "delete";        Type = "DELETE" },
+        @{ Name = "createIndexes"; Type = "COMMAND" },
+        @{ Name = "dropIndexes";   Type = "COMMAND" }
+    )) {
+        $prop = $parsed.PSObject.Properties[$spec.Name]
+        if ($null -ne $prop) {
+            $tableName = [string]$prop.Value
+            $commandType = [string]$spec.Type
+            break
+        }
     }
 
-    return "[" + $trimmed + "]"
+    if (-not $tableName -or -not $commandType) {
+        throw "Unsupported CloudBase NoSQL command. Could not infer TableName/CommandType."
+    }
+
+    $mgoCommand = [ordered]@{
+        TableName = $tableName
+        CommandType = $commandType
+        Command = $trimmed
+    }
+
+    [object[]]$mgoCommands = @($mgoCommand)
+    return (ConvertTo-Json -InputObject $mgoCommands -Depth 20 -Compress)
 }
 
 function Invoke-NoSql {
