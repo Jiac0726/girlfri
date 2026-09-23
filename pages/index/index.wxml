@@ -1,5 +1,5 @@
 <view class="today-page">
-  <image class="soft-bg" src="{{reviewBg}}" mode="aspectFill"></image>
+  <image class="soft-bg" src="/assets/review-blush.jpg" mode="aspectFill"></image>
 
   <view class="today-head">
     <view>
