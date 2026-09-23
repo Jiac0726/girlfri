@@ -47,6 +47,19 @@
     <view class="partner-reason" wx:if="{{partnerRating.reason}}">{{partnerRating.reason}}</view>
   </view>
 
+  <view
+    class="feature-entry"
+    wx:if="{{bindingStatus === 'active'}}"
+    bindtap="goPermissions"
+  >
+    <view class="feature-entry-icon">💗</view>
+    <view class="feature-entry-body">
+      <view class="feature-entry-title">权限管理</view>
+      <view class="feature-entry-sub">亲嘴权、抱抱权……你们自己的小约定</view>
+    </view>
+    <view class="feature-entry-arrow">›</view>
+  </view>
+
   <view class="card">
     <view class="card-title">今天你想怎么评价 TA？</view>
     <view class="choice-row">

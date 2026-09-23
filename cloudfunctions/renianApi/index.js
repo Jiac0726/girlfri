@@ -603,6 +603,267 @@ async function saveToday(openid, event) {
   };
 }
 
+
+const MAX_PERMISSIONS_PER_PAIR = 50;
+
+function makePermissionId() {
+  return 'perm_' + crypto.randomBytes(10).toString('hex');
+}
+
+function normalizePermissionText(event) {
+  const name = String((event && event.name) || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, 20);
+  const note = String((event && event.note) || '').trim().slice(0, 100);
+
+  if (!name) {
+    throw new ApiError('INVALID_PERMISSION', '权限名称不能为空');
+  }
+
+  return { name, note };
+}
+
+function permissionListOf(pair) {
+  return Array.isArray(pair && pair.permissions) ? pair.permissions : [];
+}
+
+function cleanPermission(item, openid) {
+  if (!item) return null;
+  const fromMe = item.grantedBy === openid;
+  return {
+    id: item.id,
+    name: String(item.name || '').slice(0, 20),
+    note: String(item.note || '').slice(0, 100),
+    enabled: item.enabled !== false,
+    fromMe,
+    canManage: fromMe,
+    direction: fromMe ? 'sent' : 'received',
+    directionLabel: fromMe ? '我给 TA' : 'TA 给我',
+  };
+}
+
+function assertActivePairDocument(pair, openid) {
+  if (!pair || pair.status !== 'active') {
+    throw new ApiError('PAIR_NOT_ACTIVE', '双人关系当前不可用');
+  }
+
+  const members = pair.memberOpenids || [];
+  if (members.length !== 2 || !members.includes(openid)) {
+    throw new ApiError('PAIR_INVALID', '双人关系数据异常');
+  }
+}
+
+async function listPermissions(openid) {
+  const membership = await requireActive(openid);
+  const items = permissionListOf(membership.pair)
+    .slice()
+    .sort((a, b) => {
+      const at = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const bt = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return bt - at;
+    });
+
+  return items.map((item) => cleanPermission(item, openid));
+}
+
+async function createPermission(openid, event) {
+  const input = normalizePermissionText(event);
+  const membership = await requireActive(openid);
+  const pairId = membership.pair._id;
+  const id = makePermissionId();
+  const now = new Date();
+  let created = null;
+
+  await db.runTransaction(async (transaction) => {
+    const pairRes = await transaction
+      .collection(COLLECTIONS.couples)
+      .doc(pairId)
+      .get();
+    const pair = pairRes && pairRes.data;
+    assertActivePairDocument(pair, openid);
+
+    const targetOpenid = partnerOf(pair, openid);
+    if (!targetOpenid) {
+      throw new ApiError('PAIR_INVALID', '找不到绑定对象');
+    }
+
+    const permissions = permissionListOf(pair).slice();
+    if (permissions.length >= MAX_PERMISSIONS_PER_PAIR) {
+      throw new ApiError('PERMISSION_LIMIT', '最多保留 50 项权限，请先删除不用的权限');
+    }
+
+    const duplicate = permissions.some(
+      (item) =>
+        item.grantedBy === openid &&
+        String(item.name || '').trim().toLowerCase() === input.name.toLowerCase()
+    );
+    if (duplicate) {
+      throw new ApiError('PERMISSION_EXISTS', '你已经给 TA 添加过同名权限');
+    }
+
+    created = {
+      id,
+      name: input.name,
+      note: input.note,
+      enabled: true,
+      grantedBy: openid,
+      grantedTo: targetOpenid,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    permissions.unshift(created);
+
+    await transaction.collection(COLLECTIONS.couples).doc(pairId).update({
+      data: {
+        permissions,
+        updatedAt: now,
+      },
+    });
+  });
+
+  return cleanPermission(created, openid);
+}
+
+async function updatePermission(openid, event) {
+  const id = String((event && event.permissionId) || '').trim();
+  if (!id) throw new ApiError('INVALID_PERMISSION', '缺少权限 ID');
+
+  const input = normalizePermissionText(event);
+  const membership = await requireActive(openid);
+  const pairId = membership.pair._id;
+  const now = new Date();
+  let updated = null;
+
+  await db.runTransaction(async (transaction) => {
+    const pairRes = await transaction
+      .collection(COLLECTIONS.couples)
+      .doc(pairId)
+      .get();
+    const pair = pairRes && pairRes.data;
+    assertActivePairDocument(pair, openid);
+
+    const permissions = permissionListOf(pair).slice();
+    const index = permissions.findIndex((item) => item && item.id === id);
+    if (index < 0) throw new ApiError('PERMISSION_NOT_FOUND', '这项权限不存在');
+
+    const current = permissions[index];
+    if (current.grantedBy !== openid) {
+      throw new ApiError('PERMISSION_FORBIDDEN', '只能修改自己授予 TA 的权限');
+    }
+
+    const duplicate = permissions.some(
+      (item, i) =>
+        i !== index &&
+        item.grantedBy === openid &&
+        String(item.name || '').trim().toLowerCase() === input.name.toLowerCase()
+    );
+    if (duplicate) {
+      throw new ApiError('PERMISSION_EXISTS', '你已经给 TA 添加过同名权限');
+    }
+
+    updated = Object.assign({}, current, {
+      name: input.name,
+      note: input.note,
+      updatedAt: now,
+    });
+    permissions[index] = updated;
+
+    await transaction.collection(COLLECTIONS.couples).doc(pairId).update({
+      data: {
+        permissions,
+        updatedAt: now,
+      },
+    });
+  });
+
+  return cleanPermission(updated, openid);
+}
+
+async function togglePermission(openid, event) {
+  const id = String((event && event.permissionId) || '').trim();
+  if (!id || typeof event.enabled !== 'boolean') {
+    throw new ApiError('INVALID_PERMISSION', '权限状态参数不正确');
+  }
+
+  const membership = await requireActive(openid);
+  const pairId = membership.pair._id;
+  const now = new Date();
+  let updated = null;
+
+  await db.runTransaction(async (transaction) => {
+    const pairRes = await transaction
+      .collection(COLLECTIONS.couples)
+      .doc(pairId)
+      .get();
+    const pair = pairRes && pairRes.data;
+    assertActivePairDocument(pair, openid);
+
+    const permissions = permissionListOf(pair).slice();
+    const index = permissions.findIndex((item) => item && item.id === id);
+    if (index < 0) throw new ApiError('PERMISSION_NOT_FOUND', '这项权限不存在');
+
+    const current = permissions[index];
+    if (current.grantedBy !== openid) {
+      throw new ApiError('PERMISSION_FORBIDDEN', '只能管理自己授予 TA 的权限');
+    }
+
+    updated = Object.assign({}, current, {
+      enabled: event.enabled,
+      updatedAt: now,
+    });
+    permissions[index] = updated;
+
+    await transaction.collection(COLLECTIONS.couples).doc(pairId).update({
+      data: {
+        permissions,
+        updatedAt: now,
+      },
+    });
+  });
+
+  return cleanPermission(updated, openid);
+}
+
+async function deletePermission(openid, event) {
+  const id = String((event && event.permissionId) || '').trim();
+  if (!id) throw new ApiError('INVALID_PERMISSION', '缺少权限 ID');
+
+  const membership = await requireActive(openid);
+  const pairId = membership.pair._id;
+  const now = new Date();
+
+  await db.runTransaction(async (transaction) => {
+    const pairRes = await transaction
+      .collection(COLLECTIONS.couples)
+      .doc(pairId)
+      .get();
+    const pair = pairRes && pairRes.data;
+    assertActivePairDocument(pair, openid);
+
+    const permissions = permissionListOf(pair).slice();
+    const index = permissions.findIndex((item) => item && item.id === id);
+    if (index < 0) throw new ApiError('PERMISSION_NOT_FOUND', '这项权限不存在');
+
+    if (permissions[index].grantedBy !== openid) {
+      throw new ApiError('PERMISSION_FORBIDDEN', '只能删除自己授予 TA 的权限');
+    }
+
+    permissions.splice(index, 1);
+
+    await transaction.collection(COLLECTIONS.couples).doc(pairId).update({
+      data: {
+        permissions,
+        updatedAt: now,
+      },
+    });
+  });
+
+  return { deleted: true, id };
+}
+
+
 exports.main = async (event) => {
   try {
     const { OPENID } = cloud.getWXContext();
@@ -627,6 +888,16 @@ exports.main = async (event) => {
         return ok(await listRatings(OPENID));
       case 'rating.save':
         return ok(await saveToday(OPENID, event));
+      case 'permission.list':
+        return ok(await listPermissions(OPENID));
+      case 'permission.create':
+        return ok(await createPermission(OPENID, event));
+      case 'permission.update':
+        return ok(await updatePermission(OPENID, event));
+      case 'permission.toggle':
+        return ok(await togglePermission(OPENID, event));
+      case 'permission.delete':
+        return ok(await deletePermission(OPENID, event));
       default:
         throw new ApiError('UNKNOWN_ACTION', '未知操作');
     }

@@ -34,5 +34,13 @@ module.exports = {
   getToday: () => call('rating.today'),
   listRatings: () => call('rating.list'),
   saveToday: (type, reason) => call('rating.save', { type, reason }),
+  listPermissions: () => call('permission.list'),
+  createPermission: (name, note) => call('permission.create', { name, note }),
+  updatePermission: (permissionId, name, note) =>
+    call('permission.update', { permissionId, name, note }),
+  togglePermission: (permissionId, enabled) =>
+    call('permission.toggle', { permissionId, enabled }),
+  deletePermission: (permissionId) =>
+    call('permission.delete', { permissionId }),
   isBindingError,
 };
