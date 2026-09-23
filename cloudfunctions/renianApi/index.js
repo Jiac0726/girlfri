@@ -190,21 +190,34 @@ async function refreshInvite(openid) {
   const membership = await getMembership(openid);
   if (!membership) throw new ApiError('NOT_BOUND', '请先发起绑定');
 
-  const { pair } = membership;
-  if (pair.status !== 'waiting' || pair.creatorOpenid !== openid) {
-    throw new ApiError('INVITE_NOT_AVAILABLE', '当前没有可更新的绑定邀请');
-  }
-
+  const pairId = membership.pair._id;
   const inviteCode = await uniqueInviteCode();
   const now = new Date();
   const inviteExpiresAt = new Date(now.getTime() + INVITE_TTL_MS);
 
-  await db.collection(COLLECTIONS.couples).doc(pair._id).update({
-    data: {
-      inviteCode,
-      inviteExpiresAt,
-      updatedAt: now,
-    },
+  await db.runTransaction(async (transaction) => {
+    // 【P2 修复】同 P1：校验移进事务内重读，否则可能往已 active 的 pair
+    // 上写入一个仍然有效的邀请码。（joinPair 事务内还会再校验 status，
+    // 所以原写法只是数据卫生问题、非越权，但不应依赖那边兜底。）
+    let pair = null;
+    try {
+      const res = await transaction.collection(COLLECTIONS.couples).doc(pairId).get();
+      pair = res && res.data;
+    } catch (e) {
+      pair = null;
+    }
+
+    if (!pair || pair.status !== 'waiting' || pair.creatorOpenid !== openid) {
+      throw new ApiError('INVITE_NOT_AVAILABLE', '当前没有可更新的绑定邀请');
+    }
+
+    await transaction.collection(COLLECTIONS.couples).doc(pairId).update({
+      data: {
+        inviteCode,
+        inviteExpiresAt,
+        updatedAt: now,
+      },
+    });
   });
 
   return getSession(openid);
@@ -214,13 +227,33 @@ async function cancelInvite(openid) {
   const membership = await getMembership(openid);
   if (!membership) return getSession(openid);
 
-  const { pair } = membership;
-  if (pair.status !== 'waiting' || pair.creatorOpenid !== openid) {
-    throw new ApiError('CANNOT_CANCEL', '只有发起人可以取消未完成的邀请');
-  }
+  const pairId = membership.pair._id;
 
   await db.runTransaction(async (transaction) => {
-    await transaction.collection(COLLECTIONS.couples).doc(pair._id).remove();
+    // 【P1 修复】状态校验必须在事务内【重读】。原写法在事务外检查
+    // status，存在 TOCTOU：若对方恰在此刻 joinPair 成功，本函数会把一个
+    // 已生效的 couple 删掉，且只删发起人的 couple_users，给对方留下悬空
+    // coupleId（后续全报 PAIR_NOT_FOUND，且无法自行解绑 → 账号永久卡死）。
+    let pair = null;
+    try {
+      const res = await transaction.collection(COLLECTIONS.couples).doc(pairId).get();
+      pair = res && res.data;
+    } catch (e) {
+      pair = null;
+    }
+
+    if (!pair) return; // 已经不在了，视作取消成功
+
+    if (pair.status !== 'waiting') {
+      throw new ApiError('CANNOT_CANCEL', '对方已加入，这次绑定不能再取消');
+    }
+    if (pair.creatorOpenid !== openid) {
+      throw new ApiError('CANNOT_CANCEL', '只有发起人可以取消未完成的邀请');
+    }
+
+    // 只有 status === 'waiting' 的 pair 才只有一个成员（发起人），
+    // 因此这里只删发起人的 couple_users 是安全的、不会产生悬空指针。
+    await transaction.collection(COLLECTIONS.couples).doc(pairId).remove();
     await transaction.collection(COLLECTIONS.users).doc(openid).remove();
   });
 
