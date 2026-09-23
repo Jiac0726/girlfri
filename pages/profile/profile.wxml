@@ -1,0 +1,111 @@
+<view class="container profile-page">
+  <view class="profile-hero">
+    <view class="profile-avatar">
+      <text>{{savedMoodEmoji || moodEmoji || '♡'}}</text>
+    </view>
+    <view class="profile-hero-copy">
+      <view class="profile-eyebrow">热念 · 我的</view>
+      <view class="profile-title">今天的我</view>
+      <view class="profile-sub" wx:if="{{bindingStatus === 'active'}}">
+        心情更新后，TA 打开「我的」就能看到。
+      </view>
+      <view class="profile-sub" wx:else>
+        绑定后，你们可以互相看到彼此现在的心情。
+      </view>
+    </view>
+  </view>
+
+  <view
+    class="bind-card"
+    wx:if="{{!authLoading && bindingStatus !== 'active'}}"
+    bindtap="goBind"
+  >
+    <view class="bind-card-icon">💕</view>
+    <view class="bind-card-body">
+      <view class="bind-card-title">
+        {{bindingStatus === 'waiting' ? '等待 TA 加入' : '先完成双人绑定'}}
+      </view>
+      <view class="bind-card-sub">
+        完成绑定后，就能更新心情并查看 TA 的状态。
+      </view>
+    </view>
+    <view class="bind-card-arrow">›</view>
+  </view>
+
+  <view class="card mood-editor" wx:if="{{bindingStatus === 'active'}}">
+    <view class="card-title">我的心情</view>
+
+    <view class="saved-mood" wx:if="{{savedMoodEmoji || savedMoodText}}">
+      <view class="saved-mood-emoji">{{savedMoodEmoji || '💭'}}</view>
+      <view class="saved-mood-body">
+        <view class="saved-mood-text">{{savedMoodText || '只想用一个表情表达现在。'}}</view>
+        <view class="saved-mood-time" wx:if="{{myUpdatedLabel}}">更新于 {{myUpdatedLabel}}</view>
+      </view>
+    </view>
+
+    <view class="mood-label">选一个最接近现在的状态</view>
+    <view class="mood-grid">
+      <view
+        class="mood-chip {{moodEmoji === item.emoji ? 'mood-chip-active' : ''}}"
+        wx:for="{{moods}}"
+        wx:key="emoji"
+        data-emoji="{{item.emoji}}"
+        bindtap="chooseMood"
+      >
+        <view class="mood-chip-emoji">{{item.emoji}}</view>
+        <view class="mood-chip-label">{{item.label}}</view>
+      </view>
+    </view>
+
+    <view class="mood-label mood-text-label">再写一句给 TA 看</view>
+    <textarea
+      class="mood-input"
+      value="{{moodText}}"
+      placeholder="例如：今天有点累，想要一个抱抱。"
+      maxlength="60"
+      auto-height
+      bindinput="onMoodTextInput"
+    />
+    <view class="mood-count">{{moodText.length}}/60</view>
+
+    <button
+      class="mood-save-btn"
+      bindtap="saveMood"
+      disabled="{{saving || (!moodEmoji && !moodText)}}"
+    >
+      更新我的心情
+    </button>
+  </view>
+
+  <view class="partner-section" wx:if="{{bindingStatus === 'active'}}">
+    <view class="section-heading">
+      <view>
+        <view class="section-title">TA 现在的心情</view>
+        <view class="section-sub">这里只显示 TA 主动分享给你的状态</view>
+      </view>
+      <view class="section-heart">♡</view>
+    </view>
+
+    <view class="partner-mood-card" wx:if="{{partner.hasMood}}">
+      <view class="partner-mood-emoji">{{partner.moodEmoji || '💭'}}</view>
+      <view class="partner-mood-body">
+        <view class="partner-mood-text">
+          {{partner.moodText || 'TA 只留了一个表情。'}}
+        </view>
+        <view class="partner-mood-time" wx:if="{{partner.moodUpdatedLabel}}">
+          {{partner.moodUpdatedLabel}}
+        </view>
+      </view>
+    </view>
+
+    <view class="partner-empty" wx:else>
+      <view class="partner-empty-icon">☁️</view>
+      <view class="partner-empty-title">TA 还没有更新心情</view>
+      <view class="partner-empty-sub">等 TA 想说的时候再看看吧。</view>
+    </view>
+  </view>
+
+  <view class="profile-footnote" wx:if="{{bindingStatus === 'active'}}">
+    心情只是当下的一次表达，不替代真正的沟通。看到 TA 状态不太好时，可以主动问一句“怎么啦？”
+  </view>
+</view>
