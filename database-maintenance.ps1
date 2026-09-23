@@ -48,7 +48,7 @@ if (-not (Test-Path $envFile)) {
 }
 
 $envText = Get-Content $envFile -Raw
-$envMatch = [regex]::Match($envText, "cloudEnv\s*:\s*['""]([^'""]+)['""]")
+$envMatch = [regex]::Match($envText, 'cloudEnv\s*:\s*[''"]([^''"]+)[''"]')
 if (-not $envMatch.Success) {
     Fail "Could not read cloudEnv from config/env.local.js." 22
 }
