@@ -4,7 +4,12 @@ $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 . (Join-Path $repoRoot 'scripts/database-common.ps1')
 
 $json = '{"update":"couples","updates":[{"q":{"_id":"pair_1","status":{"$ne":"waiting"}},"u":{"$set":{"inviteCode":"USED_pair_1"}},"multi":false}]}'
-$nativeArg = ConvertTo-TcbJsonArgument -Json $json
+$commandsJson = ConvertTo-TcbMgoCommandsJson -CommandJson $json
+$expected = '[' + $json + ']'
+if ($commandsJson -ne $expected) {
+    throw ("MgoCommands normalization mismatch." + [Environment]::NewLine + "Expected: " + $expected + [Environment]::NewLine + "Received: " + $commandsJson)
+}
+$nativeArg = ConvertTo-TcbJsonArgument -Json $commandsJson
 
 $tempJs = Join-Path $env:TEMP ('renian-native-argv-' + [Guid]::NewGuid().ToString('N') + '.js')
 try {
@@ -19,8 +24,8 @@ try {
         throw "node.exe argv probe failed with exit code $LASTEXITCODE"
     }
 
-    if ([string]$received -ne $json) {
-        throw ("Native argv JSON mismatch." + [Environment]::NewLine + "Expected: " + $json + [Environment]::NewLine + "Received: " + [string]$received)
+    if ([string]$received -ne $expected) {
+        throw ("Native argv JSON mismatch." + [Environment]::NewLine + "Expected: " + $expected + [Environment]::NewLine + "Received: " + [string]$received)
     }
 
     $received | ConvertFrom-Json | Out-Null
