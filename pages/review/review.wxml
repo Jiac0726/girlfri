@@ -1,185 +1,90 @@
-<view class="container review-page">
-  <view class="review-hero">
-    <view>
-      <view class="review-eyebrow">热念 · 回顾</view>
-      <view class="review-title">看看我们一路留下了什么</view>
-      <view class="review-sub">月历、统计、故事和历史记录，都放在这里。</view>
-    </view>
-    <view class="review-total">
-      <view class="review-total-num">{{totalCount}}</view>
-      <view class="review-total-label">累计记录</view>
-    </view>
+<view class="review-page">
+  <image class="review-bg" src="/assets/review-blush.jpg" mode="aspectFill"></image>
+
+  <view class="review-head">
+    <view class="review-title">回顾</view>
+    <view class="profile-dot" bindtap="goProfile">♡</view>
   </view>
 
-  <view class="card overview-card">
-    <view class="overview-rate">
-      <view class="overview-rate-num">{{goodRate}}<text>%</text></view>
-      <view class="overview-rate-label">双方累计好评率</view>
-    </view>
-
-    <view class="overview-verdict">{{verdict}}</view>
-
-    <view class="overview-kpis">
-      <view class="overview-kpi">
-        <view class="overview-kpi-num text-good">{{goodStreak}}</view>
-        <view class="overview-kpi-label">当前双向连好</view>
-      </view>
-      <view class="overview-divider"></view>
-      <view class="overview-kpi">
-        <view class="overview-kpi-num">{{bestStreak}}</view>
-        <view class="overview-kpi-label">历史最长</view>
-      </view>
-      <view class="overview-divider"></view>
-      <view class="overview-kpi">
-        <view class="overview-kpi-num">{{goodCount}} / {{badCount}}</view>
-        <view class="overview-kpi-label">好评 / 差评</view>
-      </view>
-    </view>
+  <view class="segmented">
+    <view class="{{reviewMode === 'calendar' ? 'active' : ''}}" bindtap="showCalendar">月历</view>
+    <view class="{{reviewMode === 'month' ? 'active' : ''}}" bindtap="showMonth">月度回顾</view>
   </view>
 
-  <view class="month-nav">
-    <view class="nav-btn {{canPrev ? '' : 'nav-disabled'}}" bindtap="prevMonth">‹</view>
-    <view class="nav-center">
-      <view class="nav-label">{{monthLabel}}</view>
-      <view class="nav-sub">本月双方回顾</view>
+  <block wx:if="{{reviewMode === 'calendar'}}">
+    <view class="month-nav">
+      <view class="nav-btn {{canPrev ? '' : 'off'}}" bindtap="prevMonth">‹</view>
+      <view class="month-label">{{monthLabel}}</view>
+      <view class="nav-btn {{canNext ? '' : 'off'}}" bindtap="nextMonth">›</view>
     </view>
-    <view class="nav-btn {{canNext ? '' : 'nav-disabled'}}" bindtap="nextMonth">›</view>
-  </view>
 
-  <view class="card month-card">
-    <view class="month-summary">
-      <view>
-        <view class="month-rate">{{monthGoodRate}}<text>%</text></view>
-        <view class="month-rate-label">本月好评率</view>
+    <view class="calendar-card">
+      <view class="week-row">
+        <view wx:for="{{weeks}}" wx:key="*this">{{item}}</view>
       </view>
-      <view class="month-counts">
-        <view class="month-count text-good">👍 {{monthGood}} 条</view>
-        <view class="month-count text-bad">👎 {{monthBad}} 条</view>
-      </view>
-    </view>
-
-    <view class="month-bar">
-      <view class="month-good" style="width: {{monthGoodRate}}%"></view>
-      <view class="month-bad" style="width: {{100 - monthGoodRate}}%"></view>
-    </view>
-
-    <view class="calendar-head">
-      <view class="card-title calendar-title">双向日历</view>
-      <view class="calendar-note">左：我给 TA · 右：TA 给我</view>
-    </view>
-
-    <view class="week-row">
-      <view class="week-cell" wx:for="{{weeks}}" wx:key="*this">{{item}}</view>
-    </view>
-
-    <view class="cal-grid">
-      <view
-        wx:for="{{calendar}}"
-        wx:key="key"
-        class="cal-cell {{item.empty ? 'cal-empty' : item.cls}} {{item.isToday ? 'cal-today' : ''}}"
-      >
-        <view class="cal-emoji">{{item.emoji}}</view>
-        <view class="cal-day">{{item.empty ? '' : item.dayNum}}</view>
-      </view>
-    </view>
-
-    <view class="mutual-streak" wx:if="{{monthGood || monthBad}}">
-      🔥 本月双方连续互给好评最长
-      <text>{{monthBestStreak}}</text>
-      天
-    </view>
-  </view>
-
-  <view class="card highlights-card">
-    <view class="card-title">这个月留下的故事</view>
-
-    <view class="highlight-row" wx:if="{{star}}">
-      <view class="highlight-icon">🌟</view>
-      <view class="highlight-body">
-        <view class="highlight-head">
-          <text class="highlight-title text-good">高光时刻</text>
-          <text class="direction-chip">{{star.directionLabel}}</text>
-          <text class="highlight-date">{{star.date}}</text>
+      <view class="cal-grid">
+        <view wx:for="{{calendar}}" wx:key="key" data-key="{{item.key}}" bindtap="selectDay"
+          class="cal-cell {{item.empty ? 'empty' : ''}} {{item.key === selectedDate ? 'selected' : ''}}">
+          <text class="day-num">{{item.empty ? '' : item.dayNum}}</text>
+          <text wx:if="{{item.mutualGood}}" class="day-mark heart">♥</text>
+          <text wx:elif="{{item.hasRecord}}" class="day-mark {{item.hasBad ? 'bad' : (item.hasNeutral ? 'neutral' : 'dot')}}">•</text>
         </view>
-        <view class="highlight-reason">{{star.reason || '没写原因，但这一天值得记住。'}}</view>
+      </view>
+      <view class="legend">
+        <view><text class="heart">♥</text> 双向很好</view>
+        <view><text class="neutral">•</text> 有记录</view>
+        <view><text class="none">○</text> 未记录</view>
       </view>
     </view>
 
-    <view class="highlight-row" wx:if="{{fail}}">
-      <view class="highlight-icon">💥</view>
-      <view class="highlight-body">
-        <view class="highlight-head">
-          <text class="highlight-title text-bad">小摩擦</text>
-          <text class="direction-chip">{{fail.directionLabel}}</text>
-          <text class="highlight-date">{{fail.date}}</text>
-        </view>
-        <view class="highlight-reason">{{fail.reason || '没写原因，留待之后慢慢聊。'}}</view>
-      </view>
-    </view>
-
-    <view class="highlight-row" wx:if="{{essay}}">
-      <view class="highlight-icon">✍️</view>
-      <view class="highlight-body">
-        <view class="highlight-head">
-          <text class="highlight-title">本月最长的一段话</text>
-          <text class="direction-chip">{{essay.directionLabel}}</text>
-          <text class="highlight-date">{{essay.date}}</text>
-        </view>
-        <view class="highlight-reason">{{essay.reason}}</view>
-      </view>
-    </view>
-
-    <view class="empty compact-empty" wx:if="{{!star && !fail && !essay}}">
-      这个月还没留下故事 ✨
-    </view>
-  </view>
-
-  <view class="card history-card">
-    <view class="history-heading">
-      <view class="card-title history-title">历史记录</view>
-      <view class="history-count">共 {{historyTotal}} 条</view>
-    </view>
-
-    <view wx:if="{{historyList.length}}">
-      <view
-        class="record {{index === historyList.length - 1 ? 'record-last' : ''}}"
-        wx:for="{{historyList}}"
-        wx:key="key"
-      >
-        <view class="record-badge {{item.type === 'good' ? 'badge-good' : 'badge-bad'}}">
-          {{item.type === 'good' ? '👍' : '👎'}}
-        </view>
-
-        <view class="record-body">
-          <view class="record-top">
-            <view class="record-date">{{item.date}}</view>
-            <view class="record-week">{{item.weekDay}}</view>
-            <view class="direction-tag {{item.fromMe ? 'direction-mine' : 'direction-partner'}}">
-              {{item.directionLabel}}
+    <view class="day-card">
+      <view class="day-title">{{selectedDateLabel || '选择一天'}}</view>
+      <block wx:if="{{selectedRecords.length}}">
+        <view class="record" wx:for="{{selectedRecords}}" wx:key="key">
+          <view class="record-avatar {{item.fromMe ? 'mine' : 'partner'}}">{{item.fromMe ? '我' : 'TA'}}</view>
+          <view class="record-body">
+            <view class="record-top">
+              <text>{{item.fromMe ? '我' : 'TA'}}</text>
+              <text class="rating {{item.type}}">{{item.type === 'good' ? '♥ 很好' : (item.type === 'neutral' ? '● 还好' : '☁ 有点糟')}}</text>
             </view>
+            <view class="record-text">{{item.reason || '这一天留下了一条记录。'}}</view>
           </view>
-          <view class="record-reason" wx:if="{{item.reason}}">{{item.reason}}</view>
-          <view class="record-reason record-reason-empty" wx:else>没写原因～</view>
         </view>
-      </view>
+      </block>
+      <view class="empty-day" wx:else>这一天还没有留下记录 ♡</view>
+    </view>
 
-      <view
-        class="history-toggle"
-        wx:if="{{historyTotal > 12}}"
-        bindtap="toggleHistory"
-      >
-        <text wx:if="{{showAllHistory}}">收起记录</text>
-        <text wx:else>展开全部 {{historyTotal}} 条</text>
+    <button class="month-story-btn" bindtap="showMonth">查看这个月的回顾 →</button>
+  </block>
+
+  <block wx:if="{{reviewMode === 'month'}}">
+    <view class="month-hero">
+      <image src="/assets/hero-sunset.jpg" mode="aspectFill"></image>
+      <view class="hero-shade"></view>
+      <view class="hero-copy">
+        <view class="hero-en">{{monthEn}}</view>
+        <view class="hero-title">我们的{{month}}月 ♡</view>
+        <view class="hero-sub">平凡的日子里，因为有你，变得闪闪发光。</view>
       </view>
     </view>
 
-    <view class="empty compact-empty" wx:else>
-      还没有历史记录，去「今天」留下第一条吧。
+    <view class="month-report">
+      <view class="report-title">{{month}}月的我们</view>
+      <view class="report-grid">
+        <view><text>一起记录</text><strong>{{monthRecordDays}}</strong><em>天</em></view>
+        <view><text>彼此好评</text><strong>{{monthMutualGoodDays}}</strong><em>天</em></view>
+        <view><text>好评率</text><strong>{{monthGoodRate}}</strong><em>%</em></view>
+        <view><text>最长连续好评</text><strong>{{monthBestStreak}}</strong><em>天</em></view>
+      </view>
+
+      <view class="keyword-box">
+        <view class="keyword-label">这个月最常出现：</view>
+        <view class="keyword">「{{monthKeyword}}」</view>
+        <view class="keyword-bubbles"><text>一起吃饭</text><text>散步</text><text>聊天</text></view>
+      </view>
+
+      <view class="month-quote">{{monthQuote}}</view>
+      <button class="love-btn" bindtap="showCalendar">查看这个月的故事 →</button>
     </view>
-  </view>
-
-  <button class="poster-btn" bindtap="makePoster">📷 生成「我们的回顾」卡片</button>
-  <view class="review-footnote">热念 · 把每天的相处认真留住 💕</view>
-
-  <canvas type="2d" id="poster" class="poster-canvas"></canvas>
+  </block>
 </view>

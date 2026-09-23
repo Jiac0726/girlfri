@@ -1,116 +1,84 @@
-<view class="sheet">
-  <!-- 报头：像杂志刊名，不做 logo 方块 + 渐变 -->
-  <view class="rise rise-1 masthead">
-    <text class="masthead-name">热念</text>
-    <text class="masthead-tag">把每天的喜欢和在意，好好记下来</text>
+<view class="today-page">
+  <image class="soft-bg" src="/assets/review-blush.jpg" mode="aspectFill"></image>
+
+  <view class="today-head">
+    <view>
+      <view class="head-label">今天</view>
+      <view class="head-date">{{yearMonth}} · {{weekDay}}</view>
+    </view>
+    <view class="profile-dot" bindtap="goProfile">♡</view>
   </view>
 
-  <!-- 日期刊头：大号数字做主视觉，月份/星期缩到极小拉开对比 -->
-  <view class="rise rise-2 dateline">
-    <text class="dateline-num">{{dayNum}}</text>
-    <view class="dateline-side">
-      <text class="dateline-ym">{{yearMonth}}</text>
-      <text class="dateline-week">{{weekDay}}</text>
-    </view>
-    <text class="dateline-state {{submitted ? 'is-done' : ''}}">{{bindingStatus !== 'active' ? '未绑定' : (submitted ? '已评价' : '待评价')}}</text>
+  <view class="question" wx:if="{{bindingStatus === 'active'}}">今天，你觉得我们相处得怎么样？</view>
+
+  <view class="bind-notice" wx:if="{{!authLoading && bindingStatus !== 'active'}}" bindtap="goBind">
+    <view class="notice-heart">♡</view>
+    <view class="notice-title">{{bindingStatus === 'waiting' ? '正在等待 TA 加入' : '先和 TA 建立双人关系'}}</view>
+    <view class="notice-sub">绑定后，你们每天都能各留下一份感受。</view>
+    <button class="love-btn mini">去绑定</button>
   </view>
 
-  <!-- 未绑定 -->
-  <view
-    class="rise rise-3 notice"
-    wx:if="{{!authLoading && bindingStatus !== 'active'}}"
-    bindtap="goBind"
-  >
-    <text class="eyebrow">待完成</text>
-    <view class="notice-body">
-      <text class="notice-title">{{bindingStatus === 'waiting' ? '等待 TA 加入' : '先完成双人绑定'}}</text>
-      <text class="notice-sub">{{bindingStatus === 'waiting' ? '打开绑定页复制绑定码或刷新状态' : '绑定后你和 TA 每天都可以各评价一次'}}</text>
-    </view>
-    <text class="chev">›</text>
-  </view>
-
-  <!-- TA 今天的评价：用「」引号做题，不套卡片 -->
-  <view class="rise rise-3 partner" wx:if="{{bindingStatus === 'active' && partnerRating}}">
-    <text class="eyebrow">TA 今天给你的评价</text>
-    <view class="partner-line">
-      <view class="partner-mark {{partnerRating.type === 'good' ? 'mark-good' : 'mark-bad'}}"></view>
-      <text class="partner-label">{{partnerRating.type === 'good' ? '好评' : '差评'}}</text>
-    </view>
-    <text class="partner-reason" wx:if="{{partnerRating.reason}}">「{{partnerRating.reason}}」</text>
-  </view>
-
-  <!-- 功能入口：去卡片，改列表 + 分隔线 -->
-  <view class="rise rise-4" wx:if="{{bindingStatus === 'active'}}">
-    <view class="entry" bindtap="goPermissions">
-      <view class="entry-body">
-        <text class="entry-title">权限管理</text>
-        <text class="entry-sub">亲嘴权、抱抱权……你们自己的小约定</text>
-      </view>
-      <text class="chev">›</text>
-    </view>
-    <view class="entry" bindtap="goPrivileges">
-      <view class="entry-body">
-        <text class="entry-title">特权卡</text>
-        <text class="entry-sub">给 TA 一张「和好一次」，收到后可使用一次</text>
-      </view>
-      <text class="chev">›</text>
-    </view>
-  </view>
-
-  <!-- 评价：像手账勾选项，不是两个 emoji 大方块 -->
-  <view class="rise rise-5 section">
-    <text class="eyebrow">今天你想怎么评价 TA</text>
-    <view class="choices">
-      <view
-        class="choice {{type === 'good' ? 'is-on' : ''}} {{canRate ? '' : 'is-off'}}"
-        bindtap="selectGood"
-      >
-        <view class="tick {{type === 'good' ? 'tick-on' : ''}}"></view>
-        <view class="choice-body">
-          <text class="choice-label">好评</text>
-          <text class="choice-sub">今天很棒</text>
+  <block wx:if="{{bindingStatus === 'active'}}">
+    <view class="main-card" wx:if="{{!submitted}}">
+      <view class="card-title">今天的我们</view>
+      <view class="mood-row">
+        <view class="mood {{type === 'good' ? 'on good' : ''}}" bindtap="selectGood">
+          <view class="mood-face">☺</view><view class="mood-name">很好</view>
+        </view>
+        <view class="mood {{type === 'neutral' ? 'on neutral' : ''}}" bindtap="selectNeutral">
+          <view class="mood-face">◡</view><view class="mood-name">还好</view>
+        </view>
+        <view class="mood {{type === 'bad' ? 'on bad' : ''}}" bindtap="selectBad">
+          <view class="mood-face">︵</view><view class="mood-name">有点糟</view>
         </view>
       </view>
-      <view
-        class="choice {{type === 'bad' ? 'is-on' : ''}} {{canRate ? '' : 'is-off'}}"
-        bindtap="selectBad"
-      >
-        <view class="tick tick-bad {{type === 'bad' ? 'tick-on' : ''}}"></view>
-        <view class="choice-body">
-          <text class="choice-label">差评</text>
-          <text class="choice-sub">有待改进</text>
+      <textarea class="feeling" placeholder="写一句今天的感受…" placeholder-class="feeling-ph" value="{{reason}}" bindinput="onReasonInput" maxlength="200" />
+      <view class="count">{{reason.length}}/200</view>
+      <button class="love-btn" bindtap="submit" disabled="{{!type || loading}}">保存今天</button>
+    </view>
+
+    <view class="wait-card" wx:if="{{submitted && !partnerRating}}">
+      <view class="card-title left">TA 的评价</view>
+      <view class="envelope">💌</view>
+      <view class="wait-title">还没有收到 TA 的评价</view>
+      <view class="wait-sub">双方都完成后才能看到彼此的内容。<br/>再等等吧 ♡</view>
+    </view>
+
+    <view class="result-card" wx:if="{{submitted && partnerRating}}">
+      <view class="card-title left">今天的我们</view>
+      <view class="pair-results">
+        <view class="result-col">
+          <view class="who">你给 TA</view>
+          <view class="result-face">{{type === 'good' ? '☺' : (type === 'neutral' ? '◡' : '︵')}}</view>
+          <view class="result-type {{type}}">{{type === 'good' ? '很好' : (type === 'neutral' ? '还好' : '有点糟')}}</view>
+          <view class="result-text">「{{reason || '今天也认真记录了一下。'}}」</view>
+        </view>
+        <view class="result-divider"></view>
+        <view class="result-col">
+          <view class="who">TA 给你</view>
+          <view class="result-face">{{partnerRating.type === 'good' ? '☺' : (partnerRating.type === 'neutral' ? '◡' : '︵')}}</view>
+          <view class="result-type {{partnerRating.type}}">{{partnerRating.type === 'good' ? '很好' : (partnerRating.type === 'neutral' ? '还好' : '有点糟')}}</view>
+          <view class="result-text">「{{partnerRating.reason || 'TA 留下了今天的感受。'}}」</view>
         </view>
       </view>
+      <view class="result-date">{{yearMonth}}.{{dayNum}}</view>
+      <view class="edit-link" bindtap="editToday">修改我的评价</view>
     </view>
-  </view>
 
-  <!-- 想说的话：去掉填充色块，只留一条底线 -->
-  <view class="rise rise-5 section">
-    <view class="section-head">
-      <text class="eyebrow">想对 TA 说的话</text>
-      <text class="optional">选填</text>
+    <view class="month-card">
+      <view class="month-title">本月相处</view>
+      <view class="month-grid">
+        <view><text>连续好评</text><strong>{{monthStreak}}</strong><em>天</em></view>
+        <view><text>本月好评率</text><strong>{{monthGoodRate}}</strong><em>%</em></view>
+      </view>
+      <view class="heart-line">
+        <text wx:for="{{streakHearts}}" wx:key="index" class="{{item ? 'filled' : ''}}">♥</text>
+      </view>
+      <view class="month-note">已经连续 {{monthStreak}} 天留下记录啦！</view>
+      <view class="tiny-actions">
+        <view bindtap="goPermissions">小约定</view>
+        <view bindtap="goPrivileges">特权卡</view>
+      </view>
     </view>
-    <textarea
-      class="compose {{canRate ? '' : 'is-off'}}"
-      placeholder="开心、委屈、感谢或小情绪，都可以写给 TA～"
-      placeholder-class="compose-ph"
-      value="{{reason}}"
-      bindinput="onReasonInput"
-      maxlength="200"
-      disabled="{{!canRate}}"
-      auto-height
-    />
-    <text class="count">{{reason.length}} / 200</text>
-  </view>
-
-  <!-- 主操作：实心墨块压住整页，不做粉色圆角胶囊 -->
-  <button
-    wx:if="{{canRate}}"
-    class="submit {{type ? '' : 'submit-off'}}"
-    bindtap="submit"
-    disabled="{{!type || loading}}"
-  >{{submitted ? '更新我给 TA 的评价' : '提交我给 TA 的评价'}}</button>
-
-  <text class="footnote" wx:if="{{canRate && submitted}}">再次提交只会覆盖你自己今天的这条，不会影响 TA 给你的评价。</text>
-  <text class="footnote" wx:elif="{{canRate}}">你们每天都可以各留一条，双向记录彼此的感受</text>
+  </block>
 </view>
