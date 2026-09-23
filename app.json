@@ -4,7 +4,8 @@
     "pages/review/review",
     "pages/bind/bind",
     "pages/permissions/permissions",
-    "pages/privileges/privileges"
+    "pages/privileges/privileges",
+    "pages/profile/profile"
   ],
   "window": {
     "navigationBarBackgroundColor": "#ff6b81",
@@ -26,6 +27,10 @@
       {
         "pagePath": "pages/review/review",
         "text": "回顾"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的"
       }
     ]
   },

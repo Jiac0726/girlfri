@@ -1101,6 +1101,80 @@ async function revokePrivilegeCard(openid, event) {
 }
 
 
+
+const MOOD_TEXT_MAX = 60;
+const MOOD_EMOJI_MAX = 8;
+
+function cleanMoodProfile(user) {
+  const emoji = String((user && user.moodEmoji) || '').slice(0, MOOD_EMOJI_MAX);
+  const text = String((user && user.moodText) || '').slice(0, MOOD_TEXT_MAX);
+  const updatedAt = user && user.moodUpdatedAt ? new Date(user.moodUpdatedAt) : null;
+  const updatedAtIso =
+    updatedAt && !Number.isNaN(updatedAt.getTime()) ? updatedAt.toISOString() : '';
+
+  return {
+    moodEmoji: emoji,
+    moodText: text,
+    moodUpdatedAt: updatedAtIso,
+    hasMood: !!(emoji || text),
+  };
+}
+
+async function getProfile(openid) {
+  const membership = await requireActive(openid);
+  const partnerOpenid = partnerOf(membership.pair, openid);
+  if (!partnerOpenid) {
+    throw new ApiError('PAIR_INVALID', '找不到绑定对象');
+  }
+
+  const partnerUser = await safeGet(
+    db.collection(COLLECTIONS.users).doc(partnerOpenid)
+  );
+
+  if (!partnerUser || partnerUser.coupleId !== membership.pair._id) {
+    throw new ApiError('PAIR_INVALID', '对方资料状态异常');
+  }
+
+  return {
+    me: cleanMoodProfile(membership.user),
+    partner: cleanMoodProfile(partnerUser),
+  };
+}
+
+async function updateMood(openid, event) {
+  const membership = await requireActive(openid);
+
+  const moodEmoji = String((event && event.moodEmoji) || '')
+    .trim()
+    .slice(0, MOOD_EMOJI_MAX);
+  const moodText = String((event && event.moodText) || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, MOOD_TEXT_MAX);
+
+  if (!moodEmoji && !moodText) {
+    throw new ApiError('INVALID_MOOD', '选一个心情，或者写一句现在的感受');
+  }
+
+  const now = new Date();
+
+  await db.collection(COLLECTIONS.users).doc(openid).update({
+    data: {
+      moodEmoji,
+      moodText,
+      moodUpdatedAt: now,
+      updatedAt: now,
+    },
+  });
+
+  return cleanMoodProfile({
+    moodEmoji,
+    moodText,
+    moodUpdatedAt: now,
+  });
+}
+
+
 exports.main = async (event) => {
   try {
     const { OPENID } = cloud.getWXContext();
@@ -1143,6 +1217,10 @@ exports.main = async (event) => {
         return ok(await usePrivilegeCard(OPENID, event));
       case 'privilege.revoke':
         return ok(await revokePrivilegeCard(OPENID, event));
+      case 'profile.get':
+        return ok(await getProfile(OPENID));
+      case 'profile.mood.update':
+        return ok(await updateMood(OPENID, event));
       default:
         throw new ApiError('UNKNOWN_ACTION', '未知操作');
     }

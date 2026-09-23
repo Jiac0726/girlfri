@@ -630,6 +630,96 @@ async function main() {
     useRevoked && useRevoked.error ? useRevoked.error.code : 'no error'
   );
 
+
+  // ── T13｜个人页心情：只能更新自己，对方可查看 ──────────────
+  console.log('\n[T13] 个人页心情 —— 自己更新、对方查看');
+  reset();
+  await call('pair.create');
+  const moodPairId = [...colStore('couples').keys()][0];
+  const moodInvite = colStore('couples').get(moodPairId).inviteCode;
+
+  sdk.__setOpenid('OPENID_B');
+  await call('pair.join', { inviteCode: moodInvite });
+
+  sdk.__setOpenid('OPENID_A');
+  const moodUpdateA = await call('profile.mood.update', {
+    moodEmoji: '🥰',
+    moodText: '今天很开心，想见你',
+  });
+
+  record(
+    'A 可以更新自己的心情',
+    moodUpdateA &&
+      moodUpdateA.ok === true &&
+      moodUpdateA.data.moodEmoji === '🥰' &&
+      moodUpdateA.data.moodText === '今天很开心，想见你' &&
+      moodUpdateA.data.hasMood === true &&
+      !!moodUpdateA.data.moodUpdatedAt
+  );
+
+  const aStored = colStore('couple_users').get('OPENID_A') || {};
+  const bStoredBefore = colStore('couple_users').get('OPENID_B') || {};
+  record(
+    '更新只写自己的 couple_users 文档',
+    aStored.moodEmoji === '🥰' &&
+      aStored.moodText === '今天很开心，想见你' &&
+      bStoredBefore.moodEmoji === undefined &&
+      bStoredBefore.moodText === undefined
+  );
+
+  const profileA = await call('profile.get');
+  record(
+    'A 的个人页显示自己的心情，对方初始为空',
+    profileA &&
+      profileA.ok === true &&
+      profileA.data.me.moodEmoji === '🥰' &&
+      profileA.data.me.moodText === '今天很开心，想见你' &&
+      profileA.data.partner.hasMood === false
+  );
+
+  sdk.__setOpenid('OPENID_B');
+  const profileB = await call('profile.get');
+  record(
+    'B 能看到 A 主动分享的当前心情',
+    profileB &&
+      profileB.ok === true &&
+      profileB.data.partner.moodEmoji === '🥰' &&
+      profileB.data.partner.moodText === '今天很开心，想见你' &&
+      profileB.data.partner.hasMood === true
+  );
+
+  record(
+    'profile.get 不泄露双方 openid',
+    profileB &&
+      profileB.ok === true &&
+      profileB.data.me.openid === undefined &&
+      profileB.data.partner.openid === undefined &&
+      profileB.data.me._id === undefined &&
+      profileB.data.partner._id === undefined
+  );
+
+  const moodUpdateB = await call('profile.mood.update', {
+    moodEmoji: '🥺',
+    moodText: '今天有点累，想抱抱',
+  });
+  record(
+    'B 也只能更新自己的心情',
+    moodUpdateB &&
+      moodUpdateB.ok === true &&
+      colStore('couple_users').get('OPENID_A').moodEmoji === '🥰' &&
+      colStore('couple_users').get('OPENID_B').moodEmoji === '🥺'
+  );
+
+  sdk.__setOpenid('OPENID_A');
+  const profileAAfter = await call('profile.get');
+  record(
+    'A 刷新后能看到 B 的最新心情',
+    profileAAfter &&
+      profileAAfter.ok === true &&
+      profileAAfter.data.partner.moodEmoji === '🥺' &&
+      profileAAfter.data.partner.moodText === '今天有点累，想抱抱'
+  );
+
   const passed = results.filter((r) => r.pass).length;
   console.log(`\n══════ ${passed}/${results.length} 通过 ══════`);
   process.exit(passed === results.length ? 0 : 1);

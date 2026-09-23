@@ -26,6 +26,7 @@ jobs:
           node --check pages/index/index.js
           node --check pages/permissions/permissions.js
           node --check pages/privileges/privileges.js
+          node --check pages/profile/profile.js
           node --check tests/renian-api/mock-wx-server-sdk.js
           node --check tests/renian-api/race.test.js
       - name: renianApi regression tests

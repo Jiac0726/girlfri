@@ -49,5 +49,8 @@ module.exports = {
     call('privilege.use', { cardId }),
   revokePrivilegeCard: (cardId) =>
     call('privilege.revoke', { cardId }),
+  getProfile: () => call('profile.get'),
+  updateMood: (moodEmoji, moodText) =>
+    call('profile.mood.update', { moodEmoji, moodText }),
   isBindingError,
 };
