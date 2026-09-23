@@ -139,3 +139,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             throw "Windows PowerShell 5.1 preflight compatibility test failed with exit code $LASTEXITCODE"
           }
+
+      - name: Windows PowerShell 5.1 native JSON argv
+        shell: pwsh
+        run: |
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\powershell\native-json-argv.ps1
+          if ($LASTEXITCODE -ne 0) {
+            throw "Windows PowerShell 5.1 native JSON argv test failed with exit code $LASTEXITCODE"
+          }
