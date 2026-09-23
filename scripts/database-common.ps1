@@ -45,7 +45,7 @@ function Invoke-Tcb {
         return $text
     }
 
-    & tcb @Args
+    & tcb @Args | Out-Host
     if ($LASTEXITCODE -ne 0) {
         throw ("tcb " + ($Args -join " ") + " failed with exit code " + $LASTEXITCODE)
     }
