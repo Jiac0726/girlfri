@@ -130,3 +130,12 @@ jobs:
           }
 
           Write-Host 'update-main.ps1 force-update smoke test passed.'
+
+
+      - name: Windows PowerShell 5.1 preflight compatibility
+        shell: pwsh
+        run: |
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\powershell\preflight-compat.ps1
+          if ($LASTEXITCODE -ne 0) {
+            throw "Windows PowerShell 5.1 preflight compatibility test failed with exit code $LASTEXITCODE"
+          }

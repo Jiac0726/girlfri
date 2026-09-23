@@ -129,7 +129,7 @@ function Read-JsonDumpFile {
         }
     }
 
-    return @($rows)
+    return $rows.ToArray()
 }
 
 function Read-CollectionDump {
@@ -147,7 +147,7 @@ function Read-CollectionDump {
         }
     }
 
-    return @($all)
+    return $all.ToArray()
 }
 
 function Get-PropValue {
@@ -215,7 +215,7 @@ function Analyze-RenianBackup {
 
     $waitingDuplicates = New-Object System.Collections.Generic.List[object]
     foreach ($key in $waitingCodes.Keys) {
-        $ids = @($waitingCodes[$key])
+        $ids = $waitingCodes[$key].ToArray()
         if ($ids.Count -gt 1) {
             $waitingDuplicates.Add([ordered]@{
                 inviteCode = $key
@@ -282,15 +282,15 @@ function Analyze-RenianBackup {
             ratings = $ratings.Count
         }
         couples = [ordered]@{
-            missingIds = @($missingCoupleIds)
-            waitingInvalid = @($waitingInvalid)
-            waitingDuplicates = @($waitingDuplicates)
-            normalizationCandidates = @($normalizationCandidates)
+            missingIds = $missingCoupleIds.ToArray()
+            waitingInvalid = $waitingInvalid.ToArray()
+            waitingDuplicates = $waitingDuplicates.ToArray()
+            normalizationCandidates = $normalizationCandidates.ToArray()
         }
         warnings = [ordered]@{
-            coupleUsersMissingIdentityOrCouple = @($userIssues)
-            ratingsMissingIndexFields = @($ratingIssues)
-            duplicateRatingLogicalKeys = @($ratingDuplicates)
+            coupleUsersMissingIdentityOrCouple = $userIssues.ToArray()
+            ratingsMissingIndexFields = $ratingIssues.ToArray()
+            duplicateRatingLogicalKeys = $ratingDuplicates.ToArray()
         }
     }
 }
