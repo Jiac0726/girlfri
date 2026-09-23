@@ -8,30 +8,20 @@
     "pages/profile/profile"
   ],
   "window": {
-    "navigationBarBackgroundColor": "#ff6b81",
+    "navigationBarBackgroundColor": "#fff7f8",
     "navigationBarTitleText": "热念",
-    "navigationBarTextStyle": "white",
-    "backgroundColor": "#fff0f3",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#fff5f6",
     "backgroundTextStyle": "dark"
   },
   "tabBar": {
-    "color": "#b08090",
-    "selectedColor": "#ff6b81",
-    "backgroundColor": "#ffffff",
+    "color": "#8e8f95",
+    "selectedColor": "#ef4b65",
+    "backgroundColor": "#fffafb",
     "borderStyle": "white",
     "list": [
-      {
-        "pagePath": "pages/index/index",
-        "text": "今天"
-      },
-      {
-        "pagePath": "pages/review/review",
-        "text": "回顾"
-      },
-      {
-        "pagePath": "pages/profile/profile",
-        "text": "我的"
-      }
+      { "pagePath": "pages/index/index", "text": "今天" },
+      { "pagePath": "pages/review/review", "text": "回顾" }
     ]
   },
   "style": "v2",
