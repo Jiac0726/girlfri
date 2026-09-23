@@ -952,12 +952,30 @@ async function createPrivilegeCard(openid, event) {
       throw new ApiError('PAIR_INVALID', '找不到绑定对象');
     }
 
-    const cards = privilegeCardsOf(pair).slice();
+    let cards = privilegeCardsOf(pair).slice();
     if (cards.length >= MAX_PRIVILEGE_CARDS_PER_PAIR) {
-      throw new ApiError(
-        'PRIVILEGE_CARD_LIMIT',
-        '这段关系已保存 80 张特权卡，请先保留重要记录后再继续'
+      const activeCards = cards.filter(
+        (item) => (item.status || 'active') === 'active'
       );
+      if (activeCards.length >= MAX_PRIVILEGE_CARDS_PER_PAIR) {
+        throw new ApiError(
+          'PRIVILEGE_CARD_LIMIT',
+          '当前未使用的特权卡太多，请先使用或撤回一些'
+        );
+      }
+
+      // 自动保留全部未使用卡 + 最近的历史卡，避免 couple 文档无限膨胀。
+      const historyCards = cards.filter(
+        (item) => (item.status || 'active') !== 'active'
+      );
+      const historyLimit = MAX_PRIVILEGE_CARDS_PER_PAIR - 1 - activeCards.length;
+      cards = activeCards
+        .concat(historyCards.slice(0, Math.max(0, historyLimit)))
+        .sort((a, b) => {
+          const at = new Date(a.createdAt || 0).getTime();
+          const bt = new Date(b.createdAt || 0).getTime();
+          return bt - at;
+        });
     }
 
     created = {
