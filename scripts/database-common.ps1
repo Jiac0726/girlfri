@@ -64,13 +64,71 @@ function ConvertTo-TcbJsonArgument {
     return $Json
 }
 
+function ConvertTo-MgoCommandsJson {
+    param(
+        [Parameter(Mandatory = $true)][string]$CommandJson
+    )
+
+    try {
+        $commandObject = $CommandJson | ConvertFrom-Json
+    } catch {
+        throw ("Invalid Mongo command JSON: " + $_.Exception.Message)
+    }
+
+    $tableName = $null
+    $commandType = $null
+
+    if ($null -ne $commandObject.PSObject.Properties["update"]) {
+        $tableName = [string]$commandObject.update
+        $commandType = "UPDATE"
+    } elseif ($null -ne $commandObject.PSObject.Properties["find"]) {
+        $tableName = [string]$commandObject.find
+        $commandType = "QUERY"
+    } elseif ($null -ne $commandObject.PSObject.Properties["insert"]) {
+        $tableName = [string]$commandObject.insert
+        $commandType = "INSERT"
+    } elseif ($null -ne $commandObject.PSObject.Properties["delete"]) {
+        $tableName = [string]$commandObject.delete
+        $commandType = "DELETE"
+    } elseif ($null -ne $commandObject.PSObject.Properties["createIndexes"]) {
+        $tableName = [string]$commandObject.createIndexes
+        $commandType = "COMMAND"
+    } elseif ($null -ne $commandObject.PSObject.Properties["count"]) {
+        $tableName = [string]$commandObject.count
+        $commandType = "COMMAND"
+    } elseif ($null -ne $commandObject.PSObject.Properties["aggregate"]) {
+        $tableName = [string]$commandObject.aggregate
+        $commandType = "COMMAND"
+    } elseif ($null -ne $commandObject.PSObject.Properties["distinct"]) {
+        $tableName = [string]$commandObject.distinct
+        $commandType = "COMMAND"
+    } else {
+        throw "Unsupported Mongo command. Expected update/find/insert/delete/createIndexes/count/aggregate/distinct."
+    }
+
+    if (-not $tableName) {
+        throw "Mongo command collection name is empty."
+    }
+
+    $commands = @(
+        [ordered]@{
+            TableName = $tableName
+            CommandType = $commandType
+            Command = $CommandJson
+        }
+    )
+
+    return ConvertTo-Json -InputObject $commands -Depth 12 -Compress
+}
+
 function Invoke-NoSql {
     param(
         [Parameter(Mandatory = $true)][string]$EnvId,
         [Parameter(Mandatory = $true)][string]$CommandJson
     )
 
-    $commandArg = ConvertTo-TcbJsonArgument -Json $CommandJson
+    $mgoCommandsJson = ConvertTo-MgoCommandsJson -CommandJson $CommandJson
+    $commandArg = ConvertTo-TcbJsonArgument -Json $mgoCommandsJson
 
     return Invoke-Tcb -Capture -TcbArgs @(
         "db", "nosql", "execute",
