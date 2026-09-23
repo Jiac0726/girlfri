@@ -1,3 +1,4 @@
+const env = require('../config/env');
 const FUNCTION_NAME = 'renianApi';
 
 function toError(result) {
@@ -7,11 +8,39 @@ function toError(result) {
   return err;
 }
 
+function toCloudInvokeError(error) {
+  const raw = String(
+    (error && (error.errMsg || error.message)) ||
+    error ||
+    '未知云函数调用错误'
+  );
+  const cloudEnv = String((env && env.cloudEnv) || '').trim() || '(未配置)';
+  const err = new Error(
+    '云函数 renianApi 调用失败；当前环境：' + cloudEnv + '；' + raw
+  );
+  err.code = 'CLOUD_INVOKE_FAILED';
+  err.raw = error;
+  err.cloudEnv = cloudEnv;
+  return err;
+}
+
 async function call(action, data) {
-  const res = await wx.cloud.callFunction({
-    name: FUNCTION_NAME,
-    data: Object.assign({ action }, data || {}),
-  });
+  let res;
+  try {
+    res = await wx.cloud.callFunction({
+      name: FUNCTION_NAME,
+      data: Object.assign({ action }, data || {}),
+    });
+  } catch (error) {
+    console.error('[renian cloud invoke failed]', {
+      functionName: FUNCTION_NAME,
+      action,
+      cloudEnv: env.cloudEnv,
+      error,
+    });
+    throw toCloudInvokeError(error);
+  }
+
   const result = res && res.result;
   if (!result || result.ok !== true) throw toError(result);
   return result.data;
