@@ -1,0 +1,258 @@
+.permission-page {
+  padding-bottom: 90rpx;
+}
+
+.permission-hero {
+  padding: 18rpx 10rpx 34rpx;
+}
+
+.permission-eyebrow {
+  color: #ff6b81;
+  font-size: 23rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
+
+.permission-title {
+  margin-top: 10rpx;
+  color: #4a3540;
+  font-size: 42rpx;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.permission-sub {
+  margin-top: 12rpx;
+  color: #a68591;
+  font-size: 24rpx;
+  line-height: 1.75;
+}
+
+.permission-editor {
+  padding-bottom: 30rpx;
+}
+
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+  margin-bottom: 22rpx;
+}
+
+.preset-chip {
+  padding: 10rpx 20rpx;
+  border-radius: 999rpx;
+  background: #fff0f3;
+  color: #ff6b81;
+  font-size: 23rpx;
+  border: 2rpx solid #ffd7df;
+}
+
+.permission-input,
+.permission-note {
+  width: 100%;
+  box-sizing: border-box;
+  background: #fffafb;
+  border: 2rpx solid #f3dfe5;
+  border-radius: 20rpx;
+  color: #4a3540;
+  font-size: 28rpx;
+}
+
+.permission-input {
+  height: 88rpx;
+  padding: 0 24rpx;
+}
+
+.permission-note {
+  min-height: 126rpx;
+  margin-top: 18rpx;
+  padding: 22rpx 24rpx;
+  line-height: 1.65;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 18rpx;
+  margin-top: 24rpx;
+}
+
+.save-btn,
+.cancel-btn {
+  flex: 1;
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 999rpx;
+  font-size: 27rpx;
+  font-weight: 700;
+}
+
+.save-btn {
+  background: #ff6b81 !important;
+  color: #ffffff !important;
+}
+
+.save-btn[disabled] {
+  background: #f1dfe4 !important;
+  color: #bda5ad !important;
+}
+
+.cancel-btn {
+  background: #f7eef1 !important;
+  color: #8f727d !important;
+}
+
+.save-btn::after,
+.cancel-btn::after {
+  border: none;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 36rpx 8rpx 18rpx;
+}
+
+.received-head {
+  margin-top: 52rpx;
+}
+
+.section-title {
+  color: #4a3540;
+  font-size: 30rpx;
+  font-weight: 800;
+}
+
+.section-sub {
+  color: #b596a2;
+  font-size: 22rpx;
+  margin-top: 3rpx;
+}
+
+.section-count {
+  min-width: 48rpx;
+  height: 48rpx;
+  line-height: 48rpx;
+  text-align: center;
+  border-radius: 999rpx;
+  background: #ffe3e8;
+  color: #ff6b81;
+  font-size: 23rpx;
+  font-weight: 700;
+}
+
+.permission-card {
+  margin-bottom: 18rpx;
+  padding: 28rpx 28rpx 22rpx;
+  border-radius: 24rpx;
+  background: #ffffff;
+  box-shadow: 0 6rpx 20rpx rgba(255, 107, 129, 0.08);
+  border: 2rpx solid transparent;
+}
+
+.permission-card-off {
+  opacity: 0.72;
+  background: #faf6f7;
+}
+
+.received-card {
+  border-color: #ffe0e6;
+}
+
+.permission-main {
+  min-width: 0;
+}
+
+.permission-name-row {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+}
+
+.permission-name {
+  flex: 1;
+  color: #4a3540;
+  font-size: 29rpx;
+  font-weight: 800;
+  word-break: break-all;
+}
+
+.status-pill {
+  flex-shrink: 0;
+  padding: 5rpx 14rpx;
+  border-radius: 999rpx;
+  font-size: 20rpx;
+  font-weight: 700;
+}
+
+.status-on {
+  color: #ff6b81;
+  background: #ffe7eb;
+}
+
+.status-off {
+  color: #8b7b81;
+  background: #efeaec;
+}
+
+.permission-note-text,
+.permission-note-empty {
+  margin-top: 10rpx;
+  font-size: 23rpx;
+  line-height: 1.65;
+}
+
+.permission-note-text {
+  color: #866c76;
+}
+
+.permission-note-empty {
+  color: #c7b1b9;
+}
+
+.permission-controls {
+  display: flex;
+  align-items: center;
+  margin-top: 20rpx;
+  padding-top: 18rpx;
+  border-top: 2rpx solid #f8edf0;
+}
+
+.switch-label {
+  color: #a68691;
+  font-size: 22rpx;
+  margin-right: 8rpx;
+}
+
+.permission-controls switch {
+  transform: scale(0.78);
+  transform-origin: left center;
+  margin-right: auto;
+}
+
+.text-action {
+  padding: 8rpx 10rpx;
+  margin-left: 10rpx;
+  color: #ff6b81;
+  font-size: 23rpx;
+  font-weight: 700;
+}
+
+.danger-action {
+  color: #8b7b81;
+}
+
+.permission-empty {
+  padding: 50rpx 20rpx;
+  background: rgba(255, 255, 255, 0.58);
+  border-radius: 24rpx;
+}
+
+.permission-footnote {
+  margin: 42rpx 18rpx 0;
+  color: #bca4ad;
+  font-size: 21rpx;
+  line-height: 1.7;
+  text-align: center;
+}
