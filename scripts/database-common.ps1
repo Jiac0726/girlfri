@@ -64,13 +64,37 @@ function ConvertTo-TcbJsonArgument {
     return $Json
 }
 
+function ConvertTo-TcbMgoCommandsJson {
+    param([Parameter(Mandatory = $true)][string]$CommandJson)
+
+    $trimmed = $CommandJson.Trim()
+    if (-not $trimmed) {
+        throw "CloudBase NoSQL command JSON must not be empty."
+    }
+
+    try {
+        $parsed = $trimmed | ConvertFrom-Json
+    } catch {
+        throw ("CloudBase NoSQL command is not valid JSON. " + $_.Exception.Message)
+    }
+
+    if ($trimmed.StartsWith("[")) {
+        return $trimmed
+    }
+
+    return "[" + $trimmed + "]"
+}
+
 function Invoke-NoSql {
     param(
         [Parameter(Mandatory = $true)][string]$EnvId,
         [Parameter(Mandatory = $true)][string]$CommandJson
     )
 
-    $commandArg = ConvertTo-TcbJsonArgument -Json $CommandJson
+    # CloudBase CLI 3.8.x validates --command as an MgoCommands JSON array.
+    # Keep callers ergonomic by accepting one command object and wrapping it.
+    $commandsJson = ConvertTo-TcbMgoCommandsJson -CommandJson $CommandJson
+    $commandArg = ConvertTo-TcbJsonArgument -Json $commandsJson
 
     return Invoke-Tcb -Capture -TcbArgs @(
         "db", "nosql", "execute",
