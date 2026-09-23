@@ -1,5 +1,5 @@
 <view class="love-page">
-  <image class="paper-bg" src="../../assets/review-blush.jpg" mode="aspectFill"></image>
+  <image class="paper-bg" src="../../assets/review-blush.png" mode="aspectFill"></image>
 
   <block wx:if="{{bindingStatus === 'unbound' && !openedFromInvite}}">
     <view class="welcome-stage">
@@ -8,7 +8,7 @@
       <view class="brand-sub">两个人的相处记录</view>
       <view class="hand-note note-left">平凡的日子\n因为有你\n而闪闪发光 ♡</view>
 
-      <image class="welcome-photo" src="../../assets/hero-sunset.jpg" mode="aspectFill"></image>
+      <image class="welcome-photo" src="../../assets/hero-sunset.png" mode="aspectFill"></image>
 
       <button class="love-btn" bindtap="createInvite" loading="{{loading}}">和 TA 绑定</button>
       <view class="text-link" bindtap="showManualJoin">我已经收到邀请 →</view>

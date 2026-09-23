@@ -1,5 +1,5 @@
 <view class="review-page">
-  <image class="review-bg" src="../../assets/review-blush.jpg" mode="aspectFill"></image>
+  <image class="review-bg" src="../../assets/review-blush.png" mode="aspectFill"></image>
 
   <view class="review-head">
     <view class="review-title">回顾</view>
@@ -59,7 +59,7 @@
 
   <block wx:if="{{reviewMode === 'month'}}">
     <view class="month-hero">
-      <image src="../../assets/hero-sunset.jpg" mode="aspectFill"></image>
+      <image src="../../assets/hero-sunset.png" mode="aspectFill"></image>
       <view class="hero-shade"></view>
       <view class="hero-copy">
         <view class="hero-en">{{monthEn}}</view>
