@@ -173,6 +173,71 @@ async function main() {
       pr.targetOpenid === undefined,
     '输出字段: ' + Object.keys(pr).join(',')
   );
+  // 【P3·方案 B】绑定后 inviteCode 应改写成 USED_<pairId>（而非 null），
+  // 这样 couples.inviteCode 可直接建普通唯一索引兕底。
+  const usedCode = colStore('couples').get([...colStore('couples').keys()][0]).inviteCode;
+  record(
+    'P3B 邀请码用后改写为 USED_<pairId>',
+    typeof usedCode === 'string' && usedCode.indexOf('USED_') === 0,
+    String(usedCode)
+  );
+  // 【P4】多条记录下分页应完整取回、无漏行重行（mock 的 orderBy 已真排序）
+  for (let i = 0; i < 5; i += 1) {
+    colStore('ratings').set('TESTPAD_' + i, {
+      coupleId: [...colStore('couples').keys()][0],
+      date: '2026-01-0' + (i + 1),
+      type: 'good',
+      reason: 'pad' + i,
+      ratedBy: 'OPENID_PAD',
+      targetOpenid: 'OPENID_A',
+      updatedAt: new Date(),
+    });
+  }
+  const r8 = await call('rating.list');
+  const ids = (r8.data || []).map((x) => x.date + ':' + (x.fromMe ? 'me' : 'ta'));
+  record(
+    'P4 分页取回完整无漏行/重行',
+    r8.ok === true && new Set(ids).size === ids.length && ids.length >= 6,
+    '条数 ' + ids.length + ' 去重后 ' + new Set(ids).size
+  );
+
+  // ── T5｜P6：pair.join 限流 ────────────────────────────
+  console.log('\n[T5] P6 —— pair.join 尝试限流');
+  sdk.__setOpenid('OPENID_C');
+  let throttleCode = '';
+  let attempts = 0;
+  for (let i = 0; i < 12; i += 1) {
+    attempts += 1;
+    const rt = await call('pair.join', { inviteCode: 'ZZZZZZZZ' });
+    if (rt && rt.ok === false) {
+      throttleCode = rt.error.code;
+      if (throttleCode === 'TOO_MANY_ATTEMPTS') break;
+    }
+  }
+  record(
+    '超出上限后被限流',
+    throttleCode === 'TOO_MANY_ATTEMPTS',
+    '第 ' + attempts + ' 次 → ' + throttleCode
+  );
+
+  // ── T6｜P5：瞬时故障不应伪装成「未绑定」 ─────────────────
+  console.log('\n[T6] P5 —— 数据库瞬时故障的错误语义');
+  reset();
+  await call('pair.create');
+  sdk.__setOpenid('OPENID_B');
+  hooks.beforeGet = () => {
+    const e = new Error('db unavailable');
+    e.errCode = -1000;
+    throw e;
+  };
+  const r9 = await call('rating.today');
+  delete hooks.beforeGet;
+  sdk.__setOpenid('OPENID_A');
+  record(
+    '报 INTERNAL 而非 NOT_BOUND',
+    r9 && r9.ok === false && r9.error.code === 'INTERNAL',
+    r9 && r9.ok === false ? '返回 ' + r9.error.code : '未失败'
+  );
 
   const passed = results.filter((r) => r.pass).length;
   console.log(`\n══════ ${passed}/${results.length} 通过 ══════`);

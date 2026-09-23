@@ -49,7 +49,7 @@ function docRef(col, id) {
 }
 
 function queryRef(col) {
-  const state = { criteria: null, skip: 0, limit: Infinity };
+  const state = { criteria: null, skip: 0, limit: Infinity, order: [] };
   const api = {
     where(cond) {
       state.criteria = cond;
@@ -63,7 +63,9 @@ function queryRef(col) {
       state.limit = n;
       return api;
     },
-    orderBy() {
+    orderBy(field, order) {
+      // 真排序：否则 P4（skip/limit 需全序）测不出来
+      state.order.push([field, order === 'desc' ? -1 : 1]);
       return api;
     },
     async get() {
@@ -73,6 +75,15 @@ function queryRef(col) {
         rows = rows.filter((r) =>
           Object.entries(state.criteria).every(([k, v]) => r[k] === v)
         );
+      }
+      if (state.order.length) {
+        rows.sort((a, b) => {
+          for (const [f, dir] of state.order) {
+            if (a[f] === b[f]) continue;
+            return a[f] < b[f] ? -dir : dir;
+          }
+          return 0;
+        });
       }
       rows = rows.slice(state.skip, state.skip + state.limit);
       return { data: rows };

@@ -52,12 +52,26 @@ function ratingId(coupleId, date, authorOpenid) {
   return coupleId + '_' + date + '_' + memberKey(authorOpenid);
 }
 
+// 【P5 修复】只吞「文档不存在」，其余异常（瞬时故障、权限、限流）必须上抛。
+// 原写法吞掉所有异常返回 null，会把数据库抖动伪装成「记录不存在」，
+// 导致 getMembership 把正常用户误判为未绑定。
+function isDocMissing(e) {
+  const code = e && (e.errCode !== undefined ? e.errCode : e.code);
+  const msg = String((e && (e.errMsg || e.message)) || '');
+  return (
+    code === -1 ||
+    /document\s*(not\s*)?(exists|exist)/i.test(msg) ||
+    /not\s*found/i.test(msg)
+  );
+}
+
 async function safeGet(ref) {
   try {
     const res = await ref.get();
     return res && res.data ? res.data : null;
   } catch (e) {
-    return null;
+    if (isDocMissing(e)) return null;
+    throw e;
   }
 }
 
@@ -260,7 +274,39 @@ async function cancelInvite(openid) {
   return getSession(openid);
 }
 
+// 【P6 修复】pair.join 限流：纵深防御。
+// 主防线是邀请码熵（8 位 × 32 字符表 ≈ 40bit，暴力枚举 ~2^40 不可行），
+// 这里是第二道。⚠️ 内存桶按云函数实例隔离，冷启动会重置 —— 若要严格
+// 全局限流，需改成数据库计数器或网关层配额。
+const JOIN_LIMIT = 10;
+const JOIN_WINDOW_MS = 60 * 60 * 1000;
+const joinAttempts = new Map();
+
+function throttleJoin(openid) {
+  const now = Date.now();
+  const bucket = joinAttempts.get(openid) || {
+    count: 0,
+    resetAt: now + JOIN_WINDOW_MS,
+  };
+  if (now > bucket.resetAt) {
+    bucket.count = 0;
+    bucket.resetAt = now + JOIN_WINDOW_MS;
+  }
+  bucket.count += 1;
+  joinAttempts.set(openid, bucket);
+  if (joinAttempts.size > 5000) {
+    for (const [k, v] of joinAttempts) {
+      if (now > v.resetAt) joinAttempts.delete(k);
+    }
+  }
+  if (bucket.count > JOIN_LIMIT) {
+    throw new ApiError('TOO_MANY_ATTEMPTS', '尝试次数过多，请稍后再试');
+  }
+}
+
 async function joinPair(openid, rawCode) {
+  throttleJoin(openid);
+
   const code = String(rawCode || '')
     .toUpperCase()
     .replace(/[^A-Z2-9]/g, '')
@@ -324,7 +370,10 @@ async function joinPair(openid, rawCode) {
         status: 'active',
         partnerOpenid: openid,
         memberOpenids: [pair.creatorOpenid, openid],
-        inviteCode: null,
+        // 【P3 修复·方案 B】不用 null（多个 null 会撞唯一索引），
+        // 改写成天然唯一的 USED_<pairId>，就能直接用普通唯一索引兕底。
+        // 长度 > 8 且含下划线，不会与 8 位邀请码混淆。
+        inviteCode: 'USED_' + pairId,
         activatedAt: now,
         updatedAt: now,
       },
@@ -420,9 +469,14 @@ async function listRatings(openid) {
   const limit = 100;
 
   for (;;) {
+    // 【P4 修复】必须给稳定排序，否则云数据库 skip/limit 无全序时
+    // 可能漏行/重行，长期表现为静默丢记录。(date, ratedBy) 与文档 ID
+    // 一一对应，构成全序。展示顺序仍由下方客户端排序决定。
     const res = await db
       .collection(COLLECTIONS.ratings)
       .where({ coupleId: membership.pair._id })
+      .orderBy('date', 'desc')
+      .orderBy('ratedBy', 'asc')
       .skip(skip)
       .limit(limit)
       .get();
