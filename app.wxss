@@ -1,4 +1,96 @@
-/* 全局样式 */
+/* ═══════════════════════════════════════════════════════════
+   热念 · 全局样式
+   设计方向：私密手账 / Intimate Editorial
+   - 暖调纸感 + 墨色文字，禁止纯白纯黑（都往玫瑰调染）
+   - 字阶与留白做节奏，不用卡片墙
+   - 分隔线（hairline）而非阴影做层次
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── 设计令牌 ─────────────────────────────────────────────── */
+page {
+  /* 色板：3 级墨 + 3 级玫瑰 + 纸。冷灰蓝已剔除，中性色一律玫瑰调 */
+  --ink: #3e2b33;       /* 暖墨 · 主文字 */
+  --ink-2: #6b4f59;     /* 次级文字 */
+  --ink-3: #a8919a;     /* 弱化 · 玫瑰调中性（替冷灰蓝 #90a4ae） */
+  --rose: #e4536b;      /* 主玫瑰（替 #ff6b81，降饱和更耐看） */
+  --rose-deep: #be3850; /* 按压 / 强调 */
+  --berry: #8e3a4e;     /* 主操作底色：够沉能镇住，又不脱离暖调 */
+  --blush: #f6dce1;     /* 选中底 */
+  --paper: #fdf7f8;     /* 暖纸（替纯白 #ffffff） */
+  --paper-2: #f7ecee;   /* 页面底 */
+  --rule: #ebd8dd;      /* 分隔线 */
+  --gold: #b98a2e;      /* 特权卡点缀，全站仅此一处非玫瑰 */
+
+  /* 间距阶：等比推进（×1.5 左右），禁止随手写值打断比例 */
+  --s-1: 8rpx;
+  --s-2: 16rpx;
+  --s-3: 24rpx;
+  --s-4: 40rpx;
+  --s-5: 64rpx;
+
+  /* 缓动：指数减速，不用弹跳 */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── 入场动效：只动 opacity + transform ───────────────────── */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(22rpx);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 0.55s var(--ease) both;
+}
+.rise-1 { animation-delay: 0s; }
+.rise-2 { animation-delay: 0.06s; }
+.rise-3 { animation-delay: 0.12s; }
+.rise-4 { animation-delay: 0.18s; }
+.rise-5 { animation-delay: 0.24s; }
+
+/* ── 手账页骨架 ───────────────────────────────────────────── */
+.sheet {
+  min-height: 100vh;
+  background: var(--paper-2);
+  padding: 44rpx 44rpx 110rpx;
+  box-sizing: border-box;
+}
+
+.eyebrow {
+  font-size: 20rpx;
+  letter-spacing: 6rpx;
+  color: var(--rose);
+  font-weight: 600;
+}
+
+.chev {
+  color: var(--ink-3);
+  font-size: 44rpx;
+  line-height: 1;
+  margin-left: 20rpx;
+  flex-shrink: 0;
+}
+
+.optional {
+  font-size: 20rpx;
+  color: var(--ink-3);
+  letter-spacing: 3rpx;
+  margin-left: 14rpx;
+}
+
+.footnote {
+  display: block;
+  margin-top: var(--s-3);
+  font-size: 22rpx;
+  line-height: 1.8;
+  color: var(--ink-3);
+}
+
+/* ── 全站基础 ─────────────────────────────────────────────── */
 page {
   background: #fff0f3;
   font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica,
@@ -7,6 +99,9 @@ page {
   font-size: 28rpx;
   line-height: 1.6;
 }
+
+/* ═══ 以下为 legacy 原语，供尚未改造的页面使用 ═══════════════
+   样板页已不再使用；铺开改造完成后整段删除。               */
 
 .container {
   padding: 30rpx 30rpx 60rpx;
