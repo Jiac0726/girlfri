@@ -2,7 +2,8 @@
   "pages": [
     "pages/index/index",
     "pages/review/review",
-    "pages/bind/bind"
+    "pages/bind/bind",
+    "pages/permissions/permissions"
   ],
   "window": {
     "navigationBarBackgroundColor": "#ff6b81",
