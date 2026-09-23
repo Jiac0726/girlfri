@@ -67,10 +67,7 @@ renian/
 ├── pages/
 │   ├── index/
 │   ├── review/                  # 主回顾页：统计 + 月历 + 故事 + 历史
-│   ├── bind/
-│   ├── history/                 # 旧页面，暂保留用于回滚
-│   ├── monthly/                 # 旧页面，暂保留用于回滚
-│   └── stats/                   # 旧页面，暂保留用于回滚
+│   └── bind/
 ├── AUTH.md
 ├── BRAND.md
 └── project.config.json
