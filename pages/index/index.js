@@ -95,6 +95,14 @@ Page({
     wx.navigateTo({ url: '/pages/bind/bind' });
   },
 
+  goPermissions() {
+    if (this.data.bindingStatus !== 'active') {
+      this.goBind();
+      return;
+    }
+    wx.navigateTo({ url: '/pages/permissions/permissions' });
+  },
+
   selectGood() {
     if (!this.data.canRate) return;
     this.setData({ type: app.globalData.GOOD });
