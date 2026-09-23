@@ -562,8 +562,8 @@ async function saveToday(openid, event) {
   const membership = await requireActive(openid);
 
   const type = event.type;
-  if (type !== 'good' && type !== 'bad') {
-    throw new ApiError('INVALID_RATING', '请选择好评或差评');
+  if (type !== 'good' && type !== 'neutral' && type !== 'bad') {
+    throw new ApiError('INVALID_RATING', '请选择很好、还好或有点糟');
   }
 
   const targetOpenid = partnerOf(membership.pair, openid);
