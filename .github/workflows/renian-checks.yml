@@ -49,17 +49,84 @@ jobs:
 
             $tokens = $null
             $errors = $null
-            [System.Management.Automation.Language.Parser]::ParseFile(
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
               (Resolve-Path $file),
               [ref]$tokens,
               [ref]$errors
-            ) | Out-Null
+            )
 
             if ($errors.Count -gt 0) {
               Write-Host "PowerShell parse errors in $file" -ForegroundColor Red
               $errors | ForEach-Object { Write-Host $_.Message -ForegroundColor Red }
               exit 1
             }
+
+            $reserved = @(
+              'Args', 'Input', 'This', 'Matches', 'Error', 'Home',
+              'PID', 'PSHome', 'Host', 'Profile', 'PWD', 'Null',
+              'True', 'False', 'ForEach', 'Switch'
+            )
+            $params = $ast.FindAll({
+              param($node)
+              $node -is [System.Management.Automation.Language.ParameterAst]
+            }, $true)
+
+            foreach ($paramAst in $params) {
+              $name = $paramAst.Name.VariablePath.UserPath
+              if ($reserved -contains $name) {
+                throw "PowerShell parameter '$name' in $file shadows an automatic variable."
+              }
+            }
           }
 
-          Write-Host "All PowerShell scripts parsed successfully."
+          Write-Host "All PowerShell scripts parsed successfully and avoid reserved automatic-variable parameters."
+
+      - name: Updater smoke test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sourceUpdater = (Resolve-Path 'update-main.ps1').Path
+          $root = Join-Path $env:RUNNER_TEMP 'renian-updater-smoke'
+          $remote = Join-Path $root 'remote.git'
+          $work = Join-Path $root 'work'
+
+          Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path $root | Out-Null
+
+          git init --bare $remote | Out-Null
+          git clone $remote $work | Out-Null
+          Set-Location $work
+          git config user.email 'ci@example.invalid'
+          git config user.name 'Renian CI'
+
+          Copy-Item $sourceUpdater (Join-Path $work 'update-main.ps1')
+          Set-Content -Path 'marker.txt' -Value 'v1'
+          git add update-main.ps1 marker.txt
+          git commit -m 'initial' | Out-Null
+          git branch -M main
+          git push -u origin main | Out-Null
+
+          Set-Content -Path 'marker.txt' -Value 'v2'
+          git add marker.txt
+          git commit -m 'remote update' | Out-Null
+          git push origin main | Out-Null
+          $remoteHead = (git rev-parse HEAD).Trim()
+
+          git reset --hard HEAD~1 | Out-Null
+          Set-Content -Path 'marker.txt' -Value 'local change'
+
+          & powershell -NoProfile -ExecutionPolicy Bypass -File .\update-main.ps1 -Force
+          if ($LASTEXITCODE -ne 0) {
+            throw "update-main.ps1 smoke test failed with exit code $LASTEXITCODE"
+          }
+
+          $localHead = (git rev-parse HEAD).Trim()
+          if ($localHead -ne $remoteHead) {
+            throw "Updater did not reset local main to origin/main."
+          }
+
+          if ((Get-Content 'marker.txt' -Raw).Trim() -ne 'v2') {
+            throw "Updater did not restore the remote file contents."
+          }
+
+          Write-Host 'update-main.ps1 force-update smoke test passed.'
