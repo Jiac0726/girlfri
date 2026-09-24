@@ -15,12 +15,14 @@
       </view>
 
       <view class="story-zone">
+        <image class="welcome-photo" src="../../assets/bind-couple.jpg" mode="aspectFill"></image>
+        <view class="story-fade"></view>
+        <view class="story-bottom-fade"></view>
+
         <view class="hand-note note-left">平凡的日子\n因为有你\n而闪闪发光 ♡</view>
         <view class="hand-note note-right">和你在一起\n就是最好的时光 ♡</view>
         <view class="doodle-heart h1">♡</view>
         <view class="doodle-heart h2">♡</view>
-        <image class="welcome-photo" src="../../assets/bind-couple.jpg" mode="aspectFill"></image>
-        <view class="story-fade"></view>
       </view>
 
       <view class="welcome-actions">
