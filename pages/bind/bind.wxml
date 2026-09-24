@@ -2,21 +2,36 @@
   <image class="paper-bg" src="../../assets/review-blush.png" mode="aspectFill"></image>
 
   <block wx:if="{{bindingStatus === 'unbound' && !openedFromInvite}}">
-    <view class="welcome-stage">
-      <view class="brand-heart">♡</view>
-      <view class="brand-name">热念</view>
-      <view class="brand-sub">两个人的相处记录</view>
-      <view class="hand-note note-left">平凡的日子\n因为有你\n而闪闪发光 ♡</view>
+    <view class="welcome-stage target-welcome">
+      <view class="brand-block">
+        <view class="logo-heart-box">
+          <view class="heart-ray ray-a"></view>
+          <view class="heart-ray ray-b"></view>
+          <view class="heart-ray ray-c"></view>
+          <view class="brand-heart">♥</view>
+        </view>
+        <view class="brand-name">热念<text class="brand-dot">♥</text></view>
+        <view class="brand-sub">两个人的相处记录</view>
+      </view>
 
-      <image class="welcome-photo" src="../../assets/bind-couple.jpg" mode="aspectFill"></image>
+      <view class="story-zone">
+        <view class="hand-note note-left">平凡的日子\n因为有你\n而闪闪发光 ♡</view>
+        <view class="hand-note note-right">和你在一起\n就是最好的时光 ♡</view>
+        <view class="doodle-heart h1">♡</view>
+        <view class="doodle-heart h2">♡</view>
+        <image class="welcome-photo" src="../../assets/bind-couple.jpg" mode="aspectFill"></image>
+        <view class="story-fade"></view>
+      </view>
 
-      <button class="love-btn" bindtap="createInvite" loading="{{loading}}">和 TA 绑定</button>
-      <view class="text-link" bindtap="showManualJoin">我已经收到邀请 →</view>
+      <view class="welcome-actions">
+        <button class="love-btn welcome-bind" bindtap="createInvite" loading="{{loading}}">和 TA 绑定</button>
+        <view class="text-link invite-received" bindtap="showManualJoin">我已经收到邀请 <text class="link-arrow">→</text></view>
 
-      <view class="manual-join" wx:if="{{manualJoin}}">
-        <view class="manual-title">输入 TA 发来的绑定码</view>
-        <input class="code-input" value="{{joinCode}}" bindinput="onJoinInput" maxlength="8" placeholder="8 位绑定码" />
-        <button class="outline-btn" bindtap="joinPair" disabled="{{joinCode.length !== 8 || loading}}">完成绑定</button>
+        <view class="manual-join" wx:if="{{manualJoin}}">
+          <view class="manual-title">输入 TA 发来的绑定码</view>
+          <input class="code-input" value="{{joinCode}}" bindinput="onJoinInput" maxlength="8" placeholder="8 位绑定码" />
+          <button class="outline-btn" bindtap="joinPair" disabled="{{joinCode.length !== 8 || loading}}">完成绑定</button>
+        </view>
       </view>
     </view>
   </block>
