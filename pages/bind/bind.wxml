@@ -37,33 +37,55 @@
   </block>
 
   <block wx:if="{{bindingStatus === 'unbound' && openedFromInvite}}">
-    <view class="flow-stage">
-      <view class="flow-title">邀请 TA</view>
-      <image class="invite-art" src="../../assets/waiting-envelope.jpg" mode="aspectFit"></image>
-      <view class="invite-main">TA 邀请你<br/>一起使用热念</view>
-      <view class="invite-sub">记录平凡日子里的特别时刻<br/>让爱被看见 ♡</view>
-      <view class="invite-code">{{joinCode}}</view>
-      <button class="love-btn" bindtap="joinPair" loading="{{loading}}">接受邀请并绑定</button>
-      <view class="text-link" bindtap="useOtherCode">使用其他绑定码</view>
+    <view class="flow-stage invite-target-stage received-target-stage">
+      <view class="target-page-title">接受 TA 的邀请</view>
+
+      <view class="target-invite-mark">
+        <view class="target-heart">♡</view>
+      </view>
+
+      <view class="target-invite-name">TA 邀请你加入热念</view>
+      <view class="target-invite-copy">和 TA 一起使用热念</view>
+      <view class="target-invite-sub">记录平凡日子里的特别时刻</view>
+
+      <view class="target-code-caption">邀请码</view>
+      <view class="invite-code target-code">{{joinCode}}</view>
+
+      <button class="love-btn target-primary-btn" bindtap="joinPair" loading="{{loading}}">
+        接受邀请并绑定
+      </button>
+      <view class="text-link target-secondary-link" bindtap="useOtherCode">使用其他绑定码 →</view>
     </view>
   </block>
 
   <block wx:if="{{bindingStatus === 'waiting'}}">
-    <view class="flow-stage">
-      <view class="flow-title">邀请 TA</view>
-      <image class="invite-art" src="../../assets/waiting-envelope.jpg" mode="aspectFit"></image>
-      <view class="invite-main">邀请 TA<br/>和你一起使用热念</view>
-      <view class="invite-sub">记录平凡日子里的特别时刻<br/>让爱被看见 ♡</view>
-      <button class="love-btn wechat-btn" open-type="share">微信邀请</button>
-      <view class="divider"><text></text><view>或使用邀请码</view><text></text></view>
-      <view class="invite-code" bindtap="copyCode">{{inviteCode}}</view>
-      <view class="expire">邀请码 {{inviteExpiresText ? '有效至 ' + inviteExpiresText : '7 天内有效'}}</view>
-      <view class="mini-actions">
-        <view bindtap="copyCode">复制邀请码</view>
-        <view bindtap="refreshInvite">换一个</view>
-        <view bindtap="cancelInvite">取消</view>
+    <view class="flow-stage invite-target-stage">
+      <view class="target-page-title">邀请 TA</view>
+
+      <view class="target-invite-mark">
+        <view class="target-heart">♡</view>
       </view>
-      <button class="outline-btn" bindtap="retrySession" loading="{{loading}}" disabled="{{loading}}">TA 已加入？刷新状态</button>
+
+      <view class="target-invite-name">Jiach 邀请你</view>
+      <view class="target-invite-copy">和 TA 一起使用热念</view>
+
+      <button class="love-btn target-primary-btn" open-type="share">微信邀请</button>
+
+      <view class="target-code-caption">邀请码</view>
+      <view class="invite-code target-code" bindtap="copyCode">{{inviteCode}}</view>
+      <view class="expire target-expire">
+        {{inviteExpiresText ? '有效至 ' + inviteExpiresText : '7 天内有效'}}
+      </view>
+
+      <view class="mini-actions target-mini-actions">
+        <view bindtap="copyCode">复制</view>
+        <view bindtap="refreshInvite">换一个</view>
+        <view bindtap="cancelInvite">取消邀请</view>
+      </view>
+
+      <view class="text-link target-refresh-link" bindtap="retrySession">
+        TA 已加入？刷新状态 →
+      </view>
     </view>
   </block>
 
