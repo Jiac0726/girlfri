@@ -4,35 +4,246 @@ page{background:#fff7f7;color:#18273a}
 .love-page:after{content:"";position:fixed;top:0;right:0;bottom:0;left:0;background:linear-gradient(180deg,rgba(255,247,247,.82) 0%,rgba(255,239,242,.6) 52%,rgba(255,247,248,.96) 100%);z-index:1;pointer-events:none}
 
 .welcome-stage,.flow-stage,.success-stage{position:relative;z-index:2;min-height:100vh;display:flex;flex-direction:column;align-items:center;box-sizing:border-box}
-.target-welcome{padding-top:calc(env(safe-area-inset-top) + 82rpx);padding-bottom:calc(env(safe-area-inset-bottom) + 44rpx)}
-.brand-block{position:relative;z-index:5;text-align:center}
-.logo-heart-box{width:190rpx;height:142rpx;position:relative;margin:0 auto 10rpx;display:flex;align-items:flex-end;justify-content:center}
-.brand-heart{font-size:150rpx;line-height:.8;color:#ef596d;transform:rotate(-5deg);text-shadow:2rpx 2rpx 0 rgba(255,133,151,.18)}
-.heart-ray{position:absolute;width:48rpx;height:8rpx;border-radius:8rpx;background:#ef6477;left:16rpx;top:34rpx;transform-origin:right center}
-.ray-a{transform:rotate(27deg)}.ray-b{top:71rpx;left:2rpx;transform:rotate(2deg)}.ray-c{top:5rpx;left:54rpx;width:40rpx;transform:rotate(67deg)}
-.brand-name{font-size:74rpx;line-height:1;color:#ef566c;font-weight:700;letter-spacing:6rpx}
-.brand-dot{font-size:30rpx;vertical-align:top;margin-left:10rpx}
-.brand-sub{margin-top:22rpx;font-size:31rpx;color:#627280;letter-spacing:8rpx;font-weight:500}
+.target-welcome{
+  padding-top:calc(env(safe-area-inset-top) + 34rpx);
+  padding-bottom:calc(env(safe-area-inset-bottom) + 30rpx);
+  background:linear-gradient(180deg,rgba(255,249,249,.34) 0%,rgba(255,242,245,.18) 58%,rgba(255,248,249,.78) 100%);
+}
+.brand-block{
+  position:relative;
+  z-index:6;
+  text-align:center;
+  flex-shrink:0;
+}
+.logo-heart-box{
+  width:170rpx;
+  height:130rpx;
+  position:relative;
+  margin:0 auto 8rpx;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+}
+.brand-heart{
+  font-size:142rpx;
+  line-height:.78;
+  color:#ef5d70;
+  transform:rotate(-7deg);
+  font-weight:400;
+  text-shadow:
+    2rpx 0 0 rgba(255,119,138,.42),
+    -2rpx 1rpx 0 rgba(255,132,150,.2),
+    1rpx 3rpx 0 rgba(228,75,96,.14);
+}
+.heart-ray{
+  position:absolute;
+  height:7rpx;
+  border-radius:8rpx;
+  background:#f06b7d;
+  opacity:.95;
+  transform-origin:right center;
+}
+.ray-a{width:42rpx;left:8rpx;top:46rpx;transform:rotate(27deg)}
+.ray-b{width:38rpx;left:0;top:78rpx;transform:rotate(3deg)}
+.ray-c{width:36rpx;left:48rpx;top:12rpx;transform:rotate(67deg)}
 
-.story-zone{position:relative;width:100%;height:700rpx;margin-top:28rpx;overflow:hidden}
-.welcome-photo{position:absolute;left:0;right:0;bottom:0;width:100%;height:480rpx;display:block}
-.story-fade{position:absolute;left:0;right:0;top:150rpx;height:230rpx;background:linear-gradient(180deg,#fff4f5 0%,rgba(255,244,245,.72) 36%,rgba(255,244,245,0) 100%);pointer-events:none}
-.hand-note{position:absolute;z-index:4;white-space:pre-line;color:#ef6275;font-size:27rpx;line-height:1.85;letter-spacing:3rpx;font-weight:500;text-shadow:0 1rpx 0 rgba(255,255,255,.65)}
-.note-left{left:58rpx;top:92rpx;transform:rotate(-10deg)}
-.note-right{right:42rpx;top:112rpx;transform:rotate(-7deg);text-align:center}
-.doodle-heart{position:absolute;z-index:4;color:#ef6275;font-size:76rpx;line-height:1;transform:rotate(-15deg)}
-.h1{right:64rpx;top:305rpx}.h2{right:132rpx;top:345rpx;font-size:56rpx}
-.welcome-actions{width:100%;padding:0 54rpx;box-sizing:border-box;margin-top:2rpx}
-.love-btn{width:100%;height:108rpx;border:none;border-radius:56rpx;background:linear-gradient(90deg,#ff6e80,#f13f5b);color:#fff;font-size:33rpx;font-weight:600;line-height:108rpx;box-shadow:0 18rpx 38rpx rgba(238,73,97,.18)}
+.brand-name{
+  color:#ef596d;
+  font-size:72rpx;
+  line-height:1;
+  font-weight:700;
+  letter-spacing:8rpx;
+  transform:rotate(-1deg);
+  font-family:"STKaiti","KaiTi","Kaiti SC",serif;
+}
+.brand-dot{
+  display:inline-block;
+  margin-left:10rpx;
+  color:#ef596d;
+  font-size:26rpx;
+  vertical-align:top;
+  transform:translateY(-8rpx) rotate(10deg);
+}
+.brand-sub{
+  margin-top:20rpx;
+  color:#667784;
+  font-size:29rpx;
+  line-height:1.45;
+  font-weight:500;
+  letter-spacing:9rpx;
+}
+
+.story-zone{
+  position:relative;
+  width:100%;
+  flex:1;
+  min-height:650rpx;
+  max-height:790rpx;
+  margin-top:12rpx;
+  overflow:hidden;
+}
+.welcome-photo{
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  width:100%;
+  height:610rpx;
+  display:block;
+  z-index:1;
+}
+.story-fade{
+  position:absolute;
+  z-index:2;
+  left:0;
+  right:0;
+  top:0;
+  height:310rpx;
+  background:linear-gradient(
+    180deg,
+    #fff5f6 0%,
+    rgba(255,245,246,.96) 22%,
+    rgba(255,245,246,.72) 55%,
+    rgba(255,245,246,0) 100%
+  );
+  pointer-events:none;
+}
+.story-bottom-fade{
+  position:absolute;
+  z-index:2;
+  left:0;
+  right:0;
+  bottom:0;
+  height:110rpx;
+  background:linear-gradient(
+    180deg,
+    rgba(255,247,248,0) 0%,
+    rgba(255,247,248,.62) 62%,
+    rgba(255,247,248,.96) 100%
+  );
+  pointer-events:none;
+}
+.hand-note{
+  position:absolute;
+  z-index:4;
+  white-space:pre-line;
+  color:#ef6174;
+  font-size:26rpx;
+  line-height:1.9;
+  letter-spacing:3rpx;
+  font-weight:500;
+  font-family:"STKaiti","KaiTi","Kaiti SC",serif;
+  text-shadow:0 1rpx 0 rgba(255,255,255,.75);
+}
+.note-left{
+  left:58rpx;
+  top:78rpx;
+  transform:rotate(-9deg);
+}
+.note-right{
+  right:40rpx;
+  top:84rpx;
+  text-align:center;
+  transform:rotate(-7deg);
+}
+.doodle-heart{
+  position:absolute;
+  z-index:4;
+  color:#ef6174;
+  line-height:1;
+  font-family:"STKaiti","KaiTi",serif;
+  text-shadow:0 1rpx 0 rgba(255,255,255,.65);
+}
+.h1{
+  right:70rpx;
+  top:300rpx;
+  font-size:72rpx;
+  transform:rotate(-14deg);
+}
+.h2{
+  right:136rpx;
+  top:338rpx;
+  font-size:52rpx;
+  transform:rotate(-11deg);
+}
+
+.welcome-actions{
+  position:relative;
+  z-index:6;
+  width:100%;
+  padding:0 54rpx;
+  box-sizing:border-box;
+  margin-top:-10rpx;
+  flex-shrink:0;
+}
+.love-btn{
+  width:100%;
+  height:108rpx;
+  border:none;
+  border-radius:56rpx;
+  background:linear-gradient(90deg,#ff7285 0%,#ff536d 48%,#ee3657 100%);
+  color:#fff;
+  font-size:33rpx;
+  font-weight:600;
+  line-height:108rpx;
+  box-shadow:0 18rpx 38rpx rgba(238,73,97,.18);
+}
 .love-btn::after,.outline-btn::after{border:none}
-.welcome-bind{font-size:36rpx;letter-spacing:4rpx}
-.text-link{margin-top:30rpx;font-size:27rpx;color:#61717f;text-align:center}
-.invite-received{font-weight:600;font-size:28rpx}
-.link-arrow{font-size:40rpx;margin-left:12rpx;vertical-align:-3rpx}
-.manual-join{width:100%;margin-top:28rpx;padding:28rpx;border-radius:30rpx;background:rgba(255,255,255,.82);box-sizing:border-box;box-shadow:0 12rpx 35rpx rgba(176,111,122,.09)}
-.manual-title{text-align:center;font-size:24rpx;color:#6a7380;margin-bottom:18rpx}
-.code-input{height:88rpx;border:1px solid #f4cbd2;border-radius:24rpx;background:#fff;text-align:center;font-size:34rpx;letter-spacing:10rpx}
-.outline-btn{margin-top:18rpx;height:84rpx;border-radius:42rpx;border:1px solid #f1697d;background:#fff;color:#e85269;line-height:84rpx}
+.welcome-bind{
+  font-size:35rpx;
+  letter-spacing:5rpx;
+  font-weight:700;
+}
+.text-link{
+  margin-top:28rpx;
+  font-size:27rpx;
+  color:#61717f;
+  text-align:center;
+}
+.invite-received{
+  font-weight:600;
+  font-size:28rpx;
+  letter-spacing:1rpx;
+}
+.link-arrow{
+  display:inline-block;
+  font-size:38rpx;
+  margin-left:10rpx;
+  vertical-align:-3rpx;
+}
+.manual-join{
+  width:100%;
+  margin-top:24rpx;
+  padding:28rpx;
+  border-radius:30rpx;
+  background:rgba(255,255,255,.9);
+  box-sizing:border-box;
+  box-shadow:0 12rpx 35rpx rgba(176,111,122,.09);
+}
+.manual-title{
+  text-align:center;
+  font-size:24rpx;
+  color:#6a7380;
+  margin-bottom:18rpx;
+}
+.code-input{
+  height:88rpx;
+  border:1px solid #f4cbd2;
+  border-radius:24rpx;
+  background:#fff;
+  text-align:center;
+  font-size:34rpx;
+  letter-spacing:10rpx;
+}
+.outline-btn{
+  margin-top:18rpx;
+  height:84rpx;
+  border-radius:42rpx;
+  border:1px solid #f1697d;
+  background:#fff;
+  color:#e85269;
+  line-height:84rpx;
+}
 
 .flow-stage,.success-stage{padding:calc(env(safe-area-inset-top) + 100rpx) 40rpx 80rpx}
 .flow-title{font-size:34rpx;font-weight:700;align-self:stretch;text-align:center;margin-bottom:60rpx}
