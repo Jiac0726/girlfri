@@ -35,6 +35,7 @@
         <view><text class="neutral">•</text> 有记录</view>
         <view><text class="none">○</text> 未记录</view>
       </view>
+      <view class="footnote">自己的记录始终可见；同一天双方都提交后，才显示对方的内容。</view>
     </view>
 
     <view class="day-card">
@@ -51,7 +52,7 @@
           </view>
         </view>
       </block>
-      <view class="empty-day" wx:else>这一天还没有留下记录 ♡</view>
+      <view class="empty-day" wx:else>这一天暂无可查看的记录 ♡</view>
     </view>
 
     <button class="month-story-btn" bindtap="showMonth">查看这个月的回顾 →</button>
@@ -77,13 +78,8 @@
         <view><text>最长连续好评</text><strong>{{monthBestStreak}}</strong><em>天</em></view>
       </view>
 
-      <view class="keyword-box">
-        <view class="keyword-label">这个月最常出现：</view>
-        <view class="keyword">「{{monthKeyword}}」</view>
-        <view class="keyword-bubbles"><text>一起吃饭</text><text>散步</text><text>聊天</text></view>
-      </view>
-
       <view class="month-quote">{{monthQuote}}</view>
+      <view class="footnote">统计仅包含你可查看的记录；对方的内容在同一天双方都提交后公开。</view>
       <button class="love-btn" bindtap="showCalendar">查看这个月的故事 →</button>
     </view>
   </block>

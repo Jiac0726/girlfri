@@ -19,17 +19,19 @@ Page({
   },
 
   async loadPermissions() {
-    if (this.data.loading) return;
+    const request = this._listRequest = (this._listRequest || 0) + 1;
     this.setData({ loading: true });
 
     try {
       const items = await api.listPermissions();
+      if (request !== this._listRequest) return;
       const list = Array.isArray(items) ? items : [];
       this.setData({
         myPermissions: list.filter((item) => item.fromMe),
         receivedPermissions: list.filter((item) => !item.fromMe),
       });
     } catch (e) {
+      if (request !== this._listRequest) return;
       if (api.isBindingError(e)) {
         wx.showModal({
           title: '先完成双人绑定',
@@ -45,7 +47,7 @@ Page({
         wx.showToast({ title: e.message || '加载失败', icon: 'none' });
       }
     } finally {
-      this.setData({ loading: false });
+      if (request === this._listRequest) this.setData({ loading: false });
     }
   },
 

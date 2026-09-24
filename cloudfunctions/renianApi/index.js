@@ -507,7 +507,8 @@ async function getToday(openid) {
       .doc(ratingId(membership.pair._id, date, openid))
   );
 
-  const partnerDoc = partnerOpenid
+  // Reveal the partner's daily entry only after the caller has submitted too.
+  const partnerDoc = myDoc && partnerOpenid
     ? await safeGet(
         db
           .collection(COLLECTIONS.ratings)
@@ -555,7 +556,13 @@ async function listRatings(openid) {
     return 0;
   });
 
-  return all.map((item) => cleanRating(item, openid));
+  // Apply the same per-date rule to history, statistics and monthly summaries.
+  const submittedDates = new Set(
+    all.filter((item) => item.ratedBy === openid).map((item) => item.date)
+  );
+  return all
+    .filter((item) => item.ratedBy === openid || submittedDates.has(item.date))
+    .map((item) => cleanRating(item, openid));
 }
 
 async function saveToday(openid, event) {

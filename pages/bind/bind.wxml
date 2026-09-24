@@ -63,6 +63,7 @@
         <view bindtap="refreshInvite">换一个</view>
         <view bindtap="cancelInvite">取消</view>
       </view>
+      <button class="outline-btn" bindtap="retrySession" loading="{{loading}}" disabled="{{loading}}">TA 已加入？刷新状态</button>
     </view>
   </block>
 
@@ -78,4 +79,10 @@
   </block>
 
   <view class="loading-cover" wx:if="{{bindingStatus === 'loading'}}">正在准备你们的空间…</view>
+  <view class="flow-stage" wx:if="{{bindingStatus === 'error'}}">
+    <view class="flow-title">暂时连接不上</view>
+    <view class="invite-sub">{{errorMessage}}</view>
+    <button class="love-btn" bindtap="retrySession" loading="{{loading}}" disabled="{{loading}}">重新加载</button>
+    <view class="text-link" bindtap="backHome">返回首页</view>
+  </view>
 </view>

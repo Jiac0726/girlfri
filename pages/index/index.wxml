@@ -11,14 +11,20 @@
 
   <view class="question" wx:if="{{bindingStatus === 'active'}}">今天，你觉得我们相处得怎么样？</view>
 
-  <view class="bind-notice" wx:if="{{!authLoading && bindingStatus !== 'active'}}" bindtap="goBind">
+  <view class="bind-notice" wx:if="{{authLoading}}">正在加载今天的记录…</view>
+  <view class="bind-notice" wx:if="{{!authLoading && loadError}}">
+    <view class="notice-sub">{{loadError}}</view>
+    <button class="love-btn mini" bindtap="refreshSession">重新加载</button>
+  </view>
+
+  <view class="bind-notice" wx:if="{{!authLoading && !loadError && bindingStatus !== 'active'}}" bindtap="goBind">
     <view class="notice-heart">♡</view>
     <view class="notice-title">{{bindingStatus === 'waiting' ? '正在等待 TA 加入' : '先和 TA 建立双人关系'}}</view>
     <view class="notice-sub">绑定后，你们每天都能各留下一份感受。</view>
     <button class="love-btn mini">去绑定</button>
   </view>
 
-  <block wx:if="{{bindingStatus === 'active'}}">
+  <block wx:if="{{bindingStatus === 'active' && !authLoading && !loadError}}">
     <view class="main-card" wx:if="{{!submitted}}">
       <image class="today-hero" src="../../assets/bind-couple.jpg" mode="aspectFill"></image><view class="card-title">今天的我们</view>
       <view class="mood-row">
@@ -32,9 +38,9 @@
           <view class="mood-face">︵</view><view class="mood-name">有点糟</view>
         </view>
       </view>
-      <textarea class="feeling" placeholder="写一句今天的感受…" placeholder-class="feeling-ph" value="{{reason}}" bindinput="onReasonInput" maxlength="200" />
+      <textarea class="feeling" placeholder="写一句今天的感受…" placeholder-class="feeling-ph" value="{{reason}}" bindinput="onReasonInput" maxlength="200" disabled="{{!canRate || loading}}" />
       <view class="count">{{reason.length}}/200</view>
-      <button class="love-btn" bindtap="submit" disabled="{{!type || loading}}">保存今天</button>
+      <button class="love-btn" bindtap="submit" disabled="{{!canRate || !type || loading}}">保存今天</button>
     </view>
 
     <view class="wait-card" wx:if="{{submitted && !partnerRating}}">
@@ -42,6 +48,10 @@
       <image class="wait-envelope" src="../../assets/waiting-envelope.jpg" mode="aspectFit"></image>
       <view class="wait-title">还没有收到 TA 的评价</view>
       <view class="wait-sub">双方都完成后才能看到彼此的内容。<br/>再等等吧 ♡</view>
+      <view class="result-type {{type}}">你给 TA：{{type === 'good' ? '很好' : (type === 'neutral' ? '还好' : '有点糟')}}</view>
+      <view class="result-text">{{reason || '今天也认真记录了一下。'}}</view>
+      <view class="edit-link" bindtap="editToday">修改我的评价</view>
+      <view class="edit-link" bindtap="refreshSession">刷新 TA 的评价</view>
     </view>
 
     <view class="result-card" wx:if="{{submitted && partnerRating}}">

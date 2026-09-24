@@ -12,21 +12,27 @@ function formatExpire(value) {
 }
 
 Page({
-  data: { loading: true, bindingStatus: 'loading', inviteCode: '', inviteExpiresText: '', joinCode: '', isCreator: false, openedFromInvite: false, manualJoin: false },
+  data: { loading: true, bindingStatus: 'loading', errorMessage: '', inviteCode: '', inviteExpiresText: '', joinCode: '', isCreator: false, openedFromInvite: false, manualJoin: false },
   onLoad(options) {
     const code = normalizeInviteCode(options && options.inviteCode);
     if (code.length === 8) this.setData({ joinCode: code, openedFromInvite: true });
   },
   onShow() { this.refresh(); },
+  async onPullDownRefresh() {
+    try { if (!this.data.loading) await this.refresh(); }
+    finally { wx.stopPullDownRefresh(); }
+  },
+  retrySession() { if (!this.data.loading) return this.refresh(); },
   onShareAppMessage() {
     const code = this.data.inviteCode;
     return { title: code ? '我想和你一起记录「热念」💕 点开接受我的邀请' : '来和我一起用「热念」💕', path: code ? '/pages/bind/bind?inviteCode=' + encodeURIComponent(code) + '&source=wechat_invite' : '/pages/bind/bind' };
   },
   async refresh(showToast) {
-    this.setData({ loading: true });
-    try { const session = await api.getSession(); this.applySession(session); if (showToast) wx.showToast({ title: '状态已刷新', icon: 'none' }); }
-    catch (e) { wx.showToast({ title: e.message || '加载失败', icon: 'none' }); }
-    finally { this.setData({ loading: false }); }
+    const request = this._sessionRequest = (this._sessionRequest || 0) + 1;
+    this.setData({ loading: true, errorMessage: '' });
+    try { const session = await api.getSession(); if (request !== this._sessionRequest) return; this.applySession(session); if (showToast) wx.showToast({ title: '状态已刷新', icon: 'none' }); }
+    catch (e) { if (request === this._sessionRequest) this.setData({ bindingStatus: 'error', errorMessage: '暂时无法获取绑定状态，请检查网络后重试。' }); }
+    finally { if (request === this._sessionRequest) this.setData({ loading: false }); }
   },
   applySession(session) {
     const status = session.bindingStatus || (session.bound ? 'active' : 'unbound');

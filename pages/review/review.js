@@ -11,7 +11,7 @@ Page({
   loading:false,ready:false,reviewMode:'calendar',year:0,month:0,monthLabel:'',canPrev:false,canNext:false,weeks:WEEK_LABELS,calendar:[],
   selectedDate:'',selectedDateLabel:'',selectedRecords:[],
   monthGood:0,monthNeutral:0,monthBad:0,monthGoodRate:0,monthBestStreak:0,monthRecordDays:0,monthMutualGoodDays:0,monthEn:'',
-  monthKeyword:'开心',monthQuote:'我们没有每天都完美，但留下了很多值得记住的日子。'
+  monthQuote:'这个月还没有可展示的感受。'
  },
  onLoad(){const n=new Date();this.viewYear=n.getFullYear();this.viewMonth=n.getMonth();this.allRatings=[];this.earliest=null},
  onShow(){this.refreshAll()},
@@ -41,7 +41,7 @@ Page({
   const monthDays=Object.keys(by);
   let selected=this.data.selectedDate;
   if(!selected||selected<start||selected>end)selected=monthDays.length?monthDays[monthDays.length-1]:(isCurrent?today:start);
-  const quote=longestReason(rows)||'我们没有每天都完美，但留下了很多值得记住的日子。';
+  const quote=longestReason(rows)||'这个月还没有可展示的感受。';
   this.setData({year:y,month:m+1,monthLabel:y+'年'+(m+1)+'月',monthEn:MONTH_EN[m],canPrev:!!canPrev,canNext:!isCurrent,calendar:cal,
    monthGood:good,monthNeutral:neutral,monthBad:bad,monthGoodRate:rows.length?Math.round(good/rows.length*100):0,monthBestStreak:best,
    monthRecordDays:monthDays.length,monthMutualGoodDays:mutualGood,monthQuote:quote});

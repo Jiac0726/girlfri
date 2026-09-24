@@ -24,6 +24,8 @@ jobs:
           node --check cloudfunctions/renianApi/index.js
           node --check services/cloud.js
           node --check pages/index/index.js
+          node --check pages/bind/bind.js
+          node --check pages/review/review.js
           node --check pages/permissions/permissions.js
           node --check pages/privileges/privileges.js
           node --check pages/profile/profile.js
@@ -31,6 +33,8 @@ jobs:
           node --check tests/renian-api/race.test.js
       - name: renianApi regression tests
         run: node tests/renian-api/race.test.js
+      - name: Frontend regression tests
+        run: node --test tests/frontend/pages.test.js
 
   powershell-parse:
     runs-on: windows-latest

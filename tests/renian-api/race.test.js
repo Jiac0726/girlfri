@@ -170,7 +170,18 @@ async function main() {
   record('绑定后可正常评分', r5.ok === true && r5.data.rating.type === 'good');
   const r6 = await call('rating.save', { type: 'bad', reason: 'x' });
   record('同日二次评分 = 覆盖（一天一条）', r6.ok === true);
+  const ownToday = await call('rating.today');
+  record('先提交者始终能读取自己的评价', ownToday.ok && ownToday.data.rating.type === 'bad');
+  colStore('ratings').set('PARTNER_ONLY_HISTORY', {
+    coupleId: [...colStore('couples').keys()][0], date: '2000-01-01',
+    type: 'bad', reason: '仅作者可见的历史感受', ratedBy: 'OPENID_B', targetOpenid: 'OPENID_A',
+  });
   sdk.__setOpenid('OPENID_A');
+  const hiddenToday = await call('rating.today');
+  record('未提交时今日接口不公开对方内容', hiddenToday.ok && hiddenToday.data.partnerRating === null);
+  const hiddenHistory = await call('rating.list');
+  record('未提交时回顾不泄露当天或历史单向评价', hiddenHistory.ok && hiddenHistory.data.length === 0);
+  await call('rating.save', { type: 'good', reason: '我的感受' });
   const r7 = await call('rating.today');
   const pr = (r7 && r7.data && r7.data.partnerRating) || {};
   record(
@@ -181,6 +192,14 @@ async function main() {
       pr.targetOpenid === undefined,
     '输出字段: ' + Object.keys(pr).join(',')
   );
+  const revealed = await call('rating.list');
+  record('双方提交后回顾公开当日两条，其他日期仍独立判断',
+    revealed.ok && revealed.data.length === 2 && revealed.data.every((row) => row.date === r7.data.date));
+  sdk.__setOpenid('OPENID_B');
+  const authorHistory = await call('rating.list');
+  record('历史单向评价仍保留在作者回顾中',
+    authorHistory.ok && authorHistory.data.some((row) => row.date === '2000-01-01' && row.fromMe));
+  sdk.__setOpenid('OPENID_A');
   // 【P3·方案 B】绑定后 inviteCode 应改写成 USED_<pairId>（而非 null），
   // 这样 couples.inviteCode 可直接建普通唯一索引兕底。
   const usedCode = colStore('couples').get([...colStore('couples').keys()][0]).inviteCode;
@@ -190,14 +209,14 @@ async function main() {
     String(usedCode)
   );
   // 【P4】多条记录下分页应完整取回、无漏行重行（mock 的 orderBy 已真排序）
-  for (let i = 0; i < 5; i += 1) {
+  for (let i = 0; i < 105; i += 1) {
     colStore('ratings').set('TESTPAD_' + i, {
       coupleId: [...colStore('couples').keys()][0],
-      date: '2026-01-0' + (i + 1),
+      date: new Date(Date.UTC(2001, 0, 1 + i)).toISOString().slice(0, 10),
       type: 'good',
       reason: 'pad' + i,
-      ratedBy: 'OPENID_PAD',
-      targetOpenid: 'OPENID_A',
+      ratedBy: 'OPENID_A',
+      targetOpenid: 'OPENID_B',
       updatedAt: new Date(),
     });
   }
@@ -205,7 +224,7 @@ async function main() {
   const ids = (r8.data || []).map((x) => x.date + ':' + (x.fromMe ? 'me' : 'ta'));
   record(
     'P4 分页取回完整无漏行/重行',
-    r8.ok === true && new Set(ids).size === ids.length && ids.length >= 6,
+    r8.ok === true && new Set(ids).size === ids.length && ids.length === 107,
     '条数 ' + ids.length + ' 去重后 ' + new Set(ids).size
   );
 
