@@ -8,7 +8,7 @@
       <view class="brand-sub">两个人的相处记录</view>
       <view class="hand-note note-left">平凡的日子\n因为有你\n而闪闪发光 ♡</view>
 
-      <image class="welcome-photo" src="../../assets/hero-sunset.png" mode="aspectFill"></image>
+      <image class="welcome-photo" src="../../assets/bind-couple.jpg" mode="aspectFill"></image>
 
       <button class="love-btn" bindtap="createInvite" loading="{{loading}}">和 TA 绑定</button>
       <view class="text-link" bindtap="showManualJoin">我已经收到邀请 →</view>
@@ -24,7 +24,7 @@
   <block wx:if="{{bindingStatus === 'unbound' && openedFromInvite}}">
     <view class="flow-stage">
       <view class="flow-title">邀请 TA</view>
-      <view class="envelope">♡</view>
+      <image class="invite-art" src="../../assets/waiting-envelope.jpg" mode="aspectFit"></image>
       <view class="invite-main">TA 邀请你<br/>一起使用热念</view>
       <view class="invite-sub">记录平凡日子里的特别时刻<br/>让爱被看见 ♡</view>
       <view class="invite-code">{{joinCode}}</view>
@@ -36,7 +36,7 @@
   <block wx:if="{{bindingStatus === 'waiting'}}">
     <view class="flow-stage">
       <view class="flow-title">邀请 TA</view>
-      <view class="envelope">♡</view>
+      <image class="invite-art" src="../../assets/waiting-envelope.jpg" mode="aspectFit"></image>
       <view class="invite-main">邀请 TA<br/>和你一起使用热念</view>
       <view class="invite-sub">记录平凡日子里的特别时刻<br/>让爱被看见 ♡</view>
       <button class="love-btn wechat-btn" open-type="share">微信邀请</button>
@@ -54,11 +54,7 @@
   <block wx:if="{{bindingStatus === 'active'}}">
     <view class="success-stage">
       <view class="flow-title">绑定成功</view>
-      <view class="pair-line">
-        <view class="avatar me">你</view>
-        <view class="pair-heart">♥</view>
-        <view class="avatar ta">TA</view>
-      </view>
+      <image class="success-pair-art" src="../../assets/success-pair.jpg" mode="aspectFit"></image>
       <view class="success-title">连接成功</view>
       <view class="invite-sub">从今天开始，<br/>留下一点属于你们的记录。</view>
       <button class="love-btn" bindtap="backHome">开始记录</button>

@@ -20,7 +20,7 @@
 
   <block wx:if="{{bindingStatus === 'active'}}">
     <view class="main-card" wx:if="{{!submitted}}">
-      <view class="card-title">今天的我们</view>
+      <image class="today-hero" src="../../assets/bind-couple.jpg" mode="aspectFill"></image><view class="card-title">今天的我们</view>
       <view class="mood-row">
         <view class="mood {{type === 'good' ? 'on good' : ''}}" bindtap="selectGood">
           <view class="mood-face">☺</view><view class="mood-name">很好</view>
@@ -39,13 +39,13 @@
 
     <view class="wait-card" wx:if="{{submitted && !partnerRating}}">
       <view class="card-title left">TA 的评价</view>
-      <view class="envelope">💌</view>
+      <image class="wait-envelope" src="../../assets/waiting-envelope.jpg" mode="aspectFit"></image>
       <view class="wait-title">还没有收到 TA 的评价</view>
       <view class="wait-sub">双方都完成后才能看到彼此的内容。<br/>再等等吧 ♡</view>
     </view>
 
     <view class="result-card" wx:if="{{submitted && partnerRating}}">
-      <view class="card-title left">今天的我们</view>
+      <image class="result-hero" src="../../assets/bind-couple.jpg" mode="aspectFill"></image><view class="card-title left">今天的我们</view>
       <view class="pair-results">
         <view class="result-col">
           <view class="who">你给 TA</view>
