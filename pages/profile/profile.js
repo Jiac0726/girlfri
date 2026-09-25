@@ -115,7 +115,11 @@ Page({
 
       const [data, reminder] = await Promise.all([
         api.getProfile(),
-        api.getReminderSettings(),
+        api.getReminderSettings().catch(() => ({
+          enabled: false,
+          time: '21:30',
+          needsRenewal: false,
+        })),
       ]);
       const me = viewProfile(data.me);
       const partner = viewProfile(data.partner);
