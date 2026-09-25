@@ -10,6 +10,7 @@
 | **今日评价** | 我每天可以给 TA 写一条好评 / 差评；TA 也可以独立给我写一条 |
 | **回顾** | 合并历史、月报和成绩单：双方好评率、双向月历、高光 / 小摩擦、历史记录、生成回顾卡片 |
 | **双人绑定** | 微信好友邀请卡片 + 8 位备用绑定码，建立两人的对等共享关系 |
+| **未评价提醒** | 用户主动订阅后，在设定时间仍未评价则发送微信服务通知 |
 
 ## 双向模型
 
@@ -79,9 +80,13 @@ renian/
 ├── services/
 │   └── cloud.js
 ├── cloudfunctions/
-│   └── renianApi/
+│   ├── renianApi/
+│   │   ├── index.js
+│   │   └── package.json
+│   └── dailyReminder/
 │       ├── index.js
-│       └── package.json
+│       ├── package.json
+│       └── config.json
 ├── pages/
 │   ├── index/
 │   ├── review/                  # 主回顾页：统计 + 月历 + 故事 + 历史
@@ -234,15 +239,28 @@ ratings
 
 ### 4. 部署云函数
 
-微信开发者工具中找到：
+微信开发者工具中依次部署：
 
 ```
 cloudfunctions/renianApi
+cloudfunctions/dailyReminder
 ```
 
-选择：
+两者都选择：
 
 **上传并部署：云端安装依赖（不上传 node_modules）**
+
+`dailyReminder/config.json` 已包含 `subscribeMessage.send` 云调用权限和每 5 分钟一次的定时触发器。提醒按北京时间判断，当前可选 20:00–22:30 的半点时间。
+
+订阅消息模板 ID：
+
+```
+tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk
+```
+
+模板字段按「提醒内容 / 截止时间」接入为 `thing1 / time2`。如果微信公众平台模板详情显示的字段键不同，只需同步修改 `cloudfunctions/dailyReminder/index.js` 顶部的 `CONTENT_KEY` / `DEADLINE_KEY`。
+
+> 当前模板属于一次性订阅消息。一次授权成功发送一条提醒后，本次资格即消耗；「我的」页会自动关闭提醒开关，用户需要再次主动开启，才能获得下一次提醒资格。
 
 ### 5. 双人绑定
 
