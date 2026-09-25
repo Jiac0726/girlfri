@@ -169,7 +169,7 @@ async function processUser(user, clock) {
       templateId: TEMPLATE_ID,
       data: {
         [CONTENT_KEY]: {
-          value: '今天还没有留下你们的相处记录，来写一句吧',
+          value: '今天还没评价，来记录一下吧',
         },
         [DEADLINE_KEY]: {
           value: reminderTime,
