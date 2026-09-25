@@ -64,7 +64,7 @@ async function listEnabledUsers() {
   for (;;) {
     const res = await db
       .collection(COLLECTIONS.users)
-      .where({ reminderEnabled: true, status: 'active' })
+      .where({ reminderEnabled: true })
       .skip(skip)
       .limit(limit)
       .get();
@@ -209,7 +209,9 @@ exports.main = async () => {
   const clock = utc8Parts();
   const users = await listEnabledUsers();
   const due = users.filter(
-    (user) => String(user.reminderTime || '21:30') === clock.time
+    (user) =>
+      user.status === 'active' &&
+      String(user.reminderTime || '21:30') === clock.time
   );
 
   const results = [];
