@@ -81,5 +81,8 @@ module.exports = {
   getProfile: () => call('profile.get'),
   updateMood: (moodEmoji, moodText) =>
     call('profile.mood.update', { moodEmoji, moodText }),
+  getReminderSettings: () => call('reminder.get'),
+  updateReminderSettings: (enabled, time) =>
+    call('reminder.update', { enabled, time }),
   isBindingError,
 };

@@ -1109,6 +1109,57 @@ async function revokePrivilegeCard(openid, event) {
 
 
 
+
+const REMINDER_TEMPLATE_ID = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
+const REMINDER_DEFAULT_TIME = '21:30';
+const REMINDER_TIME_OPTIONS = new Set(['20:00', '20:30', '21:00', '21:30', '22:00', '22:30']);
+
+function cleanReminderSettings(user) {
+  const enabled = !!(user && user.reminderEnabled);
+  const time = REMINDER_TIME_OPTIONS.has(user && user.reminderTime)
+    ? user.reminderTime
+    : REMINDER_DEFAULT_TIME;
+  return {
+    enabled,
+    time,
+    needsRenewal: !!(user && user.reminderNeedsRenewal),
+    lastSentDate: String((user && user.reminderLastSentDate) || ''),
+    templateId: REMINDER_TEMPLATE_ID,
+  };
+}
+
+async function getReminderSettings(openid) {
+  const membership = await requireActive(openid);
+  return cleanReminderSettings(membership.user);
+}
+
+async function updateReminderSettings(openid, event) {
+  const membership = await requireActive(openid);
+  const enabled = !!(event && event.enabled);
+  const requestedTime = String((event && event.time) || REMINDER_DEFAULT_TIME);
+  const time = REMINDER_TIME_OPTIONS.has(requestedTime)
+    ? requestedTime
+    : REMINDER_DEFAULT_TIME;
+  const now = new Date();
+
+  const data = {
+    reminderEnabled: enabled,
+    reminderTime: time,
+    reminderNeedsRenewal: false,
+    reminderUpdatedAt: now,
+    updatedAt: now,
+  };
+
+  if (enabled) {
+    data.reminderAuthorizedAt = now;
+    data.reminderLastError = '';
+  }
+
+  await db.collection(COLLECTIONS.users).doc(openid).update({ data });
+
+  return cleanReminderSettings(Object.assign({}, membership.user, data));
+}
+
 const MOOD_TEXT_MAX = 60;
 const MOOD_EMOJI_MAX = 8;
 
@@ -1228,6 +1279,10 @@ exports.main = async (event) => {
         return ok(await getProfile(OPENID));
       case 'profile.mood.update':
         return ok(await updateMood(OPENID, event));
+      case 'reminder.get':
+        return ok(await getReminderSettings(OPENID));
+      case 'reminder.update':
+        return ok(await updateReminderSettings(OPENID, event));
       default:
         throw new ApiError('UNKNOWN_ACTION', '未知操作');
     }
