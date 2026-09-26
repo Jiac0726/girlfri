@@ -110,6 +110,18 @@ function transformLegacy(input, nowValue) {
     }
   }
 
+  const authorsByDay = new Map();
+  for (const row of ratings) {
+    const coupleId = String(row && row.coupleId || '');
+    const date = String(row && row.date || '');
+    const ratedBy = String(row && row.ratedBy || '');
+    const pair = pairMap.get(coupleId);
+    if (!pair || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !membersOf(pair).includes(ratedBy)) continue;
+    const key = coupleId + '|' + date;
+    if (!authorsByDay.has(key)) authorsByDay.set(key, new Set());
+    authorsByDay.get(key).add(ratedBy);
+  }
+
   const latestByAuthor = new Map();
   const entries = [];
   for (const row of ratings) {
@@ -148,6 +160,7 @@ function transformLegacy(input, nowValue) {
       monthKey: date.slice(0, 7),
       legacyRatingType: type,
       legacyRatingLabel: label,
+      legacyPrivate: (authorsByDay.get(coupleId + '|' + date) || new Set()).size < 2,
       legacyTargetOpenid: String(row.targetOpenid || ''),
       migration: migrationMeta('rating', legacyId, now),
     };
