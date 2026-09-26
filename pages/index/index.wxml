@@ -27,14 +27,23 @@
     </view>
 
     <block wx:if="{{bindingStatus === 'active'}}">
-      <button class="compose-prompt" bindtap="writeEntry" disabled="{{loading}}">
-        <view class="compose-plus">＋</view>
-        <view class="compose-copy">
-          <view>记下一刻</view>
-          <text>评价、心情、文字或照片，都可以留下</text>
-        </view>
-        <text class="compose-arrow">›</text>
-      </button>
+      <view class="quick-actions">
+        <button class="miss-prompt" bindtap="sendMiss" disabled="{{loading || missSending}}">
+          <view class="miss-heart">♡</view>
+          <view class="miss-title">想念</view>
+          <view wx:if="{{missCount}}" class="miss-received">TA想你了 ×{{missCount}}</view>
+          <view wx:else class="miss-hint">{{missSending ? '正在送达…' : '点一下告诉 TA'}}</view>
+        </button>
+
+        <button class="compose-prompt" bindtap="writeEntry" disabled="{{loading}}">
+          <view class="compose-plus">＋</view>
+          <view class="compose-copy">
+            <view>记下一刻</view>
+            <text>评价、心情、文字或照片，都可以留下</text>
+          </view>
+          <text class="compose-arrow">›</text>
+        </button>
+      </view>
 
       <view class="feed-heading">
         <text>我们的日常</text>
