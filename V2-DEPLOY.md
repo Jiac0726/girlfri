@@ -20,8 +20,8 @@ v2 **继承旧数据，不要求老用户重新绑定**。
 1. 保存当前线上小程序与云函数版本号，并记录当前代码提交作为回滚点。
 2. 运行 `database-preflight.ps1`。它只读导出旧 `couples / couple_users / ratings` 到 `backups/cloudbase/<时间戳>/raw/`，不修改数据库。
 3. 核对导出文件、条数和 `PRECHECK.txt`。只有预检通过才继续。
-4. 按 `config/database.v2.json` 创建 9 个 v2 集合及索引，全部设置为仅管理端可读写。
-5. 应用 `config/storage.rules.v2.json`，确认客户端只能写自己的暂存路径，不能直接读发布区或覆盖别人的文件。
+4. **不需要手动创建 9 个 v2 集合和 14 个索引。** 部署下面的临时迁移函数后，`v2-migrate-legacy.cmd` 会自动创建缺失集合，并按 `config/database.v2.json` 自动创建索引。
+5. 应用 `config/storage.rules.v2.json`，确认客户端只能写自己的暂存路径，不能直接读发布区或覆盖别人的文件。数据库访问策略仍需按线上 CloudBase 的当前策略体系核验为“客户端不可直接读写”；自动建表/建索引不等于自动修改线上鉴权策略。
 
 旧 `database-migrate.ps1` 不是 v2 数据继承脚本，不要用它代替下面的迁移。
 
@@ -48,10 +48,10 @@ cloudfunctions/legacyV2Migration
 脚本会执行：
 
 1. 再做一次最新旧库完整备份；
-2. 调用 `legacyV2Migration` 的 `plan`，检查迁移数量、旧数据一致性和 v2 目标集合；
-3. 要求手工输入 `MIGRATE_V2`；
-4. 将旧数据复制到 v2；
-5. 再读取迁移状态。
+2. 调用 `legacyV2Migration prepare` 自动创建缺失的 9 个 `v2_` 集合；
+3. 读取 `config/database.v2.json`，通过 CloudBase CLI 自动创建 14 个复合索引；
+4. 调用 `plan` 检查迁移数量、旧数据一致性和 v2 目标集合；
+5. 要求手工输入 `MIGRATE_V2` 后才复制旧数据，最后再次读取迁移状态。
 
 必须看到迁移标记：
 
