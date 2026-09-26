@@ -143,6 +143,9 @@ legacy migration 使用 source fingerprint、progress marker、目标集合非�
 
 `cloudfunctions/renianApi/package.json` 使用 `@cloudbase/node-sdk 3.18.1`，而 `cloudfunctions/mediaCleanup/package.json` 使用 `3.17.2`。两者都依赖 Node SDK 做服务端数据库/存储操作。当前没有证据表明这会立即导致运行错误，但线上行为和依赖修复路径不一致，后续升级应统一验证。
 
+### P-008 service action 与后端路由已完成双向核对
+当前 `services/cloud.js` 的 38 个业务 action 与 `cloudfunctions/renianApi/v2.js` 的 switch 路由一一对应，没有发现客户端调用了不存在 action，或后端暴露而前端 wrapper 缺失的 action。
+
 ## 4. 审查原则
 
 - 不把理论风险直接写成生产 Bug。
