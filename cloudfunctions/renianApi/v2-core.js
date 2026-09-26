@@ -49,6 +49,17 @@ function isMissing(error) {
 function createContext(cloud, database) {
   const db = database || cloud.database();
   const command = db.command;
+  async function transaction(fn) {
+    const response = await db.runTransaction(fn);
+    // @cloudbase/node-sdk wraps the callback return value as
+    // { result, errMsg }. Tests and some legacy adapters return it directly.
+    if (response && typeof response === 'object' &&
+        Object.prototype.hasOwnProperty.call(response, 'result') &&
+        Object.prototype.hasOwnProperty.call(response, 'errMsg')) {
+      return response.result;
+    }
+    return response;
+  }
   const ref = (source, collection, id) => source.collection(COLLECTIONS[collection]).doc(id);
   const get = async (source, collection, id) => {
     try { const result = await ref(source, collection, id).get(); return result && result.data || null; }
@@ -94,7 +105,7 @@ function createContext(cloud, database) {
     const key = operationKey(action, openid, event);
     const input = Object.assign({}, event); delete input.apiVersion; delete input.action;
     const fingerprint = hash(stable(input));
-    return db.runTransaction(async tx => {
+    return transaction(async tx => {
       const member = await membership(tx, openid);
       const existing = await get(tx, 'operations', key);
       if (existing) {
@@ -138,7 +149,7 @@ function createContext(cloud, database) {
     const result = await db.collection(COLLECTIONS[collection]).where(where).count();
     return result.total || 0;
   }
-  return { cloud, db, command, ref, get, put, remove, membership, partner, session, ownedDocument, mutate, page, count };
+  return { cloud, db, command, transaction, ref, get, put, remove, membership, partner, session, ownedDocument, mutate, page, count };
 }
 
 module.exports = { COLLECTIONS, BusinessError, fail, assert, hash, randomId, utcDay, iso, validId, text, version, createContext };
