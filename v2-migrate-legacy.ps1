@@ -14,11 +14,38 @@ function Invoke-LegacyMigrationFunction {
     )
 
     $paramsJson = ConvertTo-Json -InputObject $Payload -Depth 8 -Compress
-    return Invoke-TcbExactArgs -Capture -TcbArgs @(
-        "fn", "invoke", "legacyV2Migration",
-        "--params", $paramsJson,
-        "--env-id", $EnvId
-    )
+    $maxAttempts = 4
+
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt += 1) {
+        try {
+            return Invoke-TcbExactArgs -Capture -TcbArgs @(
+                "fn", "invoke", "legacyV2Migration",
+                "--params", $paramsJson,
+                "--env-id", $EnvId
+            )
+        } catch {
+            $message = [string]$_.Exception.Message
+            $transient =
+                $message -match "network timeout" -or
+                $message -match "FetchError" -or
+                $message -match "ETIMEDOUT" -or
+                $message -match "ECONNRESET" -or
+                $message -match "socket hang up" -or
+                $message -match "Connection.*reset" -or
+                $message -match "TLS"
+
+            if (-not $transient -or $attempt -ge $maxAttempts) {
+                throw
+            }
+
+            $delay = [Math]::Min(12, [Math]::Pow(2, $attempt))
+            Write-Host (
+                "  Cloud function request hit a transient network error; retry " +
+                $attempt + "/" + $maxAttempts + " after " + $delay + "s..."
+            ) -ForegroundColor Yellow
+            Start-Sleep -Seconds $delay
+        }
+    }
 }
 
 function Ensure-V2Indexes {
