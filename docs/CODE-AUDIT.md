@@ -146,6 +146,26 @@ legacy migration 使用 source fingerprint、progress marker、目标集合非�
 ### P-008 service action 与后端路由已完成双向核对
 当前 `services/cloud.js` 的 38 个业务 action 与 `cloudfunctions/renianApi/v2.js` 的 switch 路由一一对应，没有发现客户端调用了不存在 action，或后端暴露而前端 wrapper 缺失的 action。
 
+
+### F-008 私密备忘录 mutation 成功后，服务端响应组装仍可能把成功伪装成失败
+**状态：已确认，服务端确定性一致性风险。**
+
+`memoCreate()` / `memoUpdate()` 在数据库事务成功后，会立即调用 `memoView()` 返回结果；而 `memoView()` 对每张私密备忘录图片调用严格模式的 `privateMemoImages()`。只要其中任意一张图片无法取得临时 URL，就可能抛出 `MEDIA_URL_FAILED`，导致客户端收到失败，即使备忘录数据已经提交。
+
+这和 `entryCreate()` / `entryChange()` 不同：entry 已专门用 `committed=true` 的容错方式处理“写入成功但图片签名失败”，不会把已经提交的业务写入包装成失败。因此当前 memo 链路存在不一致。
+
+客户端 `isUncertain()` 不把 `MEDIA_URL_FAILED` 视为不确定错误，相关页面可能清掉 pending 并允许用户重新提交，从而产生重复备忘录的风险。
+
+### F-009 私密备忘图片单点故障会阻断整个个人页加载
+**状态：已确认，确定性可用性问题。**
+
+`pages/profile/profile.js` 的 `loadProfile()` 用 `Promise.all()` 同时加载个人资料、提醒、私密备忘和想念提醒设置。其中 `api.listPrivateMemos()` 对所有备忘录图片使用严格签名：任意一张已存储但当前无法生成临时 URL 的图片，都可能使整个 `memoList` 失败，进而使 `Promise.all()` 整体进入错误分支。
+
+结果是某一张私密图片不可用时，不只是该图片失败，而可能连带影响个人页其它本来可正常读取的资料、提醒和统计展示。页面目前虽然在单独预览图片时支持“失败后再取 URL”，但首次整页加载没有同等容错。
+
+### P-009 V2 数据库索引与当前服务端查询形态已完成交叉核对
+当前 `config/database.v2.json` 的 15 个索引覆盖了 entries 的 couple/deleted/month/day + createdAt/_id 分页组合、agreements/coupons 的 couple + createdAt 分页、状态计数查询，以及 media cleanup 使用的 status/expiresAt/confirmLeaseUntil/stagingCleanupPending 等查询键。结合 `v2-core.js` 的统一 keyset `page()` 实现和 workers 的查询方式，本轮没有发现明显的“代码使用了 schema 中不存在索引”的问题。
+
 ## 4. 审查原则
 
 - 不把理论风险直接写成生产 Bug。
