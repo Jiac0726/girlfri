@@ -3,9 +3,7 @@ const assert = require('node:assert/strict');
 const cloud = require('./mock-wx-server-sdk');
 const { createV2Api } = require('../../cloudfunctions/renianApi/v2');
 
-const handle = createV2Api(cloud, {
-  getUploadMetadata: async ({ cloudPath }) => ({ data: { fileId: 'cloud://mock-env.bucket/' + cloudPath } }),
-});
+const handle = createV2Api(cloud, { database: cloud.__nodeDatabase() });
 
 let serial = 0;
 const call = (action, who = 'A', data = {}) =>
