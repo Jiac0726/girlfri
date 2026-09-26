@@ -2,9 +2,7 @@ const cloud = require('wx-server-sdk');
 const { createV2Api } = require('./v2');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
-const storageSdk = require('@cloudbase/node-sdk');
-const storage = storageSdk.init({ env: storageSdk.SYMBOL_CURRENT_ENV });
-const handle = createV2Api(cloud, { getUploadMetadata: input => storage.getUploadMetadata(input) });
+const handle = createV2Api(cloud);
 
 function fail(code, message) {
   return { ok: false, error: { code, message } };
