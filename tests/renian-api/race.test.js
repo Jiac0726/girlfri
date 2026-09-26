@@ -170,6 +170,19 @@ test('old single private memo appears as one item without exposing it to partner
   assert.equal(partnerList.items.length,0);
   assert.equal(JSON.stringify(await call('profile.get','B')).includes('旧版单条备忘'),false);
 });
+test('miss-you tap increments only the partner and retries are idempotent', async () => {
+  await pair();
+  const first = await call('miss.send','A',{requestId:'miss_stable_request'});
+  assert.equal(first.partnerCount,1);
+  assert.equal((await call('session.get','A')).missCount,0);
+  assert.equal((await call('session.get','B')).missCount,1);
+  const retry = await call('miss.send','A',{requestId:'miss_stable_request'});
+  assert.equal(retry.partnerCount,1);
+  assert.equal((await call('session.get','B')).missCount,1);
+  await call('miss.send','A',{requestId:'miss_second_request'});
+  assert.equal((await call('session.get','B')).missCount,2);
+});
+
 test('reminders default off and settings reject stale updates', async () => {
   await pair(); assert.equal((await call('reminder.get')).enabled,false);
   const on=await call('reminder.update','A',{enabled:true,time:'21:30',expectedVersion:0});
