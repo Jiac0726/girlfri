@@ -15,7 +15,7 @@ function imageExtension(buffer) {
 }
 
 function createMedia(ctx) {
-  const { cloud, db, get, put, membership, mutate, ownedDocument } = ctx;
+  const { cloud, db, transaction, get, put, membership, mutate, ownedDocument } = ctx;
   function parsedFile(fileID, path) {
     const environment = String((cloud.getWXContext() || {}).ENV || process.env.TCB_ENV || process.env.SCF_NAMESPACE || '');
     assert(environment, 'MEDIA_ENV_UNAVAILABLE', '图片服务暂时不可用');
@@ -61,7 +61,7 @@ function createMedia(ctx) {
     try {
       const response = await cloud.deleteFile({ fileList: [doc.stagingFileID] });
       const success = response.fileList && response.fileList.some(item => item.fileID === doc.stagingFileID && (item.status === 0 || item.status === -503003));
-      if (success) await db.runTransaction(async tx => {
+      if (success) await transaction(async tx => {
         const current = await get(tx, 'media', doc._id);
         if (current && current.stagingFileID === doc.stagingFileID) await put(tx, 'media', doc._id, Object.assign({}, current, { stagingCleanupPending: false, updatedAt: new Date() }));
       });
@@ -69,7 +69,7 @@ function createMedia(ctx) {
   }
   async function confirm(event, openid) {
     const token = randomId('confirm');
-    const reserved = await db.runTransaction(async tx => {
+    const reserved = await transaction(async tx => {
       const member = await membership(tx, openid);
       const doc = await ownedDocument(tx, 'media', event.id, member.pair._id);
       assert(doc.ownerOpenid === openid, 'FORBIDDEN', '只能确认自己上传的图片');
@@ -98,7 +98,7 @@ function createMedia(ctx) {
       assert(extension, 'INVALID_MEDIA_TYPE', '请选择有效的 JPG、PNG、GIF 或 WebP 图片');
       const publishedCloudPath = 'v2-published/' + reserved._id + '.' + extension;
       const expectedFileID = 'cloud://' + parsedFile(event.fileID, reserved.cloudPath).authority + '/' + publishedCloudPath;
-      await db.runTransaction(async tx => {
+      await transaction(async tx => {
         const current = await get(tx, 'media', reserved._id);
         assert(current && current.status === 'confirming' && current.confirmToken === token && new Date(current.confirmLeaseUntil).getTime() > Date.now(), 'MEDIA_UNAVAILABLE', '上传处理已过期，请重新上传');
         await put(tx, 'media', current._id, Object.assign({}, current, { fileID: expectedFileID, publishedCloudPath, actualSize: buffer.length, extension, updatedAt: new Date() }));
@@ -106,7 +106,7 @@ function createMedia(ctx) {
       const upload = await cloud.uploadFile({ cloudPath: publishedCloudPath, fileContent: buffer });
       uploadedFileID = upload.fileID;
       assert(uploadedFileID === expectedFileID, 'MEDIA_UPLOAD_FAILED', '图片保存失败，请重新上传');
-      const ready = await db.runTransaction(async tx => {
+      const ready = await transaction(async tx => {
         const member = await membership(tx, openid);
         const current = await ownedDocument(tx, 'media', reserved._id, member.pair._id);
         assert(current.status === 'confirming' && current.confirmToken === token && new Date(current.confirmLeaseUntil).getTime() > Date.now(), 'MEDIA_UNAVAILABLE', '上传处理已过期，请重新上传');
@@ -119,7 +119,7 @@ function createMedia(ctx) {
     } catch (error) {
       // Invalid images are never made ready. Transient failures may retry the same upload;
       // a published object, when present, is always registered for privileged cleanup.
-      await db.runTransaction(async tx => {
+      await transaction(async tx => {
         const current = await get(tx, 'media', reserved._id);
         if (!current) return;
         if (current.status !== 'confirming' || current.confirmToken !== token) {

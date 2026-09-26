@@ -7,13 +7,13 @@ const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function inviteCode() { return Array.from(crypto.randomBytes(8), n => ALPHABET[n % ALPHABET.length]).join(''); }
 
 function createPairs(ctx) {
-  const { db, get, put, remove, membership, session } = ctx;
+  const { transaction, get, put, remove, membership, session } = ctx;
   async function issue(openid, refresh) {
     for (let attempt = 0; attempt < 6; attempt++) {
       const code = inviteCode();
       const id = randomId('pair');
       try {
-        return await db.runTransaction(async tx => {
+        return await transaction(async tx => {
           const member = await membership(tx, openid, false);
           if (member.pair && member.pair.status === 'active') {
             if (refresh) fail('INVITE_NOT_AVAILABLE', '已经完成绑定，请刷新状态');
@@ -45,7 +45,7 @@ function createPairs(ctx) {
     fail('INVITE_CREATE_FAILED', '暂时无法生成邀请码，请稍后重试');
   }
   async function cancel(openid) {
-    return db.runTransaction(async tx => {
+    return transaction(async tx => {
       const member = await membership(tx, openid, false);
       if (!member.pair) return session(openid, member);
       assert(member.pair.status === 'waiting' && member.pair.creatorOpenid === openid, 'CANNOT_CANCEL', '已经完成绑定，请刷新状态');
@@ -59,7 +59,7 @@ function createPairs(ctx) {
   async function join(openid, value) {
     const code = String(value || '').trim().toUpperCase();
     assert(/^[A-Z2-9]{8}$/.test(code), 'INVALID_INVITE', '请输入正确的 8 位邀请码');
-    return db.runTransaction(async tx => {
+    return transaction(async tx => {
       const member = await membership(tx, openid, false);
       assert(!member.pair || member.pair.status === 'waiting', 'ALREADY_BOUND', '你已经完成绑定');
       const invitation = await get(tx, 'invites', code);
