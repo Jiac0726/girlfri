@@ -252,6 +252,13 @@ function createV2Api(cloud, options = {}) {
     return { items: result.items.map(item => ({ id: item._id, couponId: item.couponId, status: item.status, fromMe: item.requestedBy === openid,
       version: item.version, createdAt: iso(item.createdAt), updatedAt: iso(item.updatedAt), resolvedAt: iso(item.resolvedAt) })), nextCursor: result.nextCursor };
   }
+  function privateMemoView(user) {
+    return {
+      text: user.privateMemo || '',
+      updatedAt: iso(user.privateMemoUpdatedAt),
+      version: user.privateMemoVersion || 0,
+    };
+  }
   async function profileGet(openid) {
     const member = await membership(db, openid);
     const other = await get(db, 'users', partner(member.pair, openid));
@@ -260,7 +267,32 @@ function createV2Api(cloud, options = {}) {
       count('agreements', { coupleId: member.pair._id, status: 'pending', recipientOpenid: openid }),
       count('coupons', { coupleId: member.pair._id, status: 'requested', issuedBy: openid }),
     ]);
-    return { me: cleanMood(member.user), partner: cleanMood(other), pendingAgreementCount, pendingCouponCount };
+    return {
+      me: cleanMood(member.user),
+      partner: cleanMood(other),
+      privateMemo: privateMemoView(member.user),
+      pendingAgreementCount,
+      pendingCouponCount,
+    };
+  }
+  async function privateMemoUpdate(event, openid) {
+    const memo = text(event.text, 1500, '恋爱备忘录');
+    return db.runTransaction(async tx => {
+      const member = await membership(tx, openid);
+      const currentVersion = member.user.privateMemoVersion || 0;
+      if (event.expectedVersion !== undefined) {
+        assert(event.expectedVersion === currentVersion, 'VERSION_CONFLICT', '备忘录已更新，请刷新后再保存');
+      }
+      const now = new Date();
+      const user = Object.assign({}, member.user, {
+        privateMemo: memo,
+        privateMemoUpdatedAt: now,
+        privateMemoVersion: currentVersion + 1,
+        updatedAt: now,
+      });
+      await put(tx, 'users', openid, user);
+      return privateMemoView(user);
+    });
   }
   async function profileUpdate(event, openid) {
     const moodEmoji = text(event.moodEmoji, 8, '心情');
@@ -318,6 +350,7 @@ function createV2Api(cloud, options = {}) {
       case 'coupon.request': case 'coupon.respond': case 'coupon.cancelRequest': case 'coupon.revoke': return couponChange(event.action, event, openid);
       case 'coupon.history': return couponHistory(event, openid);
       case 'profile.get': return profileGet(openid);
+      case 'profile.memo.update': return privateMemoUpdate(event, openid);
       case 'profile.mood.update': return profileUpdate(event, openid);
       case 'reminder.get': return cleanReminder((await membership(db, openid)).user);
       case 'reminder.update': return reminderUpdate(event, openid);
