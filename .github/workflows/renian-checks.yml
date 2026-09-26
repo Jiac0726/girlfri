@@ -35,6 +35,7 @@ jobs:
             'update-main.ps1',
             'database-preflight.ps1',
             'database-migrate.ps1',
+            'v2-migrate-legacy.ps1',
             'scripts/database-common.ps1'
           )
 
