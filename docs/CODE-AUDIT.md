@@ -93,6 +93,18 @@ private memo media 使用 ownerOpenid 与 memo 归属校验。
 ### P-007 迁移防重复/防源变化
 legacy migration 使用 source fingerprint、progress marker、目标集合非空保护和完成 receipt。
 
+## 5. 新增发现
+
+### D-001 RELEASE-CHECKLIST 与当前 v2 代码不一致
+**状态：已确认，文档问题。**
+
+`docs/RELEASE-CHECKLIST.md` 仍包含旧版架构内容，例如主导航、旧集合、旧索引和旧安全术语，与当前 `app.json`、`README.md`、`V2-DEPLOY.md` 不一致。该文档后续应单独更新，避免部署/提审人员按旧流程操作。
+
+### D-002 当前源码检查脚本不是完整静态分析器
+**状态：已确认，属于测试能力边界。**
+
+`scripts/check-source.js` 主要检查 JS/JSON 语法、页面资源存在性和 tab 路由合法性，不检查 WXML 事件与 JS 方法的对应关系、WXML 字段、service action 与云函数 action 的双向契约，也不检查部署 schema 一致性。因此 “Source check passed” 不能视为完整静态检查。
+
 ## 4. 审查原则
 
 - 不把理论风险直接写成生产 Bug。
