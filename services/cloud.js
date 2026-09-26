@@ -90,6 +90,10 @@ module.exports = {
   revokeCoupon: (data) => call('coupon.revoke', data),
   getCouponHistory: (query) => call('coupon.history', query),
   getProfile: () => call('profile.get'),
+  listPrivateMemos: () => call('memo.list'),
+  createPrivateMemo: (data) => call('memo.create', data),
+  updatePrivateMemoItem: (data) => call('memo.update', data),
+  deletePrivateMemo: (data) => call('memo.delete', data),
   updatePrivateMemo: (text, expectedVersion) =>
     call('profile.memo.update', { text, expectedVersion }),
   updateMood: (moodEmoji, moodText) =>
