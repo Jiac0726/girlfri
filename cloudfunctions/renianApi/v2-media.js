@@ -14,7 +14,7 @@ function imageExtension(buffer) {
   return '';
 }
 
-function createMedia(ctx, options = {}) {
+function createMedia(ctx) {
   const { cloud, db, get, put, membership, mutate, ownedDocument } = ctx;
   function parsedFile(fileID, path) {
     const environment = String((cloud.getWXContext() || {}).ENV || process.env.TCB_ENV || process.env.SCF_NAMESPACE || '');
@@ -49,21 +49,11 @@ function createMedia(ctx, options = {}) {
       await put(tx, 'media', id, value);
       return value;
     });
-    // Register the storage identity before the client can upload, including uploads
-    // abandoned before confirm. Never expose upload credentials to the client.
     const current = await get(db, 'media', doc._id);
     assert(current && ['prepared', 'confirming', 'ready', 'attached'].includes(current.status), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
-    if (!current.stagingFileID) {
-      assert(typeof options.getUploadMetadata === 'function', 'MEDIA_ENV_UNAVAILABLE', '图片服务暂时不可用');
-      const metadata = await options.getUploadMetadata({ cloudPath: doc.cloudPath });
-      const fileID = metadata && metadata.data && metadata.data.fileId;
-      parsedFile(fileID, doc.cloudPath);
-      await db.runTransaction(async tx => {
-        const latest = await get(tx, 'media', doc._id);
-        assert(latest && latest.status === 'prepared' && new Date(latest.expiresAt).getTime() > Date.now(), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
-        await put(tx, 'media', doc._id, Object.assign({}, latest, { stagingFileID: fileID }));
-      });
-    }
+    // The client uploads only to the exact random path issued above. The returned
+    // fileID is verified against this path and current environment during confirm,
+    // so prepare does not need a second server SDK just to pre-compute fileID.
     return { id: doc._id, cloudPath: doc.cloudPath };
   }
   async function deleteStaging(doc) {
@@ -84,7 +74,9 @@ function createMedia(ctx, options = {}) {
       const doc = await ownedDocument(tx, 'media', event.id, member.pair._id);
       assert(doc.ownerOpenid === openid, 'FORBIDDEN', '只能确认自己上传的图片');
       parsedFile(event.fileID, doc.cloudPath);
-      assert(doc.stagingFileID === event.fileID, 'INVALID_MEDIA_FILE', '图片不属于本次上传');
+      if (doc.stagingFileID) {
+        assert(doc.stagingFileID === event.fileID, 'INVALID_MEDIA_FILE', '图片不属于本次上传');
+      }
       if (doc.status === 'ready' || doc.status === 'attached') {
         assert(doc.status === 'attached' || new Date(doc.expiresAt).getTime() > Date.now(), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
         assert(doc.stagingFileID === event.fileID, 'INVALID_MEDIA_FILE', '图片不属于本次上传');
