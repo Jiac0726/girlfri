@@ -115,6 +115,20 @@ test('binding failure has a retry state; own invite replacement requires confirm
   await page.refresh();assert.equal(page.data.bindingStatus,'error');await page.refresh();
   page.setData({joinCode:'BCDEFGHJ'});await page.joinPair();assert.equal(joins,0);assert.equal(page.data.inviteCode,'ABCDEFGH');
 });
+test('profile private memo saves only through the owner memo API',async()=>{
+  const writes=[];
+  const {page,events}=loadPage('profile',{
+    updatePrivateMemo:async(text,version)=>{writes.push([text,version]);return {text,version:version+1,updatedAt:'2026-09-26T06:00:00Z'};},
+  });
+  page.setData({bindingStatus:'active',authLoading:false,privateMemo:'',savedPrivateMemo:''});
+  page._memoVersion=2;
+  page.onPrivateMemoInput({detail:{value:'下次见面记得带礼物'}});
+  await page.savePrivateMemo();
+  assert.deepEqual(writes[0],['下次见面记得带礼物',2]);
+  assert.equal(page.data.savedPrivateMemo,'下次见面记得带礼物');
+  assert.equal(page._memoVersion,3);
+  assert.equal(events.find(x=>x.method==='showToast').value.title,'只保存给你自己');
+});
 test('reminder is enabled only after explicit subscribe acceptance, with setting version',async()=>{
   const changes=[];
   const {page}=loadPage('profile',{updateReminderSettings:async(...data)=>{changes.push(data);return {enabled:true,time:'21:30',version:3};}},

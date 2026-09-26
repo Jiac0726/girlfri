@@ -37,6 +37,39 @@
     <view class="our-link agreements-link" bindtap="goAgreements"><view>共同约定</view><text>{{pendingAgreementCount ? pendingAgreementCount + ' 份提议等你回应' : '一起商量的小安排'}}</text><text class="our-link-icon">♡</text></view>
     <view class="our-link coupons-link" bindtap="goCoupons"><view>心意券</view><text>{{pendingCouponCount ? pendingCouponCount + ' 份申请等你确认' : '给彼此一点小偏爱'}}</text><text class="our-link-icon">✉</text></view>
   </view>
+  <view class="card private-memo-card" wx:if="{{bindingStatus === 'active'}}">
+    <view class="private-memo-head">
+      <view>
+        <view class="card-title">恋爱备忘录</view>
+        <view class="private-memo-sub">只给自己看，TA 不会看到这里的内容。</view>
+      </view>
+      <view class="private-memo-lock">私密</view>
+    </view>
+
+    <textarea
+      class="private-memo-input"
+      value="{{privateMemo}}"
+      placeholder="记下想提醒自己的事、纪念日灵感、想为 TA 做的小事……"
+      maxlength="1500"
+      auto-height
+      disabled="{{memoSaving || authLoading}}"
+      bindinput="onPrivateMemoInput"
+    />
+    <view class="private-memo-meta">
+      <text wx:if="{{memoUpdatedLabel}}">上次保存 {{memoUpdatedLabel}}</text>
+      <text wx:else>仅你本人可读取</text>
+      <text>{{privateMemo.length}}/1500</text>
+    </view>
+    <button
+      class="private-memo-save"
+      bindtap="savePrivateMemo"
+      loading="{{memoSaving}}"
+      disabled="{{memoSaving || authLoading || privateMemo === savedPrivateMemo}}"
+    >
+      保存备忘录
+    </button>
+  </view>
+
   <view class="card mood-editor" wx:if="{{bindingStatus === 'active'}}">
     <view class="card-title">我的心情</view>
 
