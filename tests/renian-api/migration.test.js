@@ -52,6 +52,7 @@ test('legacy ratings become visible v2 entries and keep rating meaning', () => {
   assert.equal(good.text, '一起散步');
   assert.equal(good.legacyRatingType, 'good');
   assert.equal(good.legacyRatingLabel, '很好');
+  assert.equal(good.legacyPrivate, false);
   assert.equal(good.dayKey, '2026-09-25');
   assert.equal(result.documents.v2_users.find(x => x._id === 'A').lastSharedDate, '2026-09-25');
 });
@@ -85,4 +86,13 @@ test('migration blocks rather than silently losing orphan ratings', () => {
   const result = transformLegacy(input);
   assert.equal(result.ok, false);
   assert.ok(result.blockers.some(x => x.code === 'RATING_INVALID'));
+});
+
+test('one-sided legacy rating stays private to its author', () => {
+  const input = sample();
+  input.ratings = [input.ratings[0]];
+  const result = transformLegacy(input, new Date('2026-09-26T00:00:00Z'));
+  assert.equal(result.ok, true);
+  assert.equal(result.documents.v2_entries.length, 1);
+  assert.equal(result.documents.v2_entries[0].legacyPrivate, true);
 });
