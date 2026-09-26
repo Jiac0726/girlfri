@@ -600,6 +600,8 @@ function createV2Api(cloud, options = {}) {
       case 'profile.mood.update': return profileUpdate(event, openid);
       case 'reminder.get': return cleanReminder((await membership(db, openid)).user);
       case 'reminder.update': return reminderUpdate(event, openid);
+      case 'miss.notify.get': return cleanMissNotify((await membership(db, openid)).user);
+      case 'miss.notify.authorize': return missNotifyAuthorize(event, openid);
       case 'miss.send': return missSend(event, openid);
       case 'media.prepare': return media.prepare(event, openid);
       case 'media.confirm': return media.confirm(event, openid);
