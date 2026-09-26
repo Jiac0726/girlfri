@@ -62,10 +62,20 @@ function createContext(cloud, database) {
   }
   const ref = (source, collection, id) => source.collection(COLLECTIONS[collection]).doc(id);
   const get = async (source, collection, id) => {
-    try { const result = await ref(source, collection, id).get(); return result && result.data || null; }
-    catch (error) { if (isMissing(error)) return null; throw error; }
+    try {
+      const result = await ref(source, collection, id).get();
+      const data = result && result.data;
+      // @cloudbase/node-sdk returns document get() as data: [doc].
+      // Legacy wx-server-sdk/mocks may return data: doc.
+      return Array.isArray(data) ? (data[0] || null) : (data || null);
+    } catch (error) {
+      if (isMissing(error)) return null;
+      throw error;
+    }
   };
-  const put = (source, collection, id, data) => ref(source, collection, id).set({ data: withoutId(data) });
+  const put = (source, collection, id, data) =>
+    // @cloudbase/node-sdk set() accepts the document body directly.
+    ref(source, collection, id).set(withoutId(data));
   const remove = (source, collection, id) => ref(source, collection, id).remove();
   async function membership(source, openid, active = true) {
     const user = await get(source, 'users', openid);
