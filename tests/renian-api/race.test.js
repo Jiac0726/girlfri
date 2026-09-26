@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const cloud = require('./mock-wx-server-sdk');
 const { createV2Api } = require('../../cloudfunctions/renianApi/v2');
 const { utcDay } = require('../../cloudfunctions/renianApi/v2-core');
-const handle = createV2Api(cloud);
+const handle = createV2Api(cloud, { database: cloud.database() });
 let serial = 0;
 const call = (action, who = 'A', data = {}) => handle(Object.assign({ action, requestId: 'request_' + (++serial) }, data), who);
 const failure = (promise, code) => assert.rejects(promise, e => e.code === code && e.isBusiness === true);
