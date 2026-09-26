@@ -4,10 +4,10 @@ const root = path.resolve(__dirname,'../..');
 function load(file, context, handle) {
   const exports = {};
   vm.runInNewContext(fs.readFileSync(path.join(root,file),'utf8'),{
-    exports, console: {warn(){},error(){}},
+    exports, console: {warn(){},error(){}}, process: {env:{TCB_ENV:'test'}},
     require(name) {
       if (name==='wx-server-sdk') return {init(){},getWXContext:()=>context,DYNAMIC_CURRENT_ENV:'test'};
-      if (name==='@cloudbase/node-sdk') return {init:()=>({getUploadMetadata(){}})};
+      if (name==='@cloudbase/node-sdk') return {SYMBOL_CURRENT_ENV:'current',init:()=>({database:()=>({})})};
       if (name==='./v2') return {createV2Api:()=>handle};
       if (name==='./worker') return {createReminderWorker:()=>({run:handle}),createMediaCleanup:()=>({run:handle})};
       throw new Error(name);

@@ -91,7 +91,7 @@ cloudfunctions/mediaCleanup
 
 均选择“云端安装依赖”。
 
-- `renianApi`：建议超时 60 秒、内存 512 MB；
+- `renianApi`：建议超时 60 秒、内存 512 MB；函数同时依赖 `wx-server-sdk` 与 `@cloudbase/node-sdk`。前者负责微信身份/存储，后者负责需要 `runTransaction` 的数据库事务；部署时必须选择“云端安装依赖”；
 - `dailyReminder`：保留 `subscribeMessage.send` 权限和现有模板 ID，触发器 `dailyRatingReminderTimer` 每 5 分钟运行；
 - `mediaCleanup`：触发器 `abandonedMediaCleanup` 每小时第 17 分钟运行；
 - 所有时间按 UTC+8；

@@ -1,8 +1,17 @@
 const cloud = require('wx-server-sdk');
+const cloudbase = require('@cloudbase/node-sdk');
 const { createV2Api } = require('./v2');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
-const handle = createV2Api(cloud);
+
+// wx-server-sdk is kept for WeChat identity and storage APIs.
+// Database writes use @cloudbase/node-sdk because CloudBase transactions
+// (runTransaction) are supported by the server Node SDK.
+const app = cloudbase.init({
+  env: process.env.TCB_ENV || cloudbase.SYMBOL_CURRENT_ENV,
+});
+const database = app.database();
+const handle = createV2Api(cloud, { database });
 
 function fail(code, message) {
   return { ok: false, error: { code, message } };
