@@ -5,6 +5,11 @@ const MOODS = [
   { emoji: '😤', label: '有点气' }, { emoji: '😢', label: '难过' },
   { emoji: '😴', label: '累了' }, { emoji: '🤍', label: '想安静' },
 ];
+const RATINGS = [
+  { type: 'good', label: '很好' },
+  { type: 'neutral', label: '还好' },
+  { type: 'bad', label: '有点糟' },
+];
 const pad = (n) => String(n).padStart(2, '0');
 function todayUTC8(session) {
   const supplied = session && session.serverDate;
@@ -122,4 +127,4 @@ const entryActions = {
     }
   },
 };
-module.exports = { MOODS, todayUTC8, dayLabel, viewEntry, viewEntries, appendEntries, wxCall, isUncertain, entryActions };
+module.exports = { MOODS, RATINGS, todayUTC8, dayLabel, viewEntry, viewEntries, appendEntries, wxCall, isUncertain, entryActions };

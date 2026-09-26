@@ -43,9 +43,11 @@ test('feed re-fetches current date on show and blocks composing while loading',a
 test('entry timeout freezes the submitted payload and retries with the same request id',async()=>{
   const sent=[];let tries=0;
   const {page}=loadPage('entry',{getSession:async()=>session,createEntry:async data=>{sent.push(JSON.parse(JSON.stringify(data)));if(++tries===1)throw Object.assign(new Error('timeout'),{code:'CLOUD_INVOKE_FAILED'});return entry;}});
-  page._id='';await page.load(); page.onText({detail:{value:'最初的文字'}});await page.save();
-  assert.equal(page.data.uncertain,true);page.onText({detail:{value:'被阻止的修改'}});await page.save();
-  assert.equal(sent.length,2);assert.deepEqual(sent[0],sent[1]);assert.equal(sent[0].text,'最初的文字');
+  page._id='';await page.load(); page.onText({detail:{value:'最初的文字'}});
+  page.chooseRating({currentTarget:{dataset:{type:'good'}}});await page.save();
+  assert.equal(page.data.uncertain,true);page.onText({detail:{value:'被阻止的修改'}});
+  page.chooseRating({currentTarget:{dataset:{type:'bad'}}});await page.save();
+  assert.equal(sent.length,2);assert.deepEqual(sent[0],sent[1]);assert.equal(sent[0].text,'最初的文字');assert.equal(sent[0].ratingType,'good');
 });
 test('entry upload failure retains local draft and retries uploaded file confirmation',async()=>{
   let uploads=0,confirms=0;

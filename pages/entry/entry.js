@@ -2,12 +2,12 @@ const api = require('../../services/cloud');
 const view = require('../../services/entry-view');
 const drafts = require('../../services/entry-drafts');
 Page({
-  data: { loading: true, saving: false, error: '', text: '', mood: '', images: [], moods: view.MOODS, uncertain: false, editing: false },
+  data: { loading: true, saving: false, error: '', text: '', mood: '', ratingType: '', images: [], moods: view.MOODS, ratings: view.RATINGS, uncertain: false, editing: false },
   onLoad(options) { this._id = options.id || ''; this.setData({ editing: !!this._id }); this.load(); },
   onUnload() { this.persist(); this._disposed = true; },
   persist() {
     if (this._scope && !this._completed) drafts.write(this._scope, this._id, {
-      text: this.data.text, mood: this.data.mood, images: this.data.images, version: this._version, pending: this._pending || null,
+      text: this.data.text, mood: this.data.mood, ratingType: this.data.ratingType, images: this.data.images, version: this._version, pending: this._pending || null,
     });
   },
   async load() {
@@ -20,12 +20,12 @@ Page({
       const cached = drafts.read(this._scope, this._id);
       if (cached) {
         this._version = cached.version; this._pending = cached.pending;
-        this.setData({ text: cached.text, mood: cached.mood, images: cached.images, uncertain: !!cached.pending });
+        this.setData({ text: cached.text, mood: cached.mood, ratingType: cached.ratingType || '', images: cached.images, uncertain: !!cached.pending });
       } else if (this._id) {
         const entry = await api.getEntry(this._id);
         if (!entry.fromMe) throw new Error('只能编辑自己的日常');
         this._version = entry.version;
-        this.setData({ text: entry.text, mood: entry.mood, images: entry.images });
+        this.setData({ text: entry.text, mood: entry.mood, ratingType: entry.ratingType || '', images: entry.images });
       }
       this._ready = true;
     } catch (error) { this.setData({ error: error.message || '加载失败，请重试' }); }
@@ -35,6 +35,11 @@ Page({
   chooseMood(e) {
     if (this.data.saving || this.data.uncertain) return;
     this.setData({ mood: this.data.mood === e.currentTarget.dataset.emoji ? '' : e.currentTarget.dataset.emoji }); this.persist();
+  },
+  chooseRating(e) {
+    if (this.data.saving || this.data.uncertain) return;
+    const type = e.currentTarget.dataset.type || '';
+    this.setData({ ratingType: this.data.ratingType === type ? '' : type }); this.persist();
   },
   async chooseImages() {
     if (!this._ready || this.data.saving || this.data.uncertain || this.data.images.length >= 9) return;
@@ -78,12 +83,12 @@ Page({
   replaceImage(index, item) { const images = this.data.images.slice(); images[index] = item; this.setData({ images }); this.persist(); },
   async save() {
     if (!this._ready || this.data.saving || this.data.loading) return;
-    if (!this._pending && !this.data.text.trim() && !this.data.mood && !this.data.images.length) return wx.showToast({ title: '写点文字，选张照片或一个心情', icon: 'none' });
+    if (!this._pending && !this.data.text.trim() && !this.data.mood && !this.data.ratingType && !this.data.images.length) return wx.showToast({ title: '写点文字、选张照片、心情或打个分', icon: 'none' });
     this.setData({ saving: true, error: '' });
     try {
       if (!this._pending) {
         await this.uploadImages();
-        this._pending = { requestId: api.newRequestId(), text: this.data.text.trim(), mood: this.data.mood, images: this.data.images.map(x => x.id) };
+        this._pending = { requestId: api.newRequestId(), text: this.data.text.trim(), mood: this.data.mood, ratingType: this.data.ratingType, images: this.data.images.map(x => x.id) };
         if (this._id) Object.assign(this._pending, { id: this._id, expectedVersion: this._version });
         this.persist();
       }

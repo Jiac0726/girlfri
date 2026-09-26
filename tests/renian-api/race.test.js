@@ -39,13 +39,15 @@ test('only one contender joins an invitation, and active relation cannot cancel'
 });
 test('entries are immediately shared, multiple per day, author-only edits and UTC8 counts', async () => {
   await pair();
-  const one = await call('entry.create','A',{text:'早安'});
-  await call('entry.create','A',{mood:'🥰'});
+  const one = await call('entry.create','A',{text:'早安',ratingType:'good'});
+  const ratingOnly = await call('entry.create','A',{ratingType:'neutral'});
+  assert.equal(one.ratingType,'good'); assert.equal(one.ratingLabel,'很好');
+  assert.equal(ratingOnly.ratingType,'neutral'); assert.equal(ratingOnly.ratingLabel,'还好');
   assert.equal((await call('entry.list','B')).items.length,2);
   assert.equal((await call('entry.get','B',{id:one.id})).fromMe,false);
   await failure(call('entry.update','B',{id:one.id,expectedVersion:1,text:'伪造'}),'FORBIDDEN');
-  const edited = await call('entry.update','A',{id:one.id,expectedVersion:1,text:'晚安'});
-  assert.equal(edited.edited,true); assert.equal(edited.createdAt,one.createdAt); assert.equal(edited.dayKey,one.dayKey);
+  const edited = await call('entry.update','A',{id:one.id,expectedVersion:1,text:'晚安',ratingType:'bad'});
+  assert.equal(edited.edited,true); assert.equal(edited.createdAt,one.createdAt); assert.equal(edited.dayKey,one.dayKey); assert.equal(edited.ratingLabel,'有点糟');
   await failure(call('entry.delete','A',{id:one.id,expectedVersion:1}),'VERSION_CONFLICT');
   await call('entry.create','B',{text:'我也在'});
   const stats = await call('entry.month','A',{month:one.dayKey.slice(0,7)});
@@ -83,6 +85,7 @@ test('keyset pagination visits same-time records once and rejects invalid months
   assert.equal((await call('entry.month','A',{month:'2026-09'})).totalEntries,55);
   await failure(call('entry.month','A',{month:'2026-13'}),'INVALID_MONTH');
   await failure(call('entry.create','A',{}),'EMPTY_ENTRY');
+  await failure(call('entry.create','A',{ratingType:'perfect'}),'INVALID_RATING');
 });
 test('agreement requires the other party; replacements preserve active original until acceptance', async () => {
   await pair();

@@ -7,6 +7,7 @@ const { createMedia } = require('./v2-media');
 const REMINDER_TEMPLATE_ID = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
 const REMINDER_TIMES = new Set(['20:00', '20:30', '21:00', '21:30', '22:00', '22:30']);
 const MOODS = new Set(['', '🥰', '😊', '😌', '🥺', '😤', '😢', '😴', '🤍']);
+const RATING_LABELS = { good: '很好', neutral: '还好', bad: '有点糟' };
 function cleanMood(user) {
   return { moodEmoji: user.moodEmoji || '', moodText: user.moodText || '', moodUpdatedAt: iso(user.moodUpdatedAt), hasMood: !!(user.moodEmoji || user.moodText) };
 }
@@ -31,10 +32,18 @@ function createV2Api(cloud, options = {}) {
   const { db, get, put, membership, partner, session, ownedDocument, mutate, page, count } = ctx;
 
   function entryInput(event) {
-    const value = { text: text(event.text, 1000, '分享文字'), mood: text(event.mood, 16, '心情'), images: event.images === undefined ? [] : event.images };
+    const ratingType = text(event.ratingType, 16, '打分');
+    assert(!ratingType || RATING_LABELS[ratingType], 'INVALID_RATING', '请选择列表中的打分');
+    const value = {
+      text: text(event.text, 1000, '分享文字'),
+      mood: text(event.mood, 16, '心情'),
+      ratingType,
+      ratingLabel: ratingType ? RATING_LABELS[ratingType] : '',
+      images: event.images === undefined ? [] : event.images,
+    };
     assert(MOODS.has(value.mood), 'INVALID_MOOD', '请选择列表中的心情');
     assert(Array.isArray(value.images) && value.images.length <= 9 && value.images.every(id => typeof id === 'string') && new Set(value.images).size === value.images.length, 'INVALID_MEDIA', '最多选择 9 张不同的图片');
-    assert(value.text || value.mood || value.images.length, 'EMPTY_ENTRY', '写一点文字、选择图片或心情后再分享');
+    assert(value.text || value.mood || value.ratingType || value.images.length, 'EMPTY_ENTRY', '写一点文字、选择图片、心情或打分后再分享');
     return value;
   }
   async function entryView(doc, openid, committed = false) {
@@ -46,7 +55,10 @@ function createV2Api(cloud, options = {}) {
       // clients treat a successful save as a rejected mutation.
       images = doc.deleted ? [] : doc.images.map(id => ({ id, url: '' }));
     }
+    const ratingType = doc.ratingType || doc.legacyRatingType || '';
+    const ratingLabel = doc.ratingLabel || doc.legacyRatingLabel || RATING_LABELS[ratingType] || '';
     return { id: doc._id, text: doc.deleted ? '' : doc.text, mood: doc.deleted ? '' : doc.mood,
+      ratingType: doc.deleted ? '' : ratingType, ratingLabel: doc.deleted ? '' : ratingLabel,
       images, fromMe: doc.authorOpenid === openid, createdAt: iso(doc.createdAt), updatedAt: iso(doc.updatedAt),
       dayKey: doc.dayKey, version: doc.version, edited: !!doc.edited, deleted: !!doc.deleted,
       legacyRatingType: doc.legacyRatingType || '', legacyRatingLabel: doc.legacyRatingLabel || '',
