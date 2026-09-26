@@ -55,6 +55,6 @@ API 必须携带 apiVersion: 2，旧版本请求返回 CLIENT_UPGRADE_REQUIRED�
 | mediaCleanup | 每小时清理到期临时图片和已删除记录的图片 |
 | legacyV2Migration | 仅切换期使用：把旧版绑定、评价、心情、约定/特权卡复制到 v2；完成验收后删除 |
 
-数据库仅服务端可读写。图片先上传到私有暂存区，服务端校验后复制到客户端不可写的发布区，再通过鉴权后的临时链接查看。存储规则使用官方支持的正则路径匹配，规则语法参考 [CloudBase 云存储安全规则](https://docs.cloudbase.net/storage/security-rules)。
+数据库仅服务端可读写。图片先上传到私有暂存区；服务端在确认阶段校验返回的 fileID 必须属于当前环境并且路径必须与本次随机暂存路径完全一致，再复制到客户端不可写的发布区，通过鉴权后的临时链接查看。存储规则使用官方支持的正则路径匹配，规则语法参考 [CloudBase 云存储安全规则](https://docs.cloudbase.net/storage/security-rules)。
 
 现有 `database-preflight.ps1` 继续负责旧版只读备份；`database-migrate.ps1` 只处理旧版数据库自身索引，不用于 v2 切换。v2 数据继承使用 `v2-migrate-legacy.cmd`。
