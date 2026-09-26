@@ -48,6 +48,8 @@ API 必须携带 apiVersion: 2，旧版本请求返回 CLIENT_UPGRADE_REQUIRED�
 
 云函数：
 
+> `renianApi` 在微信云函数里用 `wx-server-sdk` 获取 OPENID 并处理云存储，同时用 `@cloudbase/node-sdk` 执行数据库事务。CloudBase 的 `runTransaction` 需要服务端 Node SDK，因此部署时必须安装云端依赖。
+
 | 函数 | 用途 |
 |---|---|
 | renianApi | 绑定、日常、月度汇总、心情、约定、赠券、图片授权 |
