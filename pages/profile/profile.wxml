@@ -66,7 +66,7 @@
       />
 
       <view class="memo-draft-images" wx:if="{{memoImages.length}}">
-        <view class="memo-draft-image" wx:for="{{memoImages}}" wx:key="id" wx:for-item="photo">
+        <view class="memo-draft-image" wx:for="{{memoImages}}" wx:key="url" wx:for-item="photo">
           <image src="{{photo.url}}" mode="aspectFill" />
           <button data-index="{{index}}" bindtap="removeMemoImage" disabled="{{memoSaving || memoUncertain}}">×</button>
         </view>
