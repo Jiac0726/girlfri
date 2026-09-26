@@ -21,6 +21,44 @@ function Invoke-LegacyMigrationFunction {
     )
 }
 
+function Ensure-V2Indexes {
+    param(
+        [Parameter(Mandatory = $true)][string]$EnvId
+    )
+
+    $schemaPath = Join-Path $PSScriptRoot "config/database.v2.json"
+    if (-not (Test-Path -LiteralPath $schemaPath)) {
+        throw ("Missing schema file: " + $schemaPath)
+    }
+
+    $schema = Get-Content -LiteralPath $schemaPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $groups = @($schema.indexes | Group-Object collection)
+
+    foreach ($group in $groups) {
+        $indexes = @()
+        foreach ($index in @($group.Group)) {
+            $key = [ordered]@{}
+            foreach ($field in @($index.fields)) {
+                $key[[string]$field.field] = if ([string]$field.direction -eq "desc") { -1 } else { 1 }
+            }
+
+            $indexes += [ordered]@{
+                key = $key
+                name = [string]$index.name
+                unique = [bool]$index.unique
+            }
+        }
+
+        $command = [ordered]@{
+            createIndexes = [string]$group.Name
+            indexes = $indexes
+        } | ConvertTo-Json -Depth 12 -Compress
+
+        Invoke-NoSql -EnvId $EnvId -CommandJson $command | Out-Null
+        Write-Host ("  indexes OK: " + $group.Name + " (" + $indexes.Count + ")") -ForegroundColor Green
+    }
+}
+
 Write-Host ""
 Write-Host "===================================================="
 Write-Host " Renian - LEGACY -> V2 DATA INHERITANCE"
@@ -35,7 +73,7 @@ try {
     Assert-Tcb
     $envId = Get-RenianEnvId
 
-    Write-Host "[1/4] Creating a fresh read-only legacy backup..." -ForegroundColor Cyan
+    Write-Host "[1/5] Creating a fresh read-only legacy backup..." -ForegroundColor Cyan
     $preflight = New-RenianPreflight
     if (-not $preflight.safeToMigrate) {
         Write-Host ""
@@ -45,14 +83,20 @@ try {
     }
 
     Write-Host ""
-    Write-Host "[2/4] Asking legacyV2Migration for a migration plan..." -ForegroundColor Cyan
+    Write-Host "[2/5] Creating missing v2 collections and indexes automatically..." -ForegroundColor Cyan
+    $prepared = Invoke-LegacyMigrationFunction -EnvId $envId -Payload @{ mode = "prepare" }
+    Write-Host $prepared
+    Ensure-V2Indexes -EnvId $envId
+
+    Write-Host ""
+    Write-Host "[3/5] Asking legacyV2Migration for a migration plan..." -ForegroundColor Cyan
     $plan = Invoke-LegacyMigrationFunction -EnvId $envId -Payload @{ mode = "plan" }
     Write-Host $plan
     Write-Host ""
 
     if (-not $Yes) {
         Write-Host "Before continuing, confirm that:"
-        Write-Host "  - all v2_ collections from config/database.v2.json exist;"
+        Write-Host "  - the automatic schema step above completed without error;"
         Write-Host "  - v2 is not yet live for real users;"
         Write-Host "  - legacyV2Migration has been deployed with cloud dependencies."
         Write-Host ""
@@ -64,7 +108,7 @@ try {
     }
 
     Write-Host ""
-    Write-Host "[3/4] Applying migration..." -ForegroundColor Cyan
+    Write-Host "[4/5] Applying migration..." -ForegroundColor Cyan
     $apply = Invoke-LegacyMigrationFunction -EnvId $envId -Payload @{
         mode = "apply"
         confirm = "MIGRATE_V2_FROM_LEGACY"
@@ -72,7 +116,7 @@ try {
     Write-Host $apply
 
     Write-Host ""
-    Write-Host "[4/4] Reading final migration state..." -ForegroundColor Cyan
+    Write-Host "[5/5] Reading final migration state..." -ForegroundColor Cyan
     $final = Invoke-LegacyMigrationFunction -EnvId $envId -Payload @{ mode = "plan" }
     Write-Host $final
 

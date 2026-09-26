@@ -16,8 +16,9 @@ const TARGETS = [
   'v2_coupons',
   'v2_coupon_requests',
   'v2_media',
+  'v2_operations',
 ];
-const WRITABLE_TARGETS = TARGETS.filter(name => name !== 'v2_media');
+const WRITABLE_TARGETS = TARGETS.filter(name => name !== 'v2_media' && name !== 'v2_operations');
 
 function forbiddenFromMiniProgram() {
   const ctx = cloud.getWXContext ? cloud.getWXContext() : {};
@@ -57,6 +58,31 @@ async function targetState() {
     };
   }
   return state;
+}
+
+async function ensureCollections() {
+  const created = [];
+  const existing = [];
+  for (const name of TARGETS) {
+    const before = await firstDoc(name);
+    if (!(before && before.__collectionError)) {
+      existing.push(name);
+      continue;
+    }
+
+    try {
+      await db.createCollection(name);
+      created.push(name);
+    } catch (error) {
+      const after = await firstDoc(name);
+      if (after && after.__collectionError) {
+        throw new Error('CREATE_COLLECTION_FAILED ' + name + ': ' +
+          String((error && (error.errMsg || error.message)) || error));
+      }
+      existing.push(name);
+    }
+  }
+  return { ok: true, created, existing, targets: await targetState() };
 }
 
 async function marker() {
@@ -219,9 +245,10 @@ exports.main = async (event) => {
       return { ok: false, error: { code: 'FORBIDDEN', message: '迁移函数只能由管理员从 CloudBase CLI/控制台调用' } };
     }
     const mode = String(event && event.mode || 'plan');
+    if (mode === 'prepare') return await ensureCollections();
     if (mode === 'plan') return await plan();
     if (mode === 'apply') return await apply(event || {});
-    return { ok: false, error: { code: 'INVALID_MODE', message: 'mode 只能是 plan 或 apply' } };
+    return { ok: false, error: { code: 'INVALID_MODE', message: 'mode 只能是 prepare、plan 或 apply' } };
   } catch (error) {
     console.error('[legacyV2Migration]', error);
     return {

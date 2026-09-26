@@ -1,5 +1,5 @@
 {
-  "description": "Deployment checklist; create these collections and indexes in the CloudBase console. Not a CLI import format.",
+  "description": "V2 database schema source of truth. v2-migrate-legacy.ps1 automatically creates missing collections through the migration cloud function and creates these indexes through CloudBase CLI.",
   "collections": [
     {
       "name": "v2_users",
