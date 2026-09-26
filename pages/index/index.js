@@ -15,6 +15,8 @@ Page({
     recordDays: 0,
     sharedDays: 0,
     todayEntries: 0,
+    missCount: 0,
+    missSending: false,
   },
 
   onShow() {
@@ -52,6 +54,7 @@ Page({
         today,
         dateLabel: Number(today.slice(5, 7)) + '月' + Number(today.slice(8)) + '日',
         monthLabel: Number(today.slice(5, 7)) + '月',
+        missCount: Math.max(0, Number(session.missCount || 0)),
       });
 
       if (!active) {
@@ -80,6 +83,7 @@ Page({
           recordDays: 0,
           sharedDays: 0,
           todayEntries: 0,
+          missCount: 0,
         });
       } else {
         this.setData({ error: error.message || '日常概览没有加载出来，请重试' });
@@ -94,6 +98,23 @@ Page({
 
   retry() {
     this.refresh();
+  },
+
+  async sendMiss() {
+    if (this.data.loading || this.data.authLoading || this.data.missSending || this.data.bindingStatus !== 'active' || !this._scope) return;
+    const payload = this._missPending || { requestId: api.newRequestId() };
+    this._missPending = payload;
+    this.setData({ missSending: true });
+    try {
+      await api.sendMiss(payload);
+      this._missPending = null;
+      wx.showToast({ title: '想念送过去了 ♡', icon: 'none' });
+    } catch (error) {
+      if (!view.isUncertain(error)) this._missPending = null;
+      wx.showToast({ title: error.message || '这次想念没送出去', icon: 'none' });
+    } finally {
+      if (!this._disposed) this.setData({ missSending: false });
+    }
   },
 
   writeEntry() {
