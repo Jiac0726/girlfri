@@ -466,21 +466,86 @@ function createV2Api(cloud, options = {}) {
       return cleanMood(user);
     });
   }
+  async function missNotifyAuthorize(event, openid) {
+    return mutate('miss.notify.authorize', event, openid, async (tx, member) => {
+      const now = new Date();
+      const quota = Math.min(20, Math.max(0, Number(member.user.missNotifyQuota) || 0) + 1);
+      const user = Object.assign({}, member.user, {
+        missNotifyQuota: quota,
+        missNotifyLastAuthorizedAt: now,
+        missNotifyLastError: '',
+        updatedAt: now,
+      });
+      await put(tx, 'users', openid, user);
+      return cleanMissNotify(user);
+    });
+  }
+
   async function missSend(event, openid) {
-    return mutate('miss.send', event, openid, async (tx, member) => {
+    const result = await mutate('miss.send', event, openid, async (tx, member) => {
       const otherOpenid = partner(member.pair, openid);
       assert(otherOpenid, 'PAIR_INVALID', '关系状态异常');
       const other = await get(tx, 'users', otherOpenid);
       assert(other && other.coupleId === member.pair._id && other.status === 'active', 'PAIR_INVALID', '关系状态异常');
       const now = new Date();
       const partnerCount = Math.max(0, Number(other.missReceivedCount) || 0) + 1;
-      await put(tx, 'users', otherOpenid, Object.assign({}, other, {
+      const claimedAt = other.missNotifyClaimedAt ? new Date(other.missNotifyClaimedAt).getTime() : 0;
+      const claimActive = other.missNotifyClaimRequestId && claimedAt > Date.now() - MISS_NOTIFY_CLAIM_MS;
+      const notifyReserved = (Number(other.missNotifyQuota) || 0) > 0 && !claimActive;
+      const changed = Object.assign({}, other, {
         missReceivedCount: partnerCount,
         missUpdatedAt: now,
         updatedAt: now,
-      }));
-      return { sent: true, partnerCount, sentAt: iso(now) };
+      });
+      if (notifyReserved) {
+        changed.missNotifyClaimRequestId = event.requestId;
+        changed.missNotifyClaimedAt = now;
+      }
+      await put(tx, 'users', otherOpenid, changed);
+      return { sent: true, partnerCount, sentAt: iso(now), notifyReserved };
     });
+
+    if (!result.notifyReserved) return Object.assign({}, result, { notified: false });
+
+    const member = await membership(db, openid);
+    const recipientOpenid = partner(member.pair, openid);
+    const recipient = await get(db, 'users', recipientOpenid);
+    if (!recipient || recipient.missNotifyClaimRequestId !== event.requestId) {
+      return Object.assign({}, result, { notified: !!(recipient && recipient.missNotifyLastRequestId === event.requestId) });
+    }
+
+    try {
+      const fields = await resolveMissTemplateFields();
+      await cloud.openapi.subscribeMessage.send({
+        touser: recipientOpenid,
+        page: 'pages/index/index',
+        templateId: MISS_TEMPLATE_ID,
+        data: {
+          [fields.time]: { value: chinaTime(new Date()) },
+          [fields.count]: { value: String(result.partnerCount) },
+        },
+      });
+      await transaction(async tx => {
+        const current = await get(tx, 'users', recipientOpenid);
+        if (!current || current.missNotifyClaimRequestId !== event.requestId) return;
+        const now = new Date();
+        await put(tx, 'users', recipientOpenid, Object.assign({}, current, {
+          missNotifyQuota: Math.max(0, (Number(current.missNotifyQuota) || 0) - 1),
+          missNotifyClaimRequestId: '',
+          missNotifyClaimedAt: null,
+          missNotifyLastRequestId: event.requestId,
+          missNotifyLastSentAt: now,
+          missNotifyLastError: '',
+          updatedAt: now,
+        }));
+      });
+      return Object.assign({}, result, { notified: true });
+    } catch (error) {
+      const code = String(error && (error.errCode !== undefined ? error.errCode : error.code) || 'SEND_FAILED');
+      await finalizeMissNotify(recipientOpenid, event.requestId, false, code);
+      console.error('[renianApi] miss notification failed', code, error && (error.errMsg || error.message) || '');
+      return Object.assign({}, result, { notified: false });
+    }
   }
 
   async function reminderUpdate(event, openid) {
