@@ -46,8 +46,8 @@ function isMissing(error) {
   return code === 'DATABASE_DOCUMENT_NOT_EXIST' || code === '-502005' || /document (?:not exists|does not exist|not found)/i.test(message);
 }
 
-function createContext(cloud) {
-  const db = cloud.database();
+function createContext(cloud, database) {
+  const db = database || cloud.database();
   const command = db.command;
   const ref = (source, collection, id) => source.collection(COLLECTIONS[collection]).doc(id);
   const get = async (source, collection, id) => {
