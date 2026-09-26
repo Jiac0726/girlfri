@@ -1,18 +1,91 @@
-<view class="journal-page">
-  <view class="page-title">{{editing ? '编辑这段日常' : '想和 TA 分享什么？'}}</view>
-  <view class="page-sub">每一点平凡，都可以是我们的小回忆</view>
+<view class="journal-page entry-page">
+  <view class="page-title">{{editing ? '编辑这段日常' : '记录今天'}}</view>
+  <view class="page-sub">先留下评价和心情，再写下想对 TA 说的话</view>
+
   <view wx:if="{{loading}}" class="state-panel">加载中…</view>
-  <view wx:if="{{error}}" class="error-panel">{{error}}<button wx:if="{{loading === false && !uncertain}}" class="text-button" bindtap="load">重新加载</button></view>
+  <view wx:if="{{error}}" class="error-panel">
+    {{error}}
+    <button wx:if="{{loading === false && !uncertain}}" class="text-button" bindtap="load">重新加载</button>
+  </view>
+
   <view wx:if="{{!loading}}" class="editor">
-    <textarea value="{{text}}" maxlength="1000" placeholder="今天发生了什么，或者只是想说想你了…" disabled="{{saving || uncertain}}" bindinput="onText" />
-    <view class="counter">{{text.length}} / 1000</view>
-    <view class="photos"><view wx:for="{{images}}" wx:key="url" class="photo"><image src="{{item.url}}" mode="aspectFill" /><button data-index="{{index}}" bindtap="removeImage" disabled="{{saving || uncertain}}">×</button></view></view>
-    <button class="text-button" bindtap="chooseImages" disabled="{{saving || uncertain || images.length >= 9}}">＋ 添加照片（{{images.length}}/9）</button>
-    <view class="page-sub">此刻心情 · 可不选</view>
-    <view class="moods"><button wx:for="{{moods}}" wx:key="emoji" class="mood {{mood === item.emoji ? 'selected' : ''}}" data-emoji="{{item.emoji}}" bindtap="chooseMood" disabled="{{saving || uncertain}}">{{item.emoji}}<text>{{item.label}}</text></button></view>
-    <view class="page-sub rating-title">给今天打个分 · 可不选</view>
-    <view class="ratings"><button wx:for="{{ratings}}" wx:key="type" class="rating {{ratingType === item.type ? 'selected ' + item.type : ''}}" data-type="{{item.type}}" bindtap="chooseRating" disabled="{{saving || uncertain}}">{{item.label}}</button></view>
-    <button class="primary-button" bindtap="save" disabled="{{saving}}" loading="{{saving}}">{{uncertain ? '重试确认' : editing ? '保存修改' : '分享给 TA'}}</button>
-    <view class="page-sub">发布后双方可见，之后仍可编辑或删除。</view>
+    <view class="entry-section rating-section">
+      <view class="section-head">
+        <view class="section-title">今日评价</view>
+        <view class="section-hint">可不选</view>
+      </view>
+      <view class="ratings">
+        <view
+          wx:for="{{ratings}}"
+          wx:key="type"
+          class="rating {{ratingType === item.type ? 'selected ' + item.type : ''}}"
+          data-type="{{item.type}}"
+          bindtap="chooseRating"
+          aria-role="button"
+        >
+          {{item.label}}
+        </view>
+      </view>
+    </view>
+
+    <view class="entry-section">
+      <view class="section-head">
+        <view class="section-title">今日心情</view>
+        <view class="section-hint">可不选</view>
+      </view>
+      <view class="moods">
+        <view
+          wx:for="{{moods}}"
+          wx:key="emoji"
+          class="mood {{mood === item.emoji ? 'selected' : ''}}"
+          data-emoji="{{item.emoji}}"
+          bindtap="chooseMood"
+          aria-role="button"
+        >
+          <view class="mood-emoji">{{item.emoji}}</view>
+          <view class="mood-label">{{item.label}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="entry-section">
+      <view class="section-head">
+        <view class="section-title">评价内容</view>
+        <view class="section-hint">可不填</view>
+      </view>
+      <view class="text-box">
+        <textarea
+          class="entry-textarea"
+          value="{{text}}"
+          maxlength="1000"
+          placeholder="今天怎么样？想对 TA 说点什么……"
+          disabled="{{saving || uncertain}}"
+          bindinput="onText"
+        />
+        <view class="counter">{{text.length}} / 1000</view>
+      </view>
+    </view>
+
+    <view class="entry-section photo-section">
+      <view class="section-head">
+        <view class="section-title">照片</view>
+        <view class="section-hint">{{images.length}} / 9</view>
+      </view>
+      <view class="photos" wx:if="{{images.length}}">
+        <view wx:for="{{images}}" wx:key="url" class="photo">
+          <image src="{{item.url}}" mode="aspectFill" />
+          <button data-index="{{index}}" bindtap="removeImage" disabled="{{saving || uncertain}}">×</button>
+        </view>
+      </view>
+      <button class="add-photo-button" bindtap="chooseImages" disabled="{{saving || uncertain || images.length >= 9}}">
+        <text class="add-photo-plus">＋</text>
+        <text>{{images.length >= 9 ? '照片已满' : '添加照片'}}</text>
+      </button>
+    </view>
+
+    <button class="primary-button share-button" bindtap="save" disabled="{{saving}}" loading="{{saving}}">
+      {{uncertain ? '重试确认' : editing ? '保存修改' : '分享给 TA'}}
+    </button>
+    <view class="publish-note">发布后双方可见，之后仍可编辑或删除。</view>
   </view>
 </view>
