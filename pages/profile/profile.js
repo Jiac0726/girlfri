@@ -1,12 +1,12 @@
 const api = require('../../services/cloud');
-const { MOODS, wxCall } = require('../../services/entry-view');
+const { MOODS, wxCall, isUncertain } = require('../../services/entry-view');
 const { dateLabel } = require('../../helpers/interactions');
 const TEMPLATE = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
 const TIMES = ['20:00','20:30','21:00','21:30','22:00','22:30'];
 function profile(x) { return Object.assign({ moodEmoji: '', moodText: '', hasMood: false }, x || {}, { moodUpdatedLabel: dateLabel(x && x.moodUpdatedAt) }); }
 Page({
   data: { moods: MOODS, authLoading: true, saving: false, bindingStatus: 'loading', moodEmoji: '', moodText: '', savedMoodEmoji: '', savedMoodText: '', myUpdatedLabel: '', partner: profile(), pendingAgreementCount: 0, pendingCouponCount: 0,
-    memoSaving: false, privateMemo: '', savedPrivateMemo: '', memoUpdatedLabel: '',
+    memoSaving: false, memoItems: [], memoTitle: '', memoText: '', memoImages: [], memoEditingId: '', memoUncertain: false, memoDeletingId: '',
     reminderSaving: false, reminderEnabled: false, reminderReady: false, reminderTime: '21:30', reminderTimeOptions: TIMES, reminderTimeIndex: 3, reminderStatusText: '未开启提醒', error: '' },
   onShow() { this._disposed = false; this.loadProfile(); },
   onUnload() { this._disposed = true; this._loadToken = (this._loadToken || 0) + 1; },
@@ -21,33 +21,33 @@ Page({
       const changed = this._scope !== session.coupleId; this._scope = session.coupleId;
       if (changed) {
         this._dirty = false;
-        this._memoDirty = false;
-        this._memoVersion = 0;
+        this._memoPending = null;
+        this._memoEditVersion = 0;
         this.setData({
           moodEmoji: '', moodText: '', savedMoodEmoji: '', savedMoodText: '',
-          privateMemo: '', savedPrivateMemo: '', memoUpdatedLabel: '',
+          memoItems: [], memoTitle: '', memoText: '', memoImages: [], memoEditingId: '', memoUncertain: false, memoDeletingId: '',
           partner: profile(), pendingAgreementCount: 0, pendingCouponCount: 0, reminderReady: false,
         });
       }
       this.setData({ bindingStatus: session.bindingStatus });
       if (session.bindingStatus !== 'active') { this.setData({ reminderEnabled: false, reminderReady: false }); return; }
-      const [data, reminder] = await Promise.all([api.getProfile(), api.getReminderSettings()]);
+      const [data, reminder, memos] = await Promise.all([api.getProfile(), api.getReminderSettings(), api.listPrivateMemos()]);
       if (token !== this._loadToken) return;
       const me = profile(data.me);
-      const memo = data.privateMemo || { text: '', updatedAt: '', version: 0 };
-      this._memoVersion = memo.version || 0;
+      const memoItems = (memos.items || []).map(item => Object.assign({}, item, {
+        updatedLabel: dateLabel(item.updatedAt || item.createdAt),
+        images: (item.images || []).map(image => Object.assign({}, image, { failed: false })),
+      }));
       const update = {
         savedMoodEmoji: me.moodEmoji,
         savedMoodText: me.moodText,
         myUpdatedLabel: me.moodUpdatedLabel,
-        savedPrivateMemo: memo.text || '',
-        memoUpdatedLabel: dateLabel(memo.updatedAt),
+        memoItems,
         partner: profile(data.partner),
         pendingAgreementCount: data.pendingAgreementCount,
         pendingCouponCount: data.pendingCouponCount,
       };
       if (!this._dirty && revision === (this._draftRevision || 0)) Object.assign(update, { moodEmoji: me.moodEmoji, moodText: me.moodText });
-      if (!this._memoDirty) update.privateMemo = memo.text || '';
       this.setData(update);
       this.applyReminder(reminder);
     } catch (error) {
@@ -64,29 +64,182 @@ Page({
   goBind() { wx.navigateTo({ url: '/pages/bind/bind' }); },
   goAgreements() { wx.navigateTo({ url: '/pages/permissions/permissions' }); },
   goCoupons() { wx.navigateTo({ url: '/pages/privileges/privileges' }); },
-  onPrivateMemoInput(e) {
-    if (this.data.memoSaving || this.data.authLoading) return;
-    this._memoDirty = true;
-    this.setData({ privateMemo: e.detail.value });
+  onMemoTitleInput(e) {
+    if (this.data.memoSaving || this.data.memoUncertain) return;
+    this.setData({ memoTitle: e.detail.value });
   },
-  async savePrivateMemo() {
-    if (this.data.memoSaving || this.data.authLoading || this.data.bindingStatus !== 'active' || !this._memoDirty) return;
+  onMemoTextInput(e) {
+    if (this.data.memoSaving || this.data.memoUncertain) return;
+    this.setData({ memoText: e.detail.value });
+  },
+  async chooseMemoImages() {
+    if (this.data.memoSaving || this.data.memoUncertain || this.data.memoImages.length >= 6) return;
     this.setData({ memoSaving: true });
     try {
-      const memo = await api.updatePrivateMemo(this.data.privateMemo, this._memoVersion || 0);
-      this._memoVersion = memo.version || 0;
-      this._memoDirty = false;
+      const result = await wxCall('chooseMedia', {
+        count: 6 - this.data.memoImages.length,
+        mediaType: ['image'],
+        sizeType: ['compressed'],
+        sourceType: ['album', 'camera'],
+      });
+      const selected = [];
+      for (const file of result.tempFiles || []) {
+        if (file.size > 5 * 1024 * 1024) throw new Error('请选择每张不超过 5 MB 的图片');
+        selected.push({
+          localPath: file.tempFilePath,
+          url: file.tempFilePath,
+          size: file.size,
+          uploadRequestId: api.newRequestId(),
+        });
+      }
+      this.setData({ memoImages: this.data.memoImages.concat(selected) });
+    } catch (error) {
+      if (!/cancel/.test(error.errMsg || '')) wx.showToast({ title: error.message || '选择图片失败', icon: 'none' });
+    } finally {
+      if (!this._disposed) this.setData({ memoSaving: false });
+    }
+  },
+  removeMemoImage(e) {
+    if (this.data.memoSaving || this.data.memoUncertain) return;
+    const index = Number(e.currentTarget.dataset.index);
+    this.setData({ memoImages: this.data.memoImages.filter((_, i) => i !== index) });
+  },
+  replaceMemoImage(index, item) {
+    const images = this.data.memoImages.slice();
+    images[index] = item;
+    this.setData({ memoImages: images });
+  },
+  async uploadMemoImages() {
+    for (let i = 0; i < this.data.memoImages.length; i++) {
+      const item = Object.assign({}, this.data.memoImages[i]);
+      if (item.id && !item.localPath) continue;
+      if (!item.prepared) item.prepared = await api.prepareMedia({ requestId: item.uploadRequestId, name: 'private-memo', size: item.size });
+      this.replaceMemoImage(i, item);
+      if (!item.stagingFileID) {
+        const uploaded = await wx.cloud.uploadFile({ cloudPath: item.prepared.cloudPath, filePath: item.localPath });
+        item.stagingFileID = uploaded.fileID;
+        this.replaceMemoImage(i, item);
+      }
+      try {
+        const confirmed = await api.confirmMedia({ id: item.prepared.id, fileID: item.stagingFileID });
+        this.replaceMemoImage(i, confirmed);
+      } catch (error) {
+        if (['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'INVALID_MEDIA_TYPE', 'INVALID_MEDIA_SIZE'].includes(error.code)) {
+          delete item.prepared;
+          delete item.stagingFileID;
+          item.uploadRequestId = api.newRequestId();
+          this.replaceMemoImage(i, item);
+        }
+        throw error;
+      }
+    }
+  },
+  resetMemoEditor() {
+    this._memoPending = null;
+    this._memoEditVersion = 0;
+    this.setData({ memoTitle: '', memoText: '', memoImages: [], memoEditingId: '', memoUncertain: false });
+  },
+  editMemo(e) {
+    if (this.data.memoSaving || this.data.memoUncertain) return;
+    const item = this.data.memoItems.find(row => row.id === e.currentTarget.dataset.id);
+    if (!item) return;
+    this._memoPending = null;
+    this._memoEditVersion = item.version;
+    this.setData({
+      memoTitle: item.title || '',
+      memoText: item.text || '',
+      memoImages: (item.images || []).map(image => Object.assign({}, image)),
+      memoEditingId: item.id,
+      memoUncertain: false,
+    });
+    wx.pageScrollTo({ scrollTop: 0, duration: 250 });
+  },
+  cancelMemoEdit() {
+    if (this.data.memoSaving || this.data.memoUncertain) return;
+    this.resetMemoEditor();
+  },
+  async saveMemo() {
+    if (this.data.memoSaving || this.data.authLoading || this.data.bindingStatus !== 'active') return;
+    if (!this._memoPending && !this.data.memoTitle.trim() && !this.data.memoText.trim() && !this.data.memoImages.length) {
+      return wx.showToast({ title: '写一点内容，或添加一张图片', icon: 'none' });
+    }
+    this.setData({ memoSaving: true });
+    try {
+      if (!this._memoPending) {
+        await this.uploadMemoImages();
+        const payload = {
+          requestId: api.newRequestId(),
+          title: this.data.memoTitle.trim(),
+          text: this.data.memoText.trim(),
+          images: this.data.memoImages.map(image => image.id),
+        };
+        if (this.data.memoEditingId) {
+          payload.id = this.data.memoEditingId;
+          payload.expectedVersion = this._memoEditVersion;
+        }
+        this._memoPending = payload;
+      }
+      const editing = !!this._memoPending.id;
+      await (editing ? api.updatePrivateMemoItem(this._memoPending) : api.createPrivateMemo(this._memoPending));
+      this.resetMemoEditor();
+      const memos = await api.listPrivateMemos();
       this.setData({
-        privateMemo: memo.text || '',
-        savedPrivateMemo: memo.text || '',
-        memoUpdatedLabel: dateLabel(memo.updatedAt),
+        memoItems: (memos.items || []).map(item => Object.assign({}, item, {
+          updatedLabel: dateLabel(item.updatedAt || item.createdAt),
+          images: (item.images || []).map(image => Object.assign({}, image, { failed: false })),
+        })),
       });
       wx.showToast({ title: '只保存给你自己', icon: 'none' });
     } catch (error) {
-      if (error.code === 'VERSION_CONFLICT') this._memoDirty = true;
-      wx.showToast({ title: error.message || '备忘录保存失败', icon: 'none' });
+      const uncertain = !!this._memoPending && isUncertain(error);
+      if (!uncertain) this._memoPending = null;
+      this.setData({ memoUncertain: uncertain });
+      wx.showToast({ title: uncertain ? '保存结果待确认，请重试' : (error.message || '备忘录保存失败'), icon: 'none' });
     } finally {
       if (!this._disposed) this.setData({ memoSaving: false });
+    }
+  },
+  async deleteMemo(e) {
+    if (this.data.memoSaving || this.data.memoDeletingId) return;
+    const item = this.data.memoItems.find(row => row.id === e.currentTarget.dataset.id);
+    if (!item) return;
+    const result = await wxCall('showModal', {
+      title: '删除这条备忘录？',
+      content: '只会删除你自己的这条私密备忘录。',
+      confirmText: '删除',
+      confirmColor: '#be3850',
+    }).catch(() => null);
+    if (!result || !result.confirm) return;
+    this.setData({ memoDeletingId: item.id });
+    try {
+      await api.deletePrivateMemo({ requestId: api.newRequestId(), id: item.id, expectedVersion: item.version });
+      this.setData({ memoItems: this.data.memoItems.filter(row => row.id !== item.id) });
+      if (this.data.memoEditingId === item.id) this.resetMemoEditor();
+      wx.showToast({ title: '已删除', icon: 'none' });
+    } catch (error) {
+      wx.showToast({ title: error.message || '删除失败，请重试', icon: 'none' });
+    } finally {
+      if (!this._disposed) this.setData({ memoDeletingId: '' });
+    }
+  },
+  async previewMemoImages(e) {
+    const item = this.data.memoItems.find(row => row.id === e.currentTarget.dataset.id);
+    if (!item || !(item.images || []).length) return;
+    const ids = item.images.map(image => image.id);
+    try {
+      const result = await api.getMediaUrls(ids);
+      const urls = new Map((result.items || []).map(image => [image.id, image.url]));
+      const memoItems = this.data.memoItems.map(row => row.id !== item.id ? row : Object.assign({}, row, {
+        images: row.images.map(image => Object.assign({}, image, { url: urls.get(image.id) || image.url })),
+      }));
+      this.setData({ memoItems });
+      const current = memoItems.find(row => row.id === item.id);
+      const available = current.images.filter(image => image.url);
+      const chosen = available.find(image => image.id === e.currentTarget.dataset.photoid);
+      if (!available.length) throw new Error('图片暂时无法查看');
+      wx.previewImage({ current: chosen ? chosen.url : available[0].url, urls: available.map(image => image.url) });
+    } catch (error) {
+      wx.showToast({ title: error.message || '图片加载失败', icon: 'none' });
     }
   },
   chooseMood(e) { if (this.data.saving || this.data.authLoading) return; this._dirty = true; this._draftRevision = (this._draftRevision || 0) + 1; this.setData({ moodEmoji: e.currentTarget.dataset.emoji }); },
