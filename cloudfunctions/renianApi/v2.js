@@ -49,7 +49,8 @@ function createV2Api(cloud, options = {}) {
     return { id: doc._id, text: doc.deleted ? '' : doc.text, mood: doc.deleted ? '' : doc.mood,
       images, fromMe: doc.authorOpenid === openid, createdAt: iso(doc.createdAt), updatedAt: iso(doc.updatedAt),
       dayKey: doc.dayKey, version: doc.version, edited: !!doc.edited, deleted: !!doc.deleted,
-      legacyRatingType: doc.legacyRatingType || '', legacyRatingLabel: doc.legacyRatingLabel || '' };
+      legacyRatingType: doc.legacyRatingType || '', legacyRatingLabel: doc.legacyRatingLabel || '',
+      legacyPrivate: !!doc.legacyPrivate };
   }
   async function entryCreate(event, openid) {
     const input = entryInput(event);
@@ -79,14 +80,28 @@ function createV2Api(cloud, options = {}) {
     });
     return entryView(await get(db, 'entries', result._id) || result, openid, true);
   }
+  function entryVisibleTo(doc, openid) {
+    return !doc.legacyPrivate || doc.authorOpenid === openid;
+  }
   async function entryList(event, openid) {
     const member = await membership(db, openid);
     const filter = { coupleId: member.pair._id, deleted: false };
     if (event.month) filter.monthKey = validateMonth(event.month);
     if (event.day) filter.dayKey = validateDay(event.day);
     if (event.day && event.month) assert(event.day.startsWith(event.month + '-'), 'INVALID_DAY', '日期与月份不一致');
-    const result = await page('entries', filter, event);
-    return { items: await Promise.all(result.items.map(doc => entryView(doc, openid))), nextCursor: result.nextCursor };
+
+    const requested = event.limit === undefined ? 20 : event.limit;
+    let remaining = requested;
+    let cursor = event.cursor || null;
+    const visible = [];
+    do {
+      const result = await page('entries', filter, { cursor, limit: remaining });
+      visible.push(...result.items.filter(doc => entryVisibleTo(doc, openid)));
+      cursor = result.nextCursor;
+      remaining = requested - visible.length;
+    } while (remaining > 0 && cursor);
+
+    return { items: await Promise.all(visible.map(doc => entryView(doc, openid))), nextCursor: cursor };
   }
   async function entryMonth(event, openid) {
     const month = validateMonth(event.month);
@@ -97,6 +112,7 @@ function createV2Api(cloud, options = {}) {
     do {
       const result = await page('entries', filter, { cursor, limit: 50 });
       for (const item of result.items) {
+        if (!entryVisibleTo(item, openid)) continue;
         const day = days.get(item.dayKey) || { date: item.dayKey, count: 0, fromMeCount: 0, partnerCount: 0 };
         day.count++; totalEntries++;
         if (item.authorOpenid === openid) day.fromMeCount++; else day.partnerCount++;
@@ -276,6 +292,7 @@ function createV2Api(cloud, options = {}) {
         const member = await membership(db, openid);
         const doc = await ownedDocument(db, 'entries', event.id, member.pair._id);
         assert(!doc.deleted, 'ENTRY_DELETED', '这条分享已删除');
+        assert(entryVisibleTo(doc, openid), 'NOT_FOUND', '这条分享不存在');
         return entryView(doc, openid);
       }
       case 'entry.create': return entryCreate(event, openid);
