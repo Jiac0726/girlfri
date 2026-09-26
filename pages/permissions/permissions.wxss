@@ -17,7 +17,7 @@ button::after { border: none; }
 .quiet-btn { background: #f4f0f1; color: #79636c; }
 button[disabled] { opacity: .5; }
 .section-title { font-size: 30rpx; font-weight: 700; margin: 38rpx 8rpx 20rpx; color: #49323c; }
-.agreement-card { padding: 28rpx; margin-bottom: 18rpx; border-radius: 24rpx; background: #fff; border: 1px solid #eddbe1; }
+.agreement-card { width: 100%; box-sizing: border-box; padding: var(--card-pad); margin-bottom: 18rpx; border-radius: var(--card-radius); background: #fff; border: 1px solid #eddbe1; }
 .status-pending { border-color: #e6c2b1; background: #fffcf8; }
 .item-head { display: flex; justify-content: space-between; align-items: center; gap: 16rpx; color: #866873; font-size: 22rpx; }
 .status-badge { background: #f5eaf0; color: #86556a; padding: 5rpx 14rpx; border-radius: 18rpx; }
@@ -28,7 +28,7 @@ button[disabled] { opacity: .5; }
 .revision-note { font-size: 23rpx; color: #9c7053; margin-top: 18rpx; }
 .history-card { background: #fffafc; }
 .empty-state, .loading-note { padding: 26rpx 12rpx; font-size: 25rpx; line-height: 1.7; text-align: center; color: #927781; }
-.notice { margin-bottom: 26rpx; padding: 26rpx; background: #fff3e8; border-radius: 22rpx; color: #805e4e; font-size: 25rpx; }
+.notice { width: 100%; box-sizing: border-box; margin-bottom: 26rpx; padding: var(--card-pad); background: #fff3e8; border-radius: var(--card-radius); color: #805e4e; font-size: 25rpx; }
 .notice button { margin-top: 20rpx; }
 .load-more { margin-top: 24rpx; }
 .footnote { text-align: center; color: #8f747e; }

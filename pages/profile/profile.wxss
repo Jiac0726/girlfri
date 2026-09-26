@@ -54,9 +54,11 @@
 .bind-card {
   display: flex;
   align-items: center;
+  width: 100%;
+  box-sizing: border-box;
   margin-bottom: 28rpx;
-  padding: 28rpx;
-  border-radius: 26rpx;
+  padding: var(--card-pad);
+  border-radius: var(--card-radius);
   background: linear-gradient(135deg, #ffffff, #ffe9ee);
   border: 2rpx solid #ffd3dc;
 }
@@ -239,9 +241,11 @@
 .partner-mood-card {
   display: flex;
   align-items: center;
+  width: 100%;
+  box-sizing: border-box;
   min-height: 160rpx;
-  padding: 30rpx;
-  border-radius: 28rpx;
+  padding: var(--card-pad);
+  border-radius: var(--card-radius);
   background: linear-gradient(135deg, #ffffff, #fff3f6);
   border: 2rpx solid #ffdae2;
   box-shadow: 0 7rpx 24rpx rgba(255, 107, 129, 0.08);
@@ -279,8 +283,10 @@
 }
 
 .partner-empty {
-  padding: 54rpx 24rpx;
-  border-radius: 28rpx;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 54rpx var(--card-pad);
+  border-radius: var(--card-radius);
   background: rgba(255, 255, 255, 0.62);
   text-align: center;
 }
@@ -313,7 +319,6 @@
 
 .reminder-card {
   margin-top: 34rpx;
-  padding: 30rpx;
 }
 
 .reminder-head {
@@ -405,4 +410,4 @@
   font-size: 20rpx;
   line-height: 1.65;
 }
-.our-links{display:flex;gap:20rpx;margin:28rpx 0}.our-link{position:relative;flex:1;min-width:0;padding:30rpx 22rpx 85rpx;border-radius:28rpx;color:#814c68}.our-link view{font-size:32rpx;font-weight:600}.our-link text{display:block;font-size:22rpx;margin-top:14rpx;line-height:1.6}.agreements-link{background:linear-gradient(135deg,#fde5ed,#f8cfe4)}.coupons-link{background:linear-gradient(135deg,#eee5fe,#ded0f8)}.our-link .our-link-icon{position:absolute;bottom:8rpx;right:24rpx;font-size:62rpx;color:#ffffffb3}
+.our-links{display:flex;align-items:stretch;gap:20rpx;margin:28rpx 0}.our-link{position:relative;display:flex;flex-direction:column;flex:1;min-width:0;min-height:210rpx;box-sizing:border-box;padding:var(--card-pad) 22rpx 85rpx;border-radius:var(--card-radius);color:#814c68}.our-link view{font-size:32rpx;font-weight:600}.our-link text{display:block;font-size:22rpx;margin-top:14rpx;line-height:1.6}.agreements-link{background:linear-gradient(135deg,#fde5ed,#f8cfe4)}.coupons-link{background:linear-gradient(135deg,#eee5fe,#ded0f8)}.our-link .our-link-icon{position:absolute;bottom:8rpx;right:24rpx;font-size:62rpx;color:#ffffffb3}
