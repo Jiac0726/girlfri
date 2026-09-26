@@ -48,7 +48,8 @@ function createV2Api(cloud, options = {}) {
     }
     return { id: doc._id, text: doc.deleted ? '' : doc.text, mood: doc.deleted ? '' : doc.mood,
       images, fromMe: doc.authorOpenid === openid, createdAt: iso(doc.createdAt), updatedAt: iso(doc.updatedAt),
-      dayKey: doc.dayKey, version: doc.version, edited: !!doc.edited, deleted: !!doc.deleted };
+      dayKey: doc.dayKey, version: doc.version, edited: !!doc.edited, deleted: !!doc.deleted,
+      legacyRatingType: doc.legacyRatingType || '', legacyRatingLabel: doc.legacyRatingLabel || '' };
   }
   async function entryCreate(event, openid) {
     const input = entryInput(event);
