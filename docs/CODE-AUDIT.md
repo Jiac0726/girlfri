@@ -24,16 +24,16 @@
 - [x] legacyV2Migration 主迁移流程
 
 ### 尚待逐文件检查
-- [ ] 全部页面 JS/WXML/WXSS/JSON
-- [ ] 全部 service / helper
-- [ ] dailyReminder 全部实现与测试
-- [ ] mediaCleanup 全部实现与测试
-- [ ] legacyV2Migration 全部实现与测试
-- [ ] renianApi 全部 action dispatch 与剩余业务函数
-- [ ] 全部 PowerShell / CMD 脚本
-- [ ] 全部 API 测试逐文件核对
-- [ ] GitHub Actions
-- [ ] 文档与代码契约交叉检查
+- [x] 全部页面 JS/WXML/WXSS/JSON（事件绑定与样式结构已交叉检查）
+- [x] 全部 service / helper
+- [x] dailyReminder 全部实现与测试
+- [x] mediaCleanup 全部实现与测试
+- [x] legacyV2Migration 全部实现与测试
+- [x] renianApi 全部 action dispatch 与剩余业务函数
+- [x] 全部 PowerShell / CMD 脚本
+- [x] 全部 API 测试逐文件核对
+- [x] GitHub Actions
+- [x] 文档与代码契约交叉检查（发现 RELEASE-CHECKLIST 历史内容）
 
 ## 2. 已确认 / 高可信问题
 
@@ -104,6 +104,11 @@ legacy migration 使用 source fingerprint、progress marker、目标集合非�
 **状态：已确认，属于测试能力边界。**
 
 `scripts/check-source.js` 主要检查 JS/JSON 语法、页面资源存在性和 tab 路由合法性，不检查 WXML 事件与 JS 方法的对应关系、WXML 字段、service action 与云函数 action 的双向契约，也不检查部署 schema 一致性。因此 “Source check passed” 不能视为完整静态检查。
+
+### D-003 Cloud SDK 依赖版本不统一
+**状态：已确认，维护风险。**
+
+`cloudfunctions/renianApi/package.json` 使用 `@cloudbase/node-sdk 3.18.1`，而 `cloudfunctions/mediaCleanup/package.json` 使用 `3.17.2`。两者都依赖 Node SDK 做服务端数据库/存储操作。当前没有证据表明这会立即导致运行错误，但线上行为和依赖修复路径不一致，后续升级应统一验证。
 
 ## 4. 审查原则
 
