@@ -10,6 +10,8 @@
     <button class="text-button" bindtap="chooseImages" disabled="{{saving || uncertain || images.length >= 9}}">＋ 添加照片（{{images.length}}/9）</button>
     <view class="page-sub">此刻心情 · 可不选</view>
     <view class="moods"><button wx:for="{{moods}}" wx:key="emoji" class="mood {{mood === item.emoji ? 'selected' : ''}}" data-emoji="{{item.emoji}}" bindtap="chooseMood" disabled="{{saving || uncertain}}">{{item.emoji}}<text>{{item.label}}</text></button></view>
+    <view class="page-sub rating-title">给今天打个分 · 可不选</view>
+    <view class="ratings"><button wx:for="{{ratings}}" wx:key="type" class="rating {{ratingType === item.type ? 'selected ' + item.type : ''}}" data-type="{{item.type}}" bindtap="chooseRating" disabled="{{saving || uncertain}}">{{item.label}}</button></view>
     <button class="primary-button" bindtap="save" disabled="{{saving}}" loading="{{saving}}">{{uncertain ? '重试确认' : editing ? '保存修改' : '分享给 TA'}}</button>
     <view class="page-sub">发布后双方可见，之后仍可编辑或删除。</view>
   </view>
