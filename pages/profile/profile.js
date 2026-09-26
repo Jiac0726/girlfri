@@ -4,6 +4,20 @@ const { dateLabel } = require('../../helpers/interactions');
 const TEMPLATE = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
 const TIMES = ['20:00','20:30','21:00','21:30','22:00','22:30'];
 function profile(x) { return Object.assign({ moodEmoji: '', moodText: '', hasMood: false }, x || {}, { moodUpdatedLabel: dateLabel(x && x.moodUpdatedAt) }); }
+function memoMediaError(stage, error) {
+  const raw = String((error && (error.errMsg || error.message)) || error || '未知错误');
+  console.error('[memo-media-upload]', {
+    stage,
+    code: error && error.code,
+    errMsg: error && error.errMsg,
+    message: error && error.message,
+    raw: error,
+  });
+  const wrapped = new Error('备忘录图片上传失败（' + stage + '）：' + raw);
+  wrapped.code = (error && error.code) || 'MEDIA_UPLOAD_FAILED';
+  wrapped.raw = error;
+  return wrapped;
+}
 Page({
   data: { moods: MOODS, authLoading: true, saving: false, bindingStatus: 'loading', moodEmoji: '', moodText: '', savedMoodEmoji: '', savedMoodText: '', myUpdatedLabel: '', partner: profile(), pendingAgreementCount: 0, pendingCouponCount: 0,
     memoSaving: false, memoItems: [], memoTitle: '', memoText: '', memoImages: [], memoEditingId: '', memoUncertain: false, memoDeletingId: '',
@@ -113,12 +127,22 @@ Page({
     for (let i = 0; i < this.data.memoImages.length; i++) {
       const item = Object.assign({}, this.data.memoImages[i]);
       if (item.id && !item.localPath) continue;
-      if (!item.prepared) item.prepared = await api.prepareMedia({ requestId: item.uploadRequestId, name: 'private-memo', size: item.size });
+      if (!item.prepared) {
+        try {
+          item.prepared = await api.prepareMedia({ requestId: item.uploadRequestId, name: 'private-memo', size: item.size });
+        } catch (error) {
+          throw memoMediaError('准备上传', error);
+        }
+      }
       this.replaceMemoImage(i, item);
       if (!item.stagingFileID) {
-        const uploaded = await wx.cloud.uploadFile({ cloudPath: item.prepared.cloudPath, filePath: item.localPath });
-        item.stagingFileID = uploaded.fileID;
-        this.replaceMemoImage(i, item);
+        try {
+          const uploaded = await wx.cloud.uploadFile({ cloudPath: item.prepared.cloudPath, filePath: item.localPath });
+          item.stagingFileID = uploaded.fileID;
+          this.replaceMemoImage(i, item);
+        } catch (error) {
+          throw memoMediaError('写入云存储', error);
+        }
       }
       try {
         const confirmed = await api.confirmMedia({ id: item.prepared.id, fileID: item.stagingFileID });
@@ -130,7 +154,7 @@ Page({
           item.uploadRequestId = api.newRequestId();
           this.replaceMemoImage(i, item);
         }
-        throw error;
+        throw memoMediaError('服务端校验', error);
       }
     }
   },

@@ -1,6 +1,22 @@
 const api = require('../../services/cloud');
 const view = require('../../services/entry-view');
 const drafts = require('../../services/entry-drafts');
+
+function mediaError(stage, error) {
+  const raw = String((error && (error.errMsg || error.message)) || error || '未知错误');
+  console.error('[media-upload]', {
+    stage,
+    code: error && error.code,
+    errMsg: error && error.errMsg,
+    message: error && error.message,
+    raw: error,
+  });
+  const wrapped = new Error('图片上传失败（' + stage + '）：' + raw);
+  wrapped.code = (error && error.code) || 'MEDIA_UPLOAD_FAILED';
+  wrapped.raw = error;
+  return wrapped;
+}
+
 Page({
   data: { loading: true, saving: false, error: '', text: '', mood: '', ratingType: '', images: [], moods: view.MOODS, ratings: view.RATINGS, uncertain: false, editing: false },
   onLoad(options) { this._id = options.id || ''; this.setData({ editing: !!this._id }); this.load(); },
@@ -63,11 +79,22 @@ Page({
     for (let i = 0; i < this.data.images.length; i++) {
       const item = Object.assign({}, this.data.images[i]);
       if (item.id && !item.localPath) continue;
-      if (!item.prepared) item.prepared = await api.prepareMedia({ requestId: item.uploadRequestId, name: 'photo', size: item.size });
+      if (!item.prepared) {
+        try {
+          item.prepared = await api.prepareMedia({ requestId: item.uploadRequestId, name: 'photo', size: item.size });
+        } catch (error) {
+          throw mediaError('准备上传', error);
+        }
+      }
       this.replaceImage(i, item);
       if (!item.stagingFileID) {
-        const uploaded = await wx.cloud.uploadFile({ cloudPath: item.prepared.cloudPath, filePath: item.localPath });
-        item.stagingFileID = uploaded.fileID; this.replaceImage(i, item);
+        try {
+          const uploaded = await wx.cloud.uploadFile({ cloudPath: item.prepared.cloudPath, filePath: item.localPath });
+          item.stagingFileID = uploaded.fileID;
+          this.replaceImage(i, item);
+        } catch (error) {
+          throw mediaError('写入云存储', error);
+        }
       }
       try {
         const confirmed = await api.confirmMedia({ id: item.prepared.id, fileID: item.stagingFileID });
@@ -76,7 +103,7 @@ Page({
         if (['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'INVALID_MEDIA_TYPE', 'INVALID_MEDIA_SIZE'].includes(error.code)) {
           delete item.prepared; delete item.stagingFileID; item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
         }
-        throw error;
+        throw mediaError('服务端校验', error);
       }
     }
   },
