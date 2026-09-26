@@ -1,45 +1,149 @@
-# v2 切换与验收
+# v2 切换、旧数据继承与验收
 
-代码准备完成不代表云端已切换。本目录默认 AppID 是占位值，config/env.local.js 由本机生成。
+代码准备完成不代表云端已切换。本目录默认 AppID 是占位值，`config/env.local.js` 由本机生成。
 
-## 1. 备份与回滚点
+## 1. 原则
 
-1. 保存当前线上小程序与云函数版本号。保留当前 main 提交作为代码回滚点。
-2. 配置本机环境并登录 CloudBase CLI，运行 database-preflight.ps1。该工具只读导出旧 couples、couple_users、ratings，输出 backups/cloudbase/时间戳/raw 与 PRECHECK.txt。
-3. 核对三个集合导出成功，导出文件可解析，导出条数与控制台一致；将备份保存在可靠的私有位置。若预检提示历史异常，保留报告并先确认数据范围，不能把失败的导出当备份。
-4. 旧数据不会自动删除。v2 从新集合开始，需要重新绑定；不要运行旧 database-migrate.ps1 来切换 v2。
-5. 若 v2 已运行，另行导出全部 v2_ 集合和云存储文件清单，再进行任何回滚。仅回滚前端会与 v2 API 不兼容，必须同时还原对应云函数版本。保留 v2 数据供后续恢复。
+v2 **继承旧数据，不要求老用户重新绑定**。
 
-## 2. 云资源
+迁移过程中：
 
-- 按 config/database.v2.json 创建 9 个集合及复合索引，所有集合权限为“仅管理端可读写”。此文件是人工配置清单，不是 CLI 导入格式。
-- 云存储应用 config/storage.rules.v2.json；等待规则生效后，使用两个普通微信账号验证：本人暂存可写、对方暂存不可覆盖、发布区不可写、任何文件都不能由客户端直接读取。
-- renianApi 依赖 wx-server-sdk 4.0.2 与显式固定的 @cloudbase/node-sdk 3.17.2。后一依赖用于取得上传文件元数据；不向前端返回上传凭证。部署时选择“云端安装依赖”。
-- 建议 renianApi 超时 60 秒、内存 512 MB；所有时间计算为 UTC+8。月度汇总逐页读取当月记录，大量历史数据时应监测函数耗时。
-- 部署 renianApi、dailyReminder、mediaCleanup。给 dailyReminder 保留 subscribeMessage.send 权限和现有模板 ID，核对模板 thing1/time2 字段。
-- dailyReminder 保留原触发器名 dailyRatingReminderTimer，配置每 5 分钟运行。不要重复创建同功能触发器。
-- mediaCleanup 使用 abandonedMediaCleanup 触发器，每小时第 17 分钟运行。拒绝普通客户端调用这两个调度函数，禁止暴露 HTTP 公共入口。
+- 旧 `couples / couple_users / ratings` 始终保留，迁移只复制、不删除；
+- 原 `coupleId` 继续作为 v2 关系 ID；
+- 旧评价转换成历史日常，同时保留“旧版评价 · 很好 / 还好 / 有点糟”标签；旧版单方未完成互评的记录继续仅作者可见，避免迁移造成历史隐私泄露；
+- 旧心情、提醒设置、权限、特权卡一并继承；
+- 任何无法安全对应的数据都会让迁移停止，不允许静默跳过；
+- 若 v2 目标集合已有真实数据，首次迁移会停止，避免覆盖。
 
-## 3. 同步发布
+## 2. 先做备份与云资源准备
 
-先在独立测试环境配置并部署，再使用同环境的前端开发版联调。确认后协调线上 API 与前端切换；旧客户端会收到“请重新打开最新版小程序”。
+1. 保存当前线上小程序与云函数版本号，并记录当前代码提交作为回滚点。
+2. 运行 `database-preflight.ps1`。它只读导出旧 `couples / couple_users / ratings` 到 `backups/cloudbase/<时间戳>/raw/`，不修改数据库。
+3. 核对导出文件、条数和 `PRECHECK.txt`。只有预检通过才继续。
+4. 按 `config/database.v2.json` 创建 9 个 v2 集合及索引，全部设置为仅管理端可读写。
+5. 应用 `config/storage.rules.v2.json`，确认客户端只能写自己的暂存路径，不能直接读发布区或覆盖别人的文件。
 
-## 4. 两个账号的实际验收
+旧 `database-migrate.ps1` 不是 v2 数据继承脚本，不要用它代替下面的迁移。
 
-- A 邀请 B，双方各有待接受邀请时 B 接受 A。原邀请失效；输入不存在或过期邀请码时原邀请仍保留。
-- A 只发文字、只发心情、发照片各一条，B 无需发布即可看到。A 编辑和删除后 B 刷新一致。
-- 相机和相册分别上传 JPG/PNG。中断上传、确认、发布三个阶段并重试；无重复记录。退出编辑页再进入，同一进程恢复草稿。
-- B 不能改 A 的记录；未绑定第三个账号不能获取双方图片地址。直接尝试覆盖发布区应失败。
-- 回顾在月底、UTC+8 零点、多页记录时日期正确，删除影响统计。
-- A 提约定，B 接受；修改提议等待时旧版有效。B 结束旧版后，不能再接受基于旧版本的提议。
-- A 送券，B 申请，A 拒绝后 B 可重新申请；A 确认仅兑现一次。双方能查看完整历史。
-- 默认不提醒；用户拒绝订阅不应开关生效。主动允许后，到点未分享发送一次；当天已分享或分享后删除不发送。发送后再次授权。
-- 已删除照片和过期未提交照片在定时任务后删除；正在确认的照片和已发布照片不会误删。模拟存储删除失败，下一次任务可重试。
+## 3. 部署临时迁移函数并继承旧数据
 
-本地命令：
+在微信开发者工具中部署：
+
+```text
+cloudfunctions/legacyV2Migration
+```
+
+选择：
+
+**上传并部署：云端安装依赖（不上传 node_modules）**
+
+建议迁移期间把该函数超时设置到 120 秒。它拒绝带微信 OPENID 的小程序端调用，只用于 CloudBase CLI / 控制台管理员调用。
+
+随后在项目根目录运行：
+
+```powershell
+.\v2-migrate-legacy.cmd
+```
+
+脚本会执行：
+
+1. 再做一次最新旧库完整备份；
+2. 调用 `legacyV2Migration` 的 `plan`，检查迁移数量、旧数据一致性和 v2 目标集合；
+3. 要求手工输入 `MIGRATE_V2`；
+4. 将旧数据复制到 v2；
+5. 再读取迁移状态。
+
+必须看到迁移标记：
+
+```text
+status = completed
+usersNeedRebind = false
+relationshipIdsPreserved = true
+```
+
+才允许进入下一步。
+
+如果执行中断，源集合仍未被修改。迁移使用确定性文档 ID，并在 `v2_operations/legacy_v1_to_v2` 保存进度；修复原因后可以重新运行脚本继续完成。**迁移完成前不要让真实用户使用 v2。**
+
+### 旧数据映射
+
+| 旧版 | v2 | 处理方式 |
+|---|---|---|
+| `couples` | `v2_couples` | 保留原关系 ID、成员、状态 |
+| `couple_users` | `v2_users` | 保留绑定、心情、提醒设置 |
+| waiting 邀请 | `v2_invites` | 保留邀请码和过期时间 |
+| `ratings` | `v2_entries` | 日期、作者、文字、原好/中/差类型全部保留；单方记录保留作者可见性 |
+| `couples.permissions` | `v2_agreements` | enabled=true → active；false → ended |
+| `couples.privilegeCards` | `v2_coupons` | active/used/revoked → available/used/revoked |
+| 已使用特权卡 | `v2_coupon_requests` | 生成一条迁移历史记录，保留“已使用”结果 |
+
+旧评价不会强行映射成新的心情 emoji，避免改变原意；前端会以“旧版评价 · 很好/还好/有点糟”展示。
+
+## 4. 部署正式 v2 云函数
+
+迁移完成后部署：
+
+```text
+cloudfunctions/renianApi
+cloudfunctions/dailyReminder
+cloudfunctions/mediaCleanup
+```
+
+均选择“云端安装依赖”。
+
+- `renianApi`：建议超时 60 秒、内存 512 MB；
+- `dailyReminder`：保留 `subscribeMessage.send` 权限和现有模板 ID，触发器 `dailyRatingReminderTimer` 每 5 分钟运行；
+- `mediaCleanup`：触发器 `abandonedMediaCleanup` 每小时第 17 分钟运行；
+- 所有时间按 UTC+8；
+- 不要给 `dailyReminder`、`mediaCleanup` 暴露普通客户端业务入口。
+
+完成迁移和核验后，删除临时云函数：
+
+```text
+legacyV2Migration
+```
+
+它不是线上长期组件。
+
+## 5. 切换前数据验收
+
+至少抽查一对已有老用户：
+
+1. 两个微信账号打开 v2 后仍是原来的绑定关系，不出现重新绑定页；
+2. 双方旧心情仍存在；
+3. 回顾页能看到旧评价转成的历史日常，日期、作者、文字和“旧版评价”标签正确；旧版单方记录只能原作者看到，双方当日都提交过的记录才对双方可见；
+4. 旧权限出现在共同约定中；
+5. 旧特权卡出现在心意券中，已使用/已撤回状态不被重置；
+6. 当天旧版已经评价过的人，`lastSharedDate` 已继承，不应因为切换 v2 被误判成“今天未分享”；
+7. 待接受关系仍能继续使用旧邀请码，过期邀请仍按原过期时间处理。
+
+同时比较迁移回执中的数量与备份：
+
+- active/waiting 关系总数；
+- 用户总数；
+- 旧 ratings 数 = 迁移后的 legacy entries 数；
+- permissions 数 = legacy agreements 数；
+- privilegeCards 数 = legacy coupons 数。
+
+不一致时不要发布 v2。
+
+## 6. 两个账号的新功能验收
+
+- A 邀请 B，双方各有待接受邀请时 B 接受 A；无效或过期邀请码不破坏原邀请。
+- A 只发文字、只发心情、发照片各一条，B 无需发布即可看到；A 编辑和删除后 B 刷新一致。
+- 相机和相册分别上传 JPG/PNG；中断上传、确认、发布三个阶段并重试，不产生重复记录。
+- B 不能改 A 的记录；未绑定第三个账号不能获取双方图片地址。
+- 回顾在月底、UTC+8 零点、多页记录时日期正确。
+- A 提约定，B 接受；修改提议等待时旧版仍有效。
+- A 送券，B 申请，A 拒绝后 B 可重新申请；确认只能兑现一次。
+- 默认不提醒；主动允许后，到点未分享只发送一次；当天已分享或分享后删除都不发送。
+- 已删除照片和过期未提交照片由定时任务清理；存储删除失败后下次可重试。
+
+## 7. 本地验证
+
 ```sh
 node scripts/check-source.js
 node --test tests/renian-api/*.test.js tests/frontend/*.test.js
 ```
 
-模拟测试不验证微信模板可用性、云端存储规则实际生效或 CloudBase 乐观事务重试，这些必须在上述联调完成。
+模拟测试不能替代 CloudBase 实际事务、微信订阅模板和云存储规则的真机验证。

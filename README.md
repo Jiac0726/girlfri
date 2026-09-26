@@ -31,7 +31,20 @@ node --test tests/renian-api/*.test.js tests/frontend/*.test.js
 
 API 必须携带 apiVersion: 2，旧版本请求返回 CLIENT_UPGRADE_REQUIRED。所有业务鉴权使用云函数取得的 OPENID，不接受客户端冒充作者或关系。
 
-新版使用独立 v2_ 集合，旧 couples、couple_users、ratings 保留，不会自动迁移或删除。切换前必须导出并校验备份。集合及索引清单在 [config/database.v2.json](config/database.v2.json)，权限模型见 [AUTH.md](AUTH.md)。
+新版使用独立 `v2_` 集合，但**旧数据要继承，不要求用户重新绑定**。切换前先完整备份旧 `couples / couple_users / ratings`，再运行专用迁移流程。迁移会保留旧集合，不会删除源数据。
+
+继承规则：
+
+- 旧绑定关系 → `v2_couples / v2_users`，沿用原 `coupleId`，双方无需重新绑定；
+- 旧心情与提醒设置 → `v2_users`；
+- 旧“很好 / 还好 / 有点糟”评价 → `v2_entries` 历史日常，并保留“旧版评价”标签和原评价文字；旧版只有一方填写的日期继续仅作者可见，不会因为迁移突然暴露给 TA；
+- 旧权限 → 共同约定；启用项迁为生效约定，关闭项迁为已结束约定；
+- 旧特权卡 → 心意券；已使用和已撤回状态继续保留；
+- 旧待接受邀请 → v2 待接受邀请，原邀请码和过期时间继续保留。
+
+迁移入口是 `v2-migrate-legacy.cmd`。它会先做只读备份与预检，再调用临时管理员云函数 `legacyV2Migration`。若发现旧数据不完整，或 v2 目标集合已经存在真实数据，会直接停止而不是静默丢数据或覆盖数据。
+
+集合及索引清单在 [config/database.v2.json](config/database.v2.json)，完整上线步骤见 [V2-DEPLOY.md](V2-DEPLOY.md)，权限模型见 [AUTH.md](AUTH.md)。
 
 云函数：
 
@@ -40,7 +53,8 @@ API 必须携带 apiVersion: 2，旧版本请求返回 CLIENT_UPGRADE_REQUIRED�
 | renianApi | 绑定、日常、月度汇总、心情、约定、赠券、图片授权 |
 | dailyReminder | 每 5 分钟检查已订阅且当天未分享的人 |
 | mediaCleanup | 每小时清理到期临时图片和已删除记录的图片 |
+| legacyV2Migration | 仅切换期使用：把旧版绑定、评价、心情、约定/特权卡复制到 v2；完成验收后删除 |
 
 数据库仅服务端可读写。图片先上传到私有暂存区，服务端校验后复制到客户端不可写的发布区，再通过鉴权后的临时链接查看。存储规则使用官方支持的正则路径匹配，规则语法参考 [CloudBase 云存储安全规则](https://docs.cloudbase.net/storage/security-rules)。
 
-现有 database-preflight.ps1 保留为旧版数据只读导出工具；database-migrate.ps1 是旧版迁移工具，**不用于 v2 切换**。
+现有 `database-preflight.ps1` 继续负责旧版只读备份；`database-migrate.ps1` 只处理旧版数据库自身索引，不用于 v2 切换。v2 数据继承使用 `v2-migrate-legacy.cmd`。
