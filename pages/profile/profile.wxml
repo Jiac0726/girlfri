@@ -41,33 +41,105 @@
     <view class="private-memo-head">
       <view>
         <view class="card-title">恋爱备忘录</view>
-        <view class="private-memo-sub">只给自己看，TA 不会看到这里的内容。</view>
+        <view class="private-memo-sub">一条一条记，只给自己看，TA 不会看到。</view>
       </view>
       <view class="private-memo-lock">私密</view>
     </view>
 
-    <textarea
-      class="private-memo-input"
-      value="{{privateMemo}}"
-      placeholder="记下想提醒自己的事、纪念日灵感、想为 TA 做的小事……"
-      maxlength="1500"
-      auto-height
-      disabled="{{memoSaving || authLoading}}"
-      bindinput="onPrivateMemoInput"
-    />
-    <view class="private-memo-meta">
-      <text wx:if="{{memoUpdatedLabel}}">上次保存 {{memoUpdatedLabel}}</text>
-      <text wx:else>仅你本人可读取</text>
-      <text>{{privateMemo.length}}/1500</text>
+    <view class="memo-editor">
+      <input
+        class="memo-title-input"
+        value="{{memoTitle}}"
+        placeholder="标题（可选）"
+        maxlength="40"
+        disabled="{{memoSaving || memoUncertain}}"
+        bindinput="onMemoTitleInput"
+      />
+      <textarea
+        class="private-memo-input"
+        value="{{memoText}}"
+        placeholder="记下想提醒自己的事、纪念日灵感、想为 TA 做的小事……"
+        maxlength="1500"
+        auto-height
+        disabled="{{memoSaving || memoUncertain}}"
+        bindinput="onMemoTextInput"
+      />
+
+      <view class="memo-draft-images" wx:if="{{memoImages.length}}">
+        <view class="memo-draft-image" wx:for="{{memoImages}}" wx:key="id" wx:for-item="photo">
+          <image src="{{photo.url}}" mode="aspectFill" />
+          <button data-index="{{index}}" bindtap="removeMemoImage" disabled="{{memoSaving || memoUncertain}}">×</button>
+        </view>
+      </view>
+
+      <button
+        class="memo-add-photo"
+        bindtap="chooseMemoImages"
+        disabled="{{memoSaving || memoUncertain || memoImages.length >= 6}}"
+      >
+        ＋ 添加图片（{{memoImages.length}}/6）
+      </button>
+
+      <view class="private-memo-meta">
+        <text>{{memoEditingId ? '正在编辑这条备忘录' : '新建一条私密备忘录'}}</text>
+        <text>{{memoText.length}}/1500</text>
+      </view>
+
+      <view class="memo-editor-actions">
+        <button
+          class="memo-cancel"
+          wx:if="{{memoEditingId}}"
+          bindtap="cancelMemoEdit"
+          disabled="{{memoSaving || memoUncertain}}"
+        >
+          取消编辑
+        </button>
+        <button
+          class="private-memo-save"
+          bindtap="saveMemo"
+          loading="{{memoSaving}}"
+          disabled="{{memoSaving}}"
+        >
+          {{memoUncertain ? '重试确认' : memoEditingId ? '保存修改' : '保存这条备忘'}}
+        </button>
+      </view>
     </view>
-    <button
-      class="private-memo-save"
-      bindtap="savePrivateMemo"
-      loading="{{memoSaving}}"
-      disabled="{{memoSaving || authLoading || privateMemo === savedPrivateMemo}}"
-    >
-      保存备忘录
-    </button>
+
+    <view class="memo-list-head">
+      <text>我的条目</text>
+      <text>{{memoItems.length}} / 100</text>
+    </view>
+
+    <view class="memo-empty" wx:if="{{!memoItems.length}}">
+      还没有备忘。可以从想送的礼物、纪念日、TA 的小习惯开始记。
+    </view>
+
+    <view class="memo-item" wx:for="{{memoItems}}" wx:key="id">
+      <view class="memo-item-head">
+        <view class="memo-item-title">{{item.title || '一条备忘'}}</view>
+        <view class="memo-item-date">{{item.updatedLabel}}</view>
+      </view>
+      <view class="memo-item-text" wx:if="{{item.text}}" selectable>{{item.text}}</view>
+      <view class="memo-item-images {{item.images.length === 1 ? 'single' : ''}}" wx:if="{{item.images.length}}">
+        <view
+          class="memo-item-image"
+          wx:for="{{item.images}}"
+          wx:key="id"
+          wx:for-item="photo"
+          data-id="{{item.id}}"
+          data-photoid="{{photo.id}}"
+          bindtap="previewMemoImages"
+        >
+          <image src="{{photo.url}}" mode="aspectFill" lazy-load />
+        </view>
+      </view>
+      <view class="memo-item-actions">
+        <button class="memo-action" data-id="{{item.id}}" bindtap="editMemo" disabled="{{memoSaving || memoDeletingId}}">编辑</button>
+        <button class="memo-action delete" data-id="{{item.id}}" bindtap="deleteMemo" disabled="{{memoSaving || memoDeletingId}}">
+          {{memoDeletingId === item.id ? '删除中…' : '删除'}}
+        </button>
+      </view>
+    </view>
   </view>
 
   <view class="card mood-editor" wx:if="{{bindingStatus === 'active'}}">
