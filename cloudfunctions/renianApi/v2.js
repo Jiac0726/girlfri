@@ -259,6 +259,121 @@ function createV2Api(cloud, options = {}) {
       version: user.privateMemoVersion || 0,
     };
   }
+
+  function memoItems(user, openid) {
+    const items = Array.isArray(user.privateMemoItems)
+      ? user.privateMemoItems.map(item => Object.assign({}, item, { images: Array.isArray(item.images) ? item.images.slice() : [] }))
+      : [];
+    if (!user.privateMemoMigrated && user.privateMemo) {
+      items.push({
+        id: 'memo_legacy_' + hash(openid).slice(0, 24),
+        title: '',
+        text: String(user.privateMemo || ''),
+        images: [],
+        version: 1,
+        createdAt: user.privateMemoUpdatedAt || user.updatedAt || new Date(),
+        updatedAt: user.privateMemoUpdatedAt || user.updatedAt || new Date(),
+      });
+    }
+    return items.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
+  }
+
+  function memoInput(event) {
+    const title = text(event.title, 40, '备忘标题');
+    const content = text(event.text, 1500, '备忘内容');
+    const images = event.images === undefined ? [] : event.images;
+    assert(Array.isArray(images) && images.length <= 6 && images.every(id => typeof id === 'string') &&
+      new Set(images).size === images.length, 'INVALID_MEDIA', '每条备忘录最多 6 张不同的图片');
+    assert(title || content || images.length, 'EMPTY_MEMO', '写一点内容，或者添加一张图片');
+    return { title, text: content, images };
+  }
+
+  async function memoView(item, openid, coupleId) {
+    const images = await media.privateMemoImages(item, openid, coupleId);
+    return {
+      id: item.id,
+      title: item.title || '',
+      text: item.text || '',
+      images: images.map(image => ({ id: image.id, url: image.url })),
+      version: item.version || 1,
+      createdAt: iso(item.createdAt),
+      updatedAt: iso(item.updatedAt),
+    };
+  }
+
+  async function memoList(openid) {
+    const member = await membership(db, openid);
+    const items = memoItems(member.user, openid);
+    return {
+      items: await Promise.all(items.map(item => memoView(item, openid, member.pair._id))),
+      limit: 100,
+    };
+  }
+
+  async function memoCreate(event, openid) {
+    const input = memoInput(event);
+    const result = await mutate('memo.create', event, openid, async (tx, member, op) => {
+      const items = memoItems(member.user, openid);
+      assert(items.length < 100, 'MEMO_LIMIT', '恋爱备忘录最多保留 100 条');
+      const now = new Date();
+      const id = 'memo_' + hash(op).slice(0, 40);
+      await media.syncPrivateMemo(tx, member, openid, id, [], input.images);
+      const item = Object.assign({ id, version: 1, createdAt: now, updatedAt: now }, input);
+      const user = Object.assign({}, member.user, {
+        privateMemoItems: [item].concat(items),
+        privateMemoMigrated: true,
+        updatedAt: now,
+      });
+      await put(tx, 'users', openid, user);
+      return item;
+    });
+    const member = await membership(db, openid);
+    return memoView(result, openid, member.pair._id);
+  }
+
+  async function memoUpdate(event, openid) {
+    const input = memoInput(event);
+    const result = await mutate('memo.update', event, openid, async (tx, member) => {
+      const items = memoItems(member.user, openid);
+      const index = items.findIndex(item => item.id === event.id);
+      assert(index >= 0, 'NOT_FOUND', '这条备忘录不存在');
+      const current = items[index];
+      version(current, event.expectedVersion);
+      await media.syncPrivateMemo(tx, member, openid, current.id, current.images || [], input.images);
+      const changed = Object.assign({}, current, input, { version: current.version + 1, updatedAt: new Date() });
+      items[index] = changed;
+      const user = Object.assign({}, member.user, {
+        privateMemoItems: items,
+        privateMemoMigrated: true,
+        updatedAt: new Date(),
+      });
+      await put(tx, 'users', openid, user);
+      return changed;
+    });
+    const member = await membership(db, openid);
+    return memoView(result, openid, member.pair._id);
+  }
+
+  async function memoDelete(event, openid) {
+    const result = await mutate('memo.delete', event, openid, async (tx, member) => {
+      const items = memoItems(member.user, openid);
+      const index = items.findIndex(item => item.id === event.id);
+      assert(index >= 0, 'NOT_FOUND', '这条备忘录不存在');
+      const current = items[index];
+      version(current, event.expectedVersion);
+      await media.syncPrivateMemo(tx, member, openid, current.id, current.images || [], []);
+      items.splice(index, 1);
+      const user = Object.assign({}, member.user, {
+        privateMemoItems: items,
+        privateMemoMigrated: true,
+        updatedAt: new Date(),
+      });
+      await put(tx, 'users', openid, user);
+      return { id: current.id, deleted: true };
+    });
+    return result;
+  }
+
   async function profileGet(openid) {
     const member = await membership(db, openid);
     const other = await get(db, 'users', partner(member.pair, openid));
@@ -271,10 +386,12 @@ function createV2Api(cloud, options = {}) {
       me: cleanMood(member.user),
       partner: cleanMood(other),
       privateMemo: privateMemoView(member.user),
+      privateMemoCount: memoItems(member.user, openid).length,
       pendingAgreementCount,
       pendingCouponCount,
     };
   }
+
   async function privateMemoUpdate(event, openid) {
     const memo = text(event.text, 1500, '恋爱备忘录');
     return db.runTransaction(async tx => {
@@ -294,6 +411,7 @@ function createV2Api(cloud, options = {}) {
       return privateMemoView(user);
     });
   }
+
   async function profileUpdate(event, openid) {
     const moodEmoji = text(event.moodEmoji, 8, '心情');
     const moodText = text(event.moodText, 60, '心情文字');
@@ -351,6 +469,10 @@ function createV2Api(cloud, options = {}) {
       case 'coupon.history': return couponHistory(event, openid);
       case 'profile.get': return profileGet(openid);
       case 'profile.memo.update': return privateMemoUpdate(event, openid);
+      case 'memo.list': return memoList(openid);
+      case 'memo.create': return memoCreate(event, openid);
+      case 'memo.update': return memoUpdate(event, openid);
+      case 'memo.delete': return memoDelete(event, openid);
       case 'profile.mood.update': return profileUpdate(event, openid);
       case 'reminder.get': return cleanReminder((await membership(db, openid)).user);
       case 'reminder.update': return reminderUpdate(event, openid);
