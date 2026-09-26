@@ -26,9 +26,9 @@ function validateDay(value) {
 }
 
 function createV2Api(cloud, options = {}) {
-  const ctx = createContext(cloud);
+  const ctx = createContext(cloud, options.database);
   const pairs = createPairs(ctx);
-  const media = createMedia(ctx, options);
+  const media = createMedia(ctx);
   const { db, get, put, membership, partner, session, ownedDocument, mutate, page, count } = ctx;
 
   function entryInput(event) {
