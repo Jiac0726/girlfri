@@ -110,6 +110,7 @@ module.exports = {
   getReminderSettings: () => call('reminder.get'),
   updateReminderSettings: (enabled, time, expectedVersion) =>
     call('reminder.update', { enabled, time, expectedVersion }),
+  sendMiss: (data) => call('miss.send', data),
   newRequestId,
   isBindingError,
 };
