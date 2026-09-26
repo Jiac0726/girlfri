@@ -42,7 +42,7 @@ API 必须携带 apiVersion: 2，旧版本请求返回 CLIENT_UPGRADE_REQUIRED�
 - 旧特权卡 → 心意券；已使用和已撤回状态继续保留；
 - 旧待接受邀请 → v2 待接受邀请，原邀请码和过期时间继续保留。
 
-迁移入口是 `v2-migrate-legacy.cmd`。它会先做只读备份与预检，再调用临时管理员云函数 `legacyV2Migration`。若发现旧数据不完整，或 v2 目标集合已经存在真实数据，会直接停止而不是静默丢数据或覆盖数据。
+迁移入口是 `v2-migrate-legacy.cmd`。它会先做只读备份与预检，再调用临时管理员云函数 `legacyV2Migration` **自动创建缺失的 9 个 v2 集合**，并读取 `config/database.v2.json` **自动创建 14 个索引**。不再要求在控制台逐个建集合。若发现旧数据不完整，或 v2 目标集合已经存在真实数据，会直接停止而不是静默丢数据或覆盖数据。
 
 集合及索引清单在 [config/database.v2.json](config/database.v2.json)，完整上线步骤见 [V2-DEPLOY.md](V2-DEPLOY.md)，权限模型见 [AUTH.md](AUTH.md)。
 
