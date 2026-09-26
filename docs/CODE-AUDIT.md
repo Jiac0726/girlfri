@@ -172,6 +172,24 @@ legacy migration 使用 source fingerprint、progress marker、目标集合非�
 
 该结果仅证明仓库现有 CI 检查通过，不等同于真实微信设备、真实 CloudBase 环境和真实并发条件下的验收。
 
+
+### F-010 旧数据迁移对 active 关系的 partnerOpenid 一致性校验不足
+**状态：潜在迁移正确性风险，尚未证明线上已有脏数据。**
+
+`legacyV2Migration/migration.js` 对 active couple 主要校验 `memberOpenids` 数量、creatorOpenid 是否在成员中，以及成员对应用户的 `coupleId`；但没有显式要求 `partnerOpenid` 非空且属于 `memberOpenids`、且不能与 creatorOpenid 相同。生成 v2 couple 时又直接优先采用 legacy `partnerOpenid`。
+
+因此若旧库同时存在“成员列表正确、partnerOpenid 字段错误”的异常数据，迁移结果可能形成 `memberOpenids` 与 `partnerOpenid` 不一致的 v2 关系，使部分成员后续通过 `membership()` 被判定为关系异常。当前 migration test 未覆盖该异常组合。
+
+### R-001 v2_operations 没有发现回收/保留策略，存在长期无界增长风险
+**状态：维护与容量风险。**
+
+当前 `mutate()` 会为业务 mutation 持久化一条 `v2_operations` 记录，用于 requestId 幂等；媒体 prepare/confirm、日常、约定、心意券、备忘等操作都会产生记录。仓库没有发现针对 `v2_operations` 的 cleanup worker、TTL 配置或 retention 策略，`config/database.v2.json` 也没有基于 `createdAt` 的清理索引。
+
+对于长期运行的生产环境，这意味着 operation records 会持续累积。它不构成当前功能立即失败，但会形成数据库容量、备份体积和运维成本的长期风险；尤其包含媒体操作在内，写入频率可能明显高于普通业务记录。
+
+### W-001 GitHub Actions 当前存在 Node.js 20 弃用警告
+最新 CI 日志显示 `actions/checkout@v4`、`actions/setup-node@v4` 仍被标记为 Node.js 20 runtime，而当前 runner 将其强制切换到 Node.js 24 执行，并输出 deprecation warning。当前 workflow 仍成功，但这些 action 后续升级应纳入维护计划。
+
 ## 4. 审查原则
 
 - 不把理论风险直接写成生产 Bug。
