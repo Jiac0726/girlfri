@@ -166,6 +166,12 @@ legacy migration 使用 source fingerprint、progress marker、目标集合非�
 ### P-009 V2 数据库索引与当前服务端查询形态已完成交叉核对
 当前 `config/database.v2.json` 的 15 个索引覆盖了 entries 的 couple/deleted/month/day + createdAt/_id 分页组合、agreements/coupons 的 couple + createdAt 分页、状态计数查询，以及 media cleanup 使用的 status/expiresAt/confirmLeaseUntil/stagingCleanupPending 等查询键。结合 `v2-core.js` 的统一 keyset `page()` 实现和 workers 的查询方式，本轮没有发现明显的“代码使用了 schema 中不存在索引”的问题。
 
+
+### V-001 当前审查提交的 GitHub Actions 已通过
+审查提交 `876224fa5174e83d9aa79a69417251881f275234` 对应的 `Renian checks` workflow 已完成且 `conclusion=success`。其中 Node 测试与 Windows PowerShell 检查均在该 workflow 中执行。
+
+该结果仅证明仓库现有 CI 检查通过，不等同于真实微信设备、真实 CloudBase 环境和真实并发条件下的验收。
+
 ## 4. 审查原则
 
 - 不把理论风险直接写成生产 Bug。
