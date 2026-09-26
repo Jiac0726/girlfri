@@ -41,6 +41,38 @@ function createV2Api(cloud, options = {}) {
   const media = createMedia(ctx);
   const { db, transaction, get, put, membership, partner, session, ownedDocument, mutate, page, count } = ctx;
 
+  let missTemplateFields = null;
+  async function resolveMissTemplateFields() {
+    if (missTemplateFields) return missTemplateFields;
+    const response = await cloud.openapi.subscribeMessage.getTemplateList({});
+    const templates = response && response.data || [];
+    const template = templates.find(item => item.priTmplId === MISS_TEMPLATE_ID);
+    assert(template && typeof template.content === 'string', 'MISS_TEMPLATE_INVALID', '想念提醒模板未找到');
+    const timeMatch = /消息时间\s*[:：]\s*\{\{([A-Za-z0-9_]+)\.DATA\}\}/.exec(template.content);
+    const countMatch = /消息条数\s*[:：]\s*\{\{([A-Za-z0-9_]+)\.DATA\}\}/.exec(template.content);
+    assert(timeMatch && countMatch, 'MISS_TEMPLATE_INVALID', '想念提醒模板字段不正确');
+    missTemplateFields = { time: timeMatch[1], count: countMatch[1] };
+    return missTemplateFields;
+  }
+  async function finalizeMissNotify(recipientOpenid, requestId, success, errorCode) {
+    return transaction(async tx => {
+      const user = await get(tx, 'users', recipientOpenid);
+      if (!user || user.missNotifyClaimRequestId !== requestId) return;
+      const now = new Date();
+      const changed = Object.assign({}, user, {
+        missNotifyClaimRequestId: '',
+        missNotifyClaimedAt: null,
+        missNotifyLastError: success ? '' : String(errorCode || 'SEND_FAILED'),
+        updatedAt: now,
+      });
+      if (success || String(errorCode) === '43101') {
+        changed.missNotifyQuota = Math.max(0, (Number(user.missNotifyQuota) || 0) - 1);
+        changed.missNotifyLastSentAt = success ? now : user.missNotifyLastSentAt || null;
+      }
+      await put(tx, 'users', recipientOpenid, changed);
+    });
+  }
+
   function entryInput(event) {
     const ratingType = text(event.ratingType, 16, '打分');
     assert(!ratingType || RATING_LABELS[ratingType], 'INVALID_RATING', '请选择列表中的打分');
