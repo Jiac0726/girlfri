@@ -134,6 +134,24 @@ test('coupon double request and double approval commit once', async () => {
   assert.equal(approvals[0].status,'used'); assert.equal(approvals[1].status,'used');
   assert.equal(cloud.__colStore('v2_coupon_requests').size,1);
 });
+test('private love memo is readable only through the owner profile', async () => {
+  await pair();
+  const saved = await call('profile.memo.update','A',{text:'记得周末准备一束花',expectedVersion:0});
+  assert.equal(saved.text,'记得周末准备一束花');
+  assert.equal(saved.version,1);
+
+  const aProfile = await call('profile.get','A');
+  const bProfile = await call('profile.get','B');
+  assert.equal(aProfile.privateMemo.text,'记得周末准备一束花');
+  assert.equal(aProfile.privateMemo.version,1);
+  assert.equal(bProfile.privateMemo.text,'');
+  assert.equal(JSON.stringify(bProfile).includes('记得周末准备一束花'),false);
+
+  await failure(call('profile.memo.update','A',{text:'过期写入',expectedVersion:0}),'VERSION_CONFLICT');
+  const cleared = await call('profile.memo.update','A',{text:'',expectedVersion:1});
+  assert.equal(cleared.text,'');
+  assert.equal(cleared.version,2);
+});
 test('reminders default off and settings reject stale updates', async () => {
   await pair(); assert.equal((await call('reminder.get')).enabled,false);
   const on=await call('reminder.update','A',{enabled:true,time:'21:30',expectedVersion:0});
