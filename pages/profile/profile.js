@@ -88,6 +88,7 @@ Page({
       reminderStatusText: value.enabled ? '已授权：当天未分享，将在 ' + value.time + ' 提醒' : value.needsRenewal ? '本次授权已使用或失效，可再次开启' : '未开启提醒' });
   },
   applyMissNotify(value) {
+    this._missTemplateId = (value && value.templateId) || MISS_TEMPLATE;
     const quota = Math.max(0, Number(value && value.quota) || 0);
     this.setData({
       missNotifyReady: true,
@@ -98,17 +99,37 @@ Page({
   async authorizeMissNotify() {
     if (this.data.missNotifySaving || this.data.authLoading || !this.data.missNotifyReady || this.data.bindingStatus !== 'active') return;
     this.setData({ missNotifySaving: true });
+    const templateId = this._missTemplateId || MISS_TEMPLATE;
+    let stage = '微信订阅授权';
     try {
-      const result = await wxCall('requestSubscribeMessage', { tmplIds: [MISS_TEMPLATE] });
-      if (result[MISS_TEMPLATE] !== 'accept') {
-        wx.showToast({ title: '允许订阅后，TA 想你时才能提醒', icon: 'none' });
+      const result = await wxCall('requestSubscribeMessage', { tmplIds: [templateId] });
+      if (result[templateId] !== 'accept') {
+        const status = result[templateId];
+        wx.showModal({
+          title: '未获得订阅授权',
+          content: status === 'reject'
+            ? '你尚未允许这条订阅。请在小程序右上角菜单的设置中检查通知订阅设置，再点击允许提醒。'
+            : '微信返回订阅状态：' + String(status || '未返回模板状态') + '。请检查小程序后台的订阅模板是否可用。',
+          showCancel: false,
+        });
         return;
       }
+      stage = '保存提醒授权';
       const value = await api.authorizeMissNotify({ requestId: api.newRequestId() });
       this.applyMissNotify(value);
       wx.showToast({ title: '下一次想念会提醒你 ♡', icon: 'none' });
     } catch (error) {
-      wx.showToast({ title: error.message || '想念提醒授权失败', icon: 'none' });
+      const code = error && (error.errCode !== undefined ? error.errCode : error.code);
+      const detail = String((error && (error.errMsg || error.message)) || error || '未知错误');
+      console.error('[miss-notify-authorization]', { stage, templateId, code, detail });
+      wx.showModal({
+        title: stage + '失败',
+        content: (code !== undefined ? '错误码：' + code + '\n' : '') + detail +
+          (stage === '微信订阅授权'
+            ? '\n请核对当前小程序 AppID 下的订阅消息模板 ID：' + templateId
+            : '\n微信已允许订阅，但保存结果未确认，请刷新查看提醒次数。'),
+        showCancel: false,
+      });
       try { this.applyMissNotify(await api.getMissNotifySettings()); } catch (_) {}
     } finally {
       if (!this._disposed) this.setData({ missNotifySaving: false });

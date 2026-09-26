@@ -167,6 +167,58 @@ test('miss notification authorization stores one accepted one-time quota',async(
   assert.equal(events.find(x=>x.method==='showToast').value.title,'下一次想念会提醒你 ♡');
 });
 
+test('miss subscription uses the server template and displays native error details without granting quota',async()=>{
+  let writes=0, requested, modal;
+  const {page}=loadPage('profile',{
+    authorizeMissNotify:async()=>{writes++;},
+    getMissNotifySettings:async()=>({templateId:'current-template',quota:0}),
+  },{
+    requestSubscribeMessage:options=>{requested=options.tmplIds;options.fail({errCode:20001,errMsg:'requestSubscribeMessage:fail invalid template'});},
+    showModal:options=>{modal=options;},
+  });
+  page.setData({bindingStatus:'active',authLoading:false});
+  page.applyMissNotify({templateId:'current-template',quota:0});
+  await page.authorizeMissNotify();
+  assert.equal(requested[0],'current-template');
+  assert.equal(writes,0);
+  assert.equal(modal.title,'微信订阅授权失败');
+  assert.match(modal.content,/20001/);
+  assert.match(modal.content,/invalid template/);
+  assert.equal(page.data.missNotifySaving,false);
+});
+
+test('miss authorization distinguishes a save failure after WeChat acceptance',async()=>{
+  let modal;
+  const {page}=loadPage('profile',{
+    authorizeMissNotify:async()=>{throw Object.assign(new Error('network unavailable'),{code:'CLOUD_INVOKE_FAILED'});},
+    getMissNotifySettings:async()=>({quota:1}),
+  },{
+    requestSubscribeMessage:options=>options.success({[options.tmplIds[0]]:'accept'}),
+    showModal:options=>{modal=options;},
+  });
+  page.setData({bindingStatus:'active',authLoading:false,missNotifyReady:true});
+  await page.authorizeMissNotify();
+  assert.equal(modal.title,'保存提醒授权失败');
+  assert.match(modal.content,/network unavailable/);
+  assert.equal(page.data.missNotifyQuota,1);
+  assert.equal(page.data.missNotifySaving,false);
+});
+
+test('miss template rejection or filtering never grants quota',async()=>{
+  for (const status of ['reject','ban','filter',undefined]) {
+    let writes=0, modal;
+    const {page}=loadPage('profile',{authorizeMissNotify:async()=>{writes++;}}, {
+      requestSubscribeMessage:options=>options.success({[options.tmplIds[0]]:status}),
+      showModal:options=>{modal=options;},
+    });
+    page.setData({bindingStatus:'active',authLoading:false,missNotifyReady:true});
+    await page.authorizeMissNotify();
+    assert.equal(writes,0);
+    assert.equal(modal.title,'未获得订阅授权');
+    assert.equal(page.data.missNotifySaving,false);
+  }
+});
+
 test('reminder is enabled only after explicit subscribe acceptance, with setting version',async()=>{
   const changes=[];
   const {page}=loadPage('profile',{updateReminderSettings:async(...data)=>{changes.push(data);return {enabled:true,time:'21:30',version:3};}},
