@@ -6,28 +6,50 @@ const TIMES = ['20:00','20:30','21:00','21:30','22:00','22:30'];
 function profile(x) { return Object.assign({ moodEmoji: '', moodText: '', hasMood: false }, x || {}, { moodUpdatedLabel: dateLabel(x && x.moodUpdatedAt) }); }
 Page({
   data: { moods: MOODS, authLoading: true, saving: false, bindingStatus: 'loading', moodEmoji: '', moodText: '', savedMoodEmoji: '', savedMoodText: '', myUpdatedLabel: '', partner: profile(), pendingAgreementCount: 0, pendingCouponCount: 0,
+    memoSaving: false, privateMemo: '', savedPrivateMemo: '', memoUpdatedLabel: '',
     reminderSaving: false, reminderEnabled: false, reminderReady: false, reminderTime: '21:30', reminderTimeOptions: TIMES, reminderTimeIndex: 3, reminderStatusText: '未开启提醒', error: '' },
   onShow() { this._disposed = false; this.loadProfile(); },
   onUnload() { this._disposed = true; this._loadToken = (this._loadToken || 0) + 1; },
   async onPullDownRefresh() { try { await this.loadProfile(); } finally { wx.stopPullDownRefresh(); } },
   async loadProfile() {
-    if (this.data.saving || this.data.reminderSaving) return;
+    if (this.data.saving || this.data.memoSaving || this.data.reminderSaving) return;
     const token = this._loadToken = (this._loadToken || 0) + 1, revision = this._draftRevision || 0;
     this.setData({ authLoading: true, error: '' });
     try {
       const session = await api.getSession();
       if (token !== this._loadToken) return;
       const changed = this._scope !== session.coupleId; this._scope = session.coupleId;
-      if (changed) { this._dirty = false; this.setData({ moodEmoji: '', moodText: '', savedMoodEmoji: '', savedMoodText: '', partner: profile(), pendingAgreementCount: 0, pendingCouponCount: 0, reminderReady: false }); }
+      if (changed) {
+        this._dirty = false;
+        this._memoDirty = false;
+        this._memoVersion = 0;
+        this.setData({
+          moodEmoji: '', moodText: '', savedMoodEmoji: '', savedMoodText: '',
+          privateMemo: '', savedPrivateMemo: '', memoUpdatedLabel: '',
+          partner: profile(), pendingAgreementCount: 0, pendingCouponCount: 0, reminderReady: false,
+        });
+      }
       this.setData({ bindingStatus: session.bindingStatus });
       if (session.bindingStatus !== 'active') { this.setData({ reminderEnabled: false, reminderReady: false }); return; }
       const [data, reminder] = await Promise.all([api.getProfile(), api.getReminderSettings()]);
       if (token !== this._loadToken) return;
       const me = profile(data.me);
-      const update = { savedMoodEmoji: me.moodEmoji, savedMoodText: me.moodText, myUpdatedLabel: me.moodUpdatedLabel, partner: profile(data.partner),
-        pendingAgreementCount: data.pendingAgreementCount, pendingCouponCount: data.pendingCouponCount };
+      const memo = data.privateMemo || { text: '', updatedAt: '', version: 0 };
+      this._memoVersion = memo.version || 0;
+      const update = {
+        savedMoodEmoji: me.moodEmoji,
+        savedMoodText: me.moodText,
+        myUpdatedLabel: me.moodUpdatedLabel,
+        savedPrivateMemo: memo.text || '',
+        memoUpdatedLabel: dateLabel(memo.updatedAt),
+        partner: profile(data.partner),
+        pendingAgreementCount: data.pendingAgreementCount,
+        pendingCouponCount: data.pendingCouponCount,
+      };
       if (!this._dirty && revision === (this._draftRevision || 0)) Object.assign(update, { moodEmoji: me.moodEmoji, moodText: me.moodText });
-      this.setData(update); this.applyReminder(reminder);
+      if (!this._memoDirty) update.privateMemo = memo.text || '';
+      this.setData(update);
+      this.applyReminder(reminder);
     } catch (error) {
       if (token !== this._loadToken) return;
       this.setData({ error: error.message || '加载失败，请重试', reminderReady: false });
@@ -42,6 +64,31 @@ Page({
   goBind() { wx.navigateTo({ url: '/pages/bind/bind' }); },
   goAgreements() { wx.navigateTo({ url: '/pages/permissions/permissions' }); },
   goCoupons() { wx.navigateTo({ url: '/pages/privileges/privileges' }); },
+  onPrivateMemoInput(e) {
+    if (this.data.memoSaving || this.data.authLoading) return;
+    this._memoDirty = true;
+    this.setData({ privateMemo: e.detail.value });
+  },
+  async savePrivateMemo() {
+    if (this.data.memoSaving || this.data.authLoading || this.data.bindingStatus !== 'active' || !this._memoDirty) return;
+    this.setData({ memoSaving: true });
+    try {
+      const memo = await api.updatePrivateMemo(this.data.privateMemo, this._memoVersion || 0);
+      this._memoVersion = memo.version || 0;
+      this._memoDirty = false;
+      this.setData({
+        privateMemo: memo.text || '',
+        savedPrivateMemo: memo.text || '',
+        memoUpdatedLabel: dateLabel(memo.updatedAt),
+      });
+      wx.showToast({ title: '只保存给你自己', icon: 'none' });
+    } catch (error) {
+      if (error.code === 'VERSION_CONFLICT') this._memoDirty = true;
+      wx.showToast({ title: error.message || '备忘录保存失败', icon: 'none' });
+    } finally {
+      if (!this._disposed) this.setData({ memoSaving: false });
+    }
+  },
   chooseMood(e) { if (this.data.saving || this.data.authLoading) return; this._dirty = true; this._draftRevision = (this._draftRevision || 0) + 1; this.setData({ moodEmoji: e.currentTarget.dataset.emoji }); },
   onMoodTextInput(e) { if (this.data.saving) return; this._dirty = true; this._draftRevision = (this._draftRevision || 0) + 1; this.setData({ moodText: e.detail.value }); },
   async saveMood() {
