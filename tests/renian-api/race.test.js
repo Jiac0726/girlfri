@@ -195,7 +195,7 @@ test('miss notification requires recipient authorization and consumes one quota'
   assert.equal(cloud.__subscribeMessages.length,1);
   const message = cloud.__subscribeMessages[0];
   assert.equal(message.touser,'B');
-  assert.equal(message.templateId,'RWnfT0dJaUjWh6e1XsFpL6H2mshGw05zT2zBLP3clro');
+  assert.equal(message.templateId,'RWnfT0dJaUjWh6e1XsFpLzgeI6naPdDE6Yq1VSbHusw');
   assert.equal(message.data.number8.value,'1');
   assert.match(message.data.time7.value,/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
   assert.equal((await call('miss.notify.get','B')).quota,0);

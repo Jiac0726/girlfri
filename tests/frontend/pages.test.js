@@ -153,7 +153,7 @@ test('profile private memo creates an item with attached image ids',async()=>{
 });
 test('miss notification authorization stores one accepted one-time quota',async()=>{
   const writes=[];
-  const template='RWnfT0dJaUjWh6e1XsFpL6H2mshGw05zT2zBLP3clro';
+  const template='RWnfT0dJaUjWh6e1XsFpLzgeI6naPdDE6Yq1VSbHusw';
   const {page,events}=loadPage('profile',{
     authorizeMissNotify:async data=>{writes.push(data);return {templateId:template,quota:1,enabled:true};},
     getMissNotifySettings:async()=>({templateId:template,quota:0,enabled:false}),

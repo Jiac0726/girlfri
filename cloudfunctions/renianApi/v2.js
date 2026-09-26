@@ -6,7 +6,7 @@ const { createMedia } = require('./v2-media');
 const { entryVisibleTo } = require('./v2-visibility');
 
 const REMINDER_TEMPLATE_ID = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
-const MISS_TEMPLATE_ID = 'RWnfT0dJaUjWh6e1XsFpL6H2mshGw05zT2zBLP3clro';
+const MISS_TEMPLATE_ID = 'RWnfT0dJaUjWh6e1XsFpLzgeI6naPdDE6Yq1VSbHusw';
 const MISS_NOTIFY_CLAIM_MS = 2 * 60 * 1000;
 const REMINDER_TIMES = new Set(['20:00', '20:30', '21:00', '21:30', '22:00', '22:30']);
 const MOODS = new Set(['', '🥰', '😊', '😌', '🥺', '😤', '😢', '😴', '🤍']);

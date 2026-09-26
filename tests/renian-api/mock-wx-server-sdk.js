@@ -119,7 +119,7 @@ const cloud = {
   openapi: { subscribeMessage: {
     getTemplateList: async () => ({
       data: [{
-        priTmplId: 'RWnfT0dJaUjWh6e1XsFpL6H2mshGw05zT2zBLP3clro',
+        priTmplId: 'RWnfT0dJaUjWh6e1XsFpLzgeI6naPdDE6Yq1VSbHusw',
         title: '聊天消息通知',
         content: '消息时间:{{time7.DATA}}\n消息条数:{{number8.DATA}}',
         type: 2,

@@ -2,7 +2,7 @@ const api = require('../../services/cloud');
 const { MOODS, wxCall, isUncertain } = require('../../services/entry-view');
 const { dateLabel } = require('../../helpers/interactions');
 const TEMPLATE = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
-const MISS_TEMPLATE = 'RWnfT0dJaUjWh6e1XsFpL6H2mshGw05zT2zBLP3clro';
+const MISS_TEMPLATE = 'RWnfT0dJaUjWh6e1XsFpLzgeI6naPdDE6Yq1VSbHusw';
 const TIMES = ['20:00','20:30','21:00','21:30','22:00','22:30'];
 function profile(x) { return Object.assign({ moodEmoji: '', moodText: '', hasMood: false }, x || {}, { moodUpdatedLabel: dateLabel(x && x.moodUpdatedAt) }); }
 function memoMediaError(stage, error) {
