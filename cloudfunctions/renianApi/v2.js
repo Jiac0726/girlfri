@@ -5,6 +5,8 @@ const { createPairs } = require('./v2-pairs');
 const { createMedia } = require('./v2-media');
 
 const REMINDER_TEMPLATE_ID = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
+const MISS_TEMPLATE_ID = 'RWnfT0dJaUjWh6e1XsFpL6H2mshGw05zT2zBLP3clro';
+const MISS_NOTIFY_CLAIM_MS = 2 * 60 * 1000;
 const REMINDER_TIMES = new Set(['20:00', '20:30', '21:00', '21:30', '22:00', '22:30']);
 const MOODS = new Set(['', '🥰', '😊', '😌', '🥺', '😤', '😢', '😴', '🤍']);
 const RATING_LABELS = { good: '很好', neutral: '还好', bad: '有点糟' };
@@ -13,6 +15,14 @@ function cleanMood(user) {
 }
 function cleanReminder(user) {
   return { enabled: !!user.reminderEnabled, time: REMINDER_TIMES.has(user.reminderTime) ? user.reminderTime : '21:30', needsRenewal: !!user.reminderNeedsRenewal, lastSentDate: user.reminderLastSentDate || '', templateId: REMINDER_TEMPLATE_ID, version: user.reminderVersion || 0 };
+}
+function cleanMissNotify(user) {
+  const quota = Math.max(0, Number(user && user.missNotifyQuota) || 0);
+  return { templateId: MISS_TEMPLATE_ID, quota, enabled: quota > 0, needsRenewal: quota <= 0 };
+}
+function chinaTime(value = new Date()) {
+  const s = new Date(value.getTime() + 8 * 3600000).toISOString();
+  return s.slice(0, 10) + ' ' + s.slice(11, 16);
 }
 function validateMonth(value) {
   assert(typeof value === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(value), 'INVALID_MONTH', '月份不正确');
