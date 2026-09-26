@@ -167,8 +167,8 @@ legacy migration 使用 source fingerprint、progress marker、目标集合非�
 当前 `config/database.v2.json` 的 15 个索引覆盖了 entries 的 couple/deleted/month/day + createdAt/_id 分页组合、agreements/coupons 的 couple + createdAt 分页、状态计数查询，以及 media cleanup 使用的 status/expiresAt/confirmLeaseUntil/stagingCleanupPending 等查询键。结合 `v2-core.js` 的统一 keyset `page()` 实现和 workers 的查询方式，本轮没有发现明显的“代码使用了 schema 中不存在索引”的问题。
 
 
-### V-001 当前审查提交的 GitHub Actions 已通过
-审查提交 `876224fa5174e83d9aa79a69417251881f275234` 对应的 `Renian checks` workflow 已完成且 `conclusion=success`。其中 Node 测试与 Windows PowerShell 检查均在该 workflow 中执行。
+### V-001 当前最终审查提交的 GitHub Actions 已通过
+最终审查提交 `0881a7a7643d76916b1ac978868c9649edbdb2ce` 对应的 `Renian checks` workflow 已完成且 `conclusion=success`。其中 Node 测试与 Windows PowerShell 检查均在该 workflow 中执行。
 
 该结果仅证明仓库现有 CI 检查通过，不等同于真实微信设备、真实 CloudBase 环境和真实并发条件下的验收。
 
@@ -189,6 +189,11 @@ legacy migration 使用 source fingerprint、progress marker、目标集合非�
 
 ### W-001 GitHub Actions 当前存在 Node.js 20 弃用警告
 最新 CI 日志显示 `actions/checkout@v4`、`actions/setup-node@v4` 仍被标记为 Node.js 20 runtime，而当前 runner 将其强制切换到 Node.js 24 执行，并输出 deprecation warning。当前 workflow 仍成功，但这些 action 后续升级应纳入维护计划。
+
+### V-002 全仓库文件树核对完成
+截至最终审查，GitHub `main` 分支递归文件树共 132 个文件，其中 7 个为图片资源，其余源码、配置、脚本、测试和文档均已完成本轮审查范围核对；当前审查清单没有剩余“尚待逐文件检查”项。
+
+最终状态：**代码审查完成；未修改业务实现，仅更新本审查记录。**
 
 ## 4. 审查原则
 
