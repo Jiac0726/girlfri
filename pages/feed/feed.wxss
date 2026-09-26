@@ -1,0 +1,5 @@
+@import "../index/index.wxss";
+.feed-page{padding-top:44rpx}
+.feed-page-head{display:flex;align-items:center;justify-content:space-between;gap:20rpx;margin-bottom:34rpx}
+.feed-compose{flex-shrink:0;width:72rpx;height:72rpx;margin:0;padding:0;border-radius:50%;background:#a94463;color:#fff;font-size:38rpx;line-height:72rpx}
+.feed-compose::after{border:0}
