@@ -79,13 +79,14 @@ function withoutId(doc) {
   return out;
 }
 
-async function writeDocuments(collectionName, docs) {
+async function writeDocuments(collectionName, docs, startAt, onProgress) {
   const batchSize = 20;
-  for (let i = 0; i < docs.length; i += batchSize) {
+  for (let i = startAt || 0; i < docs.length; i += batchSize) {
     const batch = docs.slice(i, i + batchSize);
     await Promise.all(batch.map(doc =>
       db.collection(collectionName).doc(doc._id).set({ data: withoutId(doc) })
     ));
+    if (onProgress) await onProgress(Math.min(i + batch.length, docs.length));
   }
 }
 
@@ -164,17 +165,21 @@ async function apply(event) {
   }
 
   const progress = Object.assign({}, currentMarker && currentMarker.progress || {});
+  const startedAt = currentMarker && currentMarker.startedAt || new Date();
   try {
     for (const name of WRITABLE_TARGETS) {
       const docs = transformed.documents[name] || [];
-      await writeDocuments(name, docs);
-      progress[name] = docs.length;
-      await setMarker({
-        status: 'running',
-        startedAt: currentMarker && currentMarker.startedAt || new Date(),
-        sourceCounts: transformed.counts,
-        progress,
+      const startAt = Math.max(0, Math.min(Number(progress[name] || 0), docs.length));
+      await writeDocuments(name, docs, startAt, async completed => {
+        progress[name] = completed;
+        await setMarker({
+          status: 'running',
+          startedAt,
+          sourceCounts: transformed.counts,
+          progress,
+        });
       });
+      progress[name] = docs.length;
     }
 
     const receipt = {
@@ -187,7 +192,7 @@ async function apply(event) {
     };
     await setMarker({
       status: 'completed',
-      startedAt: currentMarker && currentMarker.startedAt || new Date(),
+      startedAt,
       completedAt: receipt.completedAt,
       sourceCounts: transformed.counts,
       progress,
@@ -198,7 +203,7 @@ async function apply(event) {
   } catch (error) {
     await setMarker({
       status: 'running',
-      startedAt: currentMarker && currentMarker.startedAt || new Date(),
+      startedAt,
       sourceCounts: transformed.counts,
       progress,
       lastError: String((error && (error.errMsg || error.message)) || error).slice(0, 500),
