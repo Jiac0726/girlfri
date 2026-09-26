@@ -1,94 +1,28 @@
-<view class="today-page">
-  <image class="soft-bg" src="../../assets/review-blush.png" mode="aspectFill"></image>
-
-  <view class="today-head">
-    <view>
-      <view class="head-label">今天</view>
-      <view class="head-date">{{yearMonth}} · {{weekDay}}</view>
-    </view>
-    <view class="profile-dot" bindtap="goProfile">♡</view>
+<import src="./entry-card.wxml" />
+<view class="journal-page">
+  <view class="journal-head">
+    <view><view class="eyebrow">热念 · 两个人的日常</view><view class="page-title">把这一刻，留给我们</view><view class="page-sub">{{dateLabel}} · 想说的时候，就记下来。</view></view>
+    <button class="profile-link" bindtap="goProfile" aria-label="打开我们">♡</button>
   </view>
-
-  <view class="question" wx:if="{{bindingStatus === 'active'}}">今天，你觉得我们相处得怎么样？</view>
-
-  <view class="bind-notice" wx:if="{{authLoading}}">正在加载今天的记录…</view>
-  <view class="bind-notice" wx:if="{{!authLoading && loadError}}">
-    <view class="notice-sub">{{loadError}}</view>
-    <button class="love-btn mini" bindtap="refreshSession">重新加载</button>
+  <view class="state-panel" wx:if="{{authLoading}}"><view class="state-symbol">♡</view><view>正在翻开我们的日常…</view></view>
+  <view class="state-panel" wx:elif="{{bindingStatus !== 'active' && !error}}">
+    <view class="state-symbol">♡</view><view class="state-title">{{bindingStatus === 'waiting' ? '等 TA 一起加入' : '先和 TA 建立双人关系'}}</view>
+    <view class="state-copy">把照片、心情和小事，留在两个人的空间里。</view><button class="primary-button" bindtap="goBind">{{bindingStatus === 'waiting' ? '查看邀请' : '和 TA 绑定'}}</button>
   </view>
-
-  <view class="bind-notice" wx:if="{{!authLoading && !loadError && bindingStatus !== 'active'}}" bindtap="goBind">
-    <view class="notice-heart">♡</view>
-    <view class="notice-title">{{bindingStatus === 'waiting' ? '正在等待 TA 加入' : '先和 TA 建立双人关系'}}</view>
-    <view class="notice-sub">绑定后，你们每天都能各留下一份感受。</view>
-    <button class="love-btn mini">去绑定</button>
-  </view>
-
-  <block wx:if="{{bindingStatus === 'active' && !authLoading && !loadError}}">
-    <view class="main-card" wx:if="{{!submitted}}">
-      <image class="today-hero" src="../../assets/bind-couple.jpg" mode="aspectFill"></image><view class="card-title">今天的我们</view>
-      <view class="mood-row">
-        <view class="mood {{type === 'good' ? 'on good' : ''}}" bindtap="selectGood">
-          <view class="mood-face">☺</view><view class="mood-name">很好</view>
-        </view>
-        <view class="mood {{type === 'neutral' ? 'on neutral' : ''}}" bindtap="selectNeutral">
-          <view class="mood-face">◡</view><view class="mood-name">还好</view>
-        </view>
-        <view class="mood {{type === 'bad' ? 'on bad' : ''}}" bindtap="selectBad">
-          <view class="mood-face">︵</view><view class="mood-name">有点糟</view>
-        </view>
+  <block wx:else>
+    <view class="error-panel" wx:if="{{error}}"><text>{{error}}</text><button class="text-button" bindtap="retry" disabled="{{loading}}">重新加载</button></view>
+    <block wx:if="{{bindingStatus === 'active'}}">
+      <button class="compose-prompt" bindtap="writeEntry" disabled="{{loading}}"><view class="compose-plus">＋</view><view class="compose-copy"><view>记下一刻</view><text>一句话、一张照片，或现在的心情</text></view><text class="compose-arrow">›</text></button>
+      <view class="feed-heading"><text>我们的日常</text><text class="feed-note">发布后彼此就能看见</text></view>
+      <view class="state-panel compact" wx:if="{{loading && !entries.length}}">正在加载记录…</view>
+      <view class="state-panel" wx:elif="{{!entries.length && !error}}"><view class="state-symbol">✿</view><view class="state-title">第一篇，从今天开始</view><view class="state-copy">不用特别的事，平常的一天也值得留下。</view></view>
+      <template wx:for="{{entries}}" wx:key="id" is="entry-card" data="{{entry:item, busyEntryId:busyEntryId, locked:loading}}" />
+      <view class="list-footer" wx:if="{{entries.length}}">
+        <view wx:if="{{loadingMore}}">正在翻开更多日常…</view>
+        <button wx:elif="{{moreError}}" class="text-button" bindtap="loadMore">{{moreError}} · 重试</button>
+        <button wx:elif="{{hasMore}}" class="text-button" bindtap="loadMore">看看更早的日常</button>
+        <view wx:else>已经翻到最初的那一页 ♡</view>
       </view>
-      <textarea class="feeling" placeholder="写一句今天的感受…" placeholder-class="feeling-ph" value="{{reason}}" bindinput="onReasonInput" maxlength="200" disabled="{{!canRate || loading}}" />
-      <view class="count">{{reason.length}}/200</view>
-      <button class="love-btn" bindtap="submit" disabled="{{!canRate || !type || loading}}">保存今天</button>
-    </view>
-
-    <view class="wait-card" wx:if="{{submitted && !partnerRating}}">
-      <view class="card-title left">TA 的评价</view>
-      <image class="wait-envelope" src="../../assets/waiting-envelope.jpg" mode="aspectFit"></image>
-      <view class="wait-title">还没有收到 TA 的评价</view>
-      <view class="wait-sub">双方都完成后才能看到彼此的内容。<br/>再等等吧 ♡</view>
-      <view class="result-type {{type}}">你给 TA：{{type === 'good' ? '很好' : (type === 'neutral' ? '还好' : '有点糟')}}</view>
-      <view class="result-text">{{reason || '今天也认真记录了一下。'}}</view>
-      <view class="edit-link" bindtap="editToday">修改我的评价</view>
-      <view class="edit-link" bindtap="refreshSession">刷新 TA 的评价</view>
-    </view>
-
-    <view class="result-card" wx:if="{{submitted && partnerRating}}">
-      <image class="result-hero" src="../../assets/bind-couple.jpg" mode="aspectFill"></image><view class="card-title left">今天的我们</view>
-      <view class="pair-results">
-        <view class="result-col">
-          <view class="who">你给 TA</view>
-          <view class="result-face">{{type === 'good' ? '☺' : (type === 'neutral' ? '◡' : '︵')}}</view>
-          <view class="result-type {{type}}">{{type === 'good' ? '很好' : (type === 'neutral' ? '还好' : '有点糟')}}</view>
-          <view class="result-text">「{{reason || '今天也认真记录了一下。'}}」</view>
-        </view>
-        <view class="result-divider"></view>
-        <view class="result-col">
-          <view class="who">TA 给你</view>
-          <view class="result-face">{{partnerRating.type === 'good' ? '☺' : (partnerRating.type === 'neutral' ? '◡' : '︵')}}</view>
-          <view class="result-type {{partnerRating.type}}">{{partnerRating.type === 'good' ? '很好' : (partnerRating.type === 'neutral' ? '还好' : '有点糟')}}</view>
-          <view class="result-text">「{{partnerRating.reason || 'TA 留下了今天的感受。'}}」</view>
-        </view>
-      </view>
-      <view class="result-date">{{yearMonth}}.{{dayNum}}</view>
-      <view class="edit-link" bindtap="editToday">修改我的评价</view>
-    </view>
-
-    <view class="month-card">
-      <view class="month-title">本月相处</view>
-      <view class="month-grid">
-        <view><text>连续好评</text><strong>{{monthStreak}}</strong><em>天</em></view>
-        <view><text>本月好评率</text><strong>{{monthGoodRate}}</strong><em>%</em></view>
-      </view>
-      <view class="heart-line">
-        <text wx:for="{{streakHearts}}" wx:key="index" class="{{item ? 'filled' : ''}}">♥</text>
-      </view>
-      <view class="month-note">已经连续 {{monthStreak}} 天留下记录啦！</view>
-      <view class="tiny-actions">
-        <view bindtap="goPermissions">小约定</view>
-        <view bindtap="goPrivileges">特权卡</view>
-      </view>
-    </view>
+    </block>
   </block>
 </view>

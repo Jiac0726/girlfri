@@ -1,86 +1,16 @@
-<view class="review-page">
-  <image class="review-bg" src="../../assets/review-blush.png" mode="aspectFill"></image>
-
-  <view class="review-head">
-    <view class="review-title">回顾</view>
-    <view class="profile-dot" bindtap="goProfile">♡</view>
+<import src="../index/entry-card.wxml" />
+<view class="journal-page">
+  <view class="page-title">一起走过的日子</view><view class="page-sub">回头看看，那些值得留下的小事</view>
+  <picker mode="date" fields="month" value="{{month}}" bindchange="changeMonth"><view class="month-picker">{{month}} ▾</view></picker>
+  <view wx:if="{{bindingStatus === 'active'}}">
+    <view class="stats"><view><text>{{totalEntries}}</text>条日常</view><view><text>{{recordDays}}</text>天有记录</view><view><text>{{sharedDays}}</text>天双方分享</view></view>
+    <view class="days"><button wx:for="{{days}}" wx:key="date" class="day {{selectedDay === item.date ? 'selected' : ''}}" data-day="{{item.date}}" bindtap="chooseDay">{{item.date}} · {{item.count}} 条</button></view>
+    <view class="feed-heading">{{selectedDay || '本月日常'}}<text class="feed-note" wx:if="{{selectedDay}}">再点日期可查看整月</text></view>
+    <template wx:for="{{entries}}" wx:key="id" is="entry-card" data="{{entry:item,busyEntryId:busyEntryId,locked:loading}}" />
+    <view class="state-panel" wx:if="{{!loading && !entries.length && !error}}">这段日子还没有记录，慢慢来。</view>
+    <button class="text-button" wx:if="{{hasMore}}" bindtap="loadMore" disabled="{{loadingMore || loading}}">{{loadingMore ? '加载中…' : '查看更多'}}</button>
   </view>
-
-  <view class="segmented">
-    <view class="{{reviewMode === 'calendar' ? 'active' : ''}}" bindtap="showCalendar">月历</view>
-    <view class="{{reviewMode === 'month' ? 'active' : ''}}" bindtap="showMonth">月度回顾</view>
-  </view>
-
-  <block wx:if="{{reviewMode === 'calendar'}}">
-    <view class="month-nav">
-      <view class="nav-btn {{canPrev ? '' : 'off'}}" bindtap="prevMonth">‹</view>
-      <view class="month-label">{{monthLabel}}</view>
-      <view class="nav-btn {{canNext ? '' : 'off'}}" bindtap="nextMonth">›</view>
-    </view>
-
-    <view class="calendar-card">
-      <view class="week-row">
-        <view wx:for="{{weeks}}" wx:key="*this">{{item}}</view>
-      </view>
-      <view class="cal-grid">
-        <view wx:for="{{calendar}}" wx:key="key" data-key="{{item.key}}" bindtap="selectDay"
-          class="cal-cell {{item.empty ? 'empty' : ''}} {{item.key === selectedDate ? 'selected' : ''}}">
-          <text class="day-num">{{item.empty ? '' : item.dayNum}}</text>
-          <text wx:if="{{item.mutualGood}}" class="day-mark heart">♥</text>
-          <text wx:elif="{{item.hasRecord}}" class="day-mark {{item.hasBad ? 'bad' : (item.hasNeutral ? 'neutral' : 'dot')}}">•</text>
-        </view>
-      </view>
-      <view class="legend">
-        <view><text class="heart">♥</text> 双向很好</view>
-        <view><text class="neutral">•</text> 有记录</view>
-        <view><text class="none">○</text> 未记录</view>
-      </view>
-      <view class="footnote">自己的记录始终可见；同一天双方都提交后，才显示对方的内容。</view>
-    </view>
-
-    <view class="day-card">
-      <view class="day-title">{{selectedDateLabel || '选择一天'}}</view>
-      <block wx:if="{{selectedRecords.length}}">
-        <view class="record" wx:for="{{selectedRecords}}" wx:key="key">
-          <view class="record-avatar {{item.fromMe ? 'mine' : 'partner'}}">{{item.fromMe ? '我' : 'TA'}}</view>
-          <view class="record-body">
-            <view class="record-top">
-              <text>{{item.fromMe ? '我' : 'TA'}}</text>
-              <text class="rating {{item.type}}">{{item.type === 'good' ? '♥ 很好' : (item.type === 'neutral' ? '● 还好' : '☁ 有点糟')}}</text>
-            </view>
-            <view class="record-text">{{item.reason || '这一天留下了一条记录。'}}</view>
-          </view>
-        </view>
-      </block>
-      <view class="empty-day" wx:else>这一天暂无可查看的记录 ♡</view>
-    </view>
-
-    <button class="month-story-btn" bindtap="showMonth">查看这个月的回顾 →</button>
-  </block>
-
-  <block wx:if="{{reviewMode === 'month'}}">
-    <view class="month-hero">
-      <image src="../../assets/hero-sunset.png" mode="aspectFill"></image>
-      <view class="hero-shade"></view>
-      <view class="hero-copy">
-        <view class="hero-en">{{monthEn}}</view>
-        <view class="hero-title">我们的{{month}}月 ♡</view>
-        <view class="hero-sub">平凡的日子里，因为有你，变得闪闪发光。</view>
-      </view>
-    </view>
-
-    <view class="month-report">
-      <view class="report-title">{{month}}月的我们</view>
-      <view class="report-grid">
-        <view><text>一起记录</text><strong>{{monthRecordDays}}</strong><em>天</em></view>
-        <view><text>彼此好评</text><strong>{{monthMutualGoodDays}}</strong><em>天</em></view>
-        <view><text>好评率</text><strong>{{monthGoodRate}}</strong><em>%</em></view>
-        <view><text>最长连续好评</text><strong>{{monthBestStreak}}</strong><em>天</em></view>
-      </view>
-
-      <view class="month-quote">{{monthQuote}}</view>
-      <view class="footnote">统计仅包含你可查看的记录；对方的内容在同一天双方都提交后公开。</view>
-      <button class="love-btn" bindtap="showCalendar">查看这个月的故事 →</button>
-    </view>
-  </block>
+  <view class="state-panel" wx:elif="{{!loading}}">绑定后，回忆会在这里慢慢积攒。<button class="primary-button" bindtap="goBind">去绑定</button></view>
+  <view class="state-panel" wx:if="{{loading}}">加载中…</view>
+  <view class="error-panel" wx:if="{{error}}">{{error}}<button class="text-button" bindtap="refresh">重试</button></view>
 </view>

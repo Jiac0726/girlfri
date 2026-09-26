@@ -36,7 +36,7 @@ Page({
   },
   applySession(session) {
     const status = session.bindingStatus || (session.bound ? 'active' : 'unbound');
-    this.setData({ bindingStatus: status, inviteCode: session.inviteCode || '', inviteExpiresText: formatExpire(session.inviteExpiresAt), isCreator: !!session.isCreator });
+    this.setData({ bindingStatus: status, inviteCode: session.inviteCode || '', inviteExpired: !!session.inviteExpired, inviteExpiresText: formatExpire(session.inviteExpiresAt), isCreator: !!session.isCreator });
   },
   showManualJoin() { this.setData({ manualJoin: true }); },
   onJoinInput(e) { this.setData({ joinCode: normalizeInviteCode(e.detail.value) }); },
@@ -52,12 +52,18 @@ Page({
     if (this.data.loading) return;
     const code = normalizeInviteCode(this.data.joinCode);
     if (code.length !== 8) return wx.showToast({ title: '请输入 8 位绑定码', icon: 'none' });
+    if (this.data.bindingStatus === 'waiting') {
+      this.setData({ loading: true });
+      const confirmed = await new Promise(resolve => wx.showModal({ title: '接受 TA 的邀请？', content: '绑定成功后，你之前发出的邀请将失效。如果绑定失败，原邀请会保留。', success: result => resolve(result.confirm), fail: () => resolve(false) }));
+      this.setData({ loading: false });
+      if (!confirmed) return;
+    }
     this.setData({ loading: true }); wx.showLoading({ title: '绑定中', mask: true });
     try { const session = await api.joinPair(code); this.applySession(session); wx.showToast({ title: '绑定成功 💕', icon: 'none' }); }
     catch (e) { wx.showToast({ title: e.message || '绑定失败', icon: 'none' }); }
     finally { wx.hideLoading(); this.setData({ loading: false }); }
   },
-  copyCode() { if (this.data.inviteCode) wx.setClipboardData({ data: this.data.inviteCode }); },
+  copyCode() { if (this.data.inviteCode && !this.data.inviteExpired) wx.setClipboardData({ data: this.data.inviteCode }); },
   async refreshInvite() {
     if (this.data.loading) return;
     this.setData({ loading: true });
@@ -66,8 +72,11 @@ Page({
     finally { this.setData({ loading: false }); }
   },
   cancelInvite() {
+    if (this.data.loading) return;
+    this.setData({ loading: true });
     wx.showModal({ title: '取消这次邀请？', content: '取消后当前邀请和绑定码都会立即失效。', confirmColor: '#f05b72',
-      success: async (res) => { if (!res.confirm) return; try { wx.showLoading({ title: '处理中', mask: true }); const session = await api.cancelInvite(); this.applySession(session); } catch (e) { wx.showToast({ title: e.message || '取消失败', icon: 'none' }); } finally { wx.hideLoading(); } }
+      success: async (res) => { if (!res.confirm) { this.setData({ loading: false }); return; } try { wx.showLoading({ title: '处理中', mask: true }); const session = await api.cancelInvite(); this.applySession(session); } catch (e) { wx.showToast({ title: e.message || '取消失败', icon: 'none' }); } finally { wx.hideLoading(); this.setData({ loading: false }); } },
+      fail: () => this.setData({ loading: false })
     });
   },
   backHome() { wx.switchTab({ url: '/pages/index/index' }); }

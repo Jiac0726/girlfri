@@ -12,9 +12,5 @@ App({
     }
     wx.cloud.init({ env: env.cloudEnv, traceUser: true });
   },
-  globalData: {
-    GOOD: 'good',
-    NEUTRAL: 'neutral',
-    BAD: 'bad',
-  },
+  globalData: {},
 });

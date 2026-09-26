@@ -405,3 +405,4 @@
   font-size: 20rpx;
   line-height: 1.65;
 }
+.our-links{display:flex;gap:20rpx;margin:28rpx 0}.our-link{position:relative;flex:1;min-width:0;padding:30rpx 22rpx 85rpx;border-radius:28rpx;color:#814c68}.our-link view{font-size:32rpx;font-weight:600}.our-link text{display:block;font-size:22rpx;margin-top:14rpx;line-height:1.6}.agreements-link{background:linear-gradient(135deg,#fde5ed,#f8cfe4)}.coupons-link{background:linear-gradient(135deg,#eee5fe,#ded0f8)}.our-link .our-link-icon{position:absolute;bottom:8rpx;right:24rpx;font-size:62rpx;color:#ffffffb3}

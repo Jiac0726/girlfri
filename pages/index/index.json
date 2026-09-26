@@ -1,1 +1,5 @@
-{"navigationBarTitleText":"热念","navigationBarBackgroundColor":"#fff7f8","navigationBarTextStyle":"black","enablePullDownRefresh":false}
+{
+  "navigationBarTitleText": "热念 · 日常",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark"
+}

@@ -68,15 +68,15 @@
         <view class="target-heart">♡</view>
       </view>
 
-      <view class="target-invite-name">Jiach 邀请你</view>
+      <view class="target-invite-name">邀请 TA 加入你的小世界</view>
       <view class="target-invite-copy">和 TA 一起使用热念</view>
 
-      <button class="love-btn target-primary-btn" open-type="share">微信邀请</button>
+      <button class="love-btn target-primary-btn" open-type="share" disabled="{{loading || inviteExpired}}">微信邀请</button>
 
       <view class="target-code-caption">邀请码</view>
       <view class="invite-code target-code" bindtap="copyCode">{{inviteCode}}</view>
       <view class="expire target-expire">
-        {{inviteExpiresText ? '有效至 ' + inviteExpiresText : '7 天内有效'}}
+        {{inviteExpired ? '邀请已过期，请点“换一个”重新生成' : inviteExpiresText ? '有效至 ' + inviteExpiresText : '24 小时内有效'}}
       </view>
 
       <view class="mini-actions target-mini-actions">
@@ -87,6 +87,11 @@
 
       <view class="text-link target-refresh-link" bindtap="retrySession">
         TA 已加入？刷新状态 →
+      </view>
+      <view class="text-link" bindtap="showManualJoin">我也收到了 TA 的邀请 →</view>
+      <view class="manual-join" wx:if="{{manualJoin || openedFromInvite}}">
+        <input class="code-input" value="{{joinCode}}" bindinput="onJoinInput" maxlength="8" placeholder="输入 TA 的 8 位绑定码" />
+        <button class="outline-btn" bindtap="joinPair" disabled="{{joinCode.length !== 8 || loading}}">接受 TA 的邀请</button>
       </view>
     </view>
   </block>

@@ -1,143 +1,87 @@
-// wx-server-sdk 内存 mock —— 仅供 tests/renian-api/race.test.js 使用
-// 集合按需自动创建（真库集合名是 couples / couple_users / ratings，
-// 首版 mock 写死成 users 导致 store[key] 为 undefined、跑出假结果，已修）。
-const store = {};
-const hooks = {};
-
-function colStore(col) {
-  if (!store[col]) store[col] = new Map();
-  return store[col];
+// In-memory transactional test double. Transactions serialize; production uses SDK conflict retries.
+const store = {}, hooks = {};
+const colStore = name => store[name] || (store[name] = new Map());
+function missing() { const e = new Error('document not exists'); e.code = 'DATABASE_DOCUMENT_NOT_EXIST'; return e; }
+function row(id, data) { return Object.assign({ _id: id }, structuredClone(data)); }
+const command = {};
+for (const op of ['lt','lte','gt','gte','eq','neq','in']) command[op] = value => ({ $op: op, value });
+command.and = value => ({ $op: 'and', value });
+command.or = value => ({ $op: 'or', value });
+function match(actual, wanted) {
+  if (wanted && wanted.$op) {
+    const v = wanted.value;
+    switch (wanted.$op) {
+      case 'and': return v.every(x => match(actual, x));
+      case 'or': return v.some(x => match(actual, x));
+      case 'lt': return actual < v; case 'lte': return actual <= v;
+      case 'gt': return actual > v; case 'gte': return actual >= v;
+      case 'eq': return match(actual, v); case 'neq': return !match(actual, v);
+      case 'in': return v.some(x => match(actual, x));
+    }
+  }
+  if (wanted instanceof Date) return new Date(actual).getTime() === wanted.getTime();
+  if (wanted && typeof wanted === 'object') return Object.entries(wanted).every(([k,v]) => match(actual && actual[k], v));
+  return actual === wanted;
 }
-
-function notFound() {
-  const e = new Error('document not exists');
-  e.code = -1;
-  return e;
-}
-
-function withId(id, data) {
-  return Object.assign({ _id: id }, structuredClone(data));
-}
-
-function docRef(col, id) {
+function document(col, id) {
   return {
     async get() {
       if (hooks.beforeGet) await hooks.beforeGet(col, id);
-      const cs = colStore(col);
-      if (!cs.has(id)) throw notFound();
-      // 先取快照再触发 afterGet：调用方拿到旧值、store 已被篡改，
-      // 这样才能精确复现 TOCTOU（读到 waiting → 对方加入 → 事务执行）。
-      const out = { data: withId(id, cs.get(id)) };
+      if (!colStore(col).has(id)) throw missing();
+      const data = row(id, colStore(col).get(id));
       if (hooks.afterGet) await hooks.afterGet(col, id);
-      return out;
+      return { data };
     },
-    async set({ data }) {
-      if (hooks.beforeSet) await hooks.beforeSet(col, id, data);
-      colStore(col).set(id, structuredClone(data));
-      return { _id: id };
-    },
-    async update({ data }) {
-      if (hooks.beforeUpdate) await hooks.beforeUpdate(col, id, data);
-      const cs = colStore(col);
-      if (!cs.has(id)) throw notFound();
-      cs.set(id, Object.assign(cs.get(id), structuredClone(data)));
-      return {};
-    },
-    async remove() {
-      colStore(col).delete(id);
-      return {};
-    },
+    async set({data}) { if (hooks.beforeSet) await hooks.beforeSet(col, id, data); colStore(col).set(id, structuredClone(data)); return { _id: id }; },
+    async update({data}) { if (hooks.beforeUpdate) await hooks.beforeUpdate(col, id, data); if (!colStore(col).has(id)) throw missing(); colStore(col).set(id, Object.assign({}, colStore(col).get(id), structuredClone(data))); return {}; },
+    async remove() { colStore(col).delete(id); return {}; },
   };
 }
-
-function queryRef(col) {
-  const state = { criteria: null, skip: 0, limit: Infinity, order: [] };
+function collection(col) {
+  let criteria = {}, limit = Infinity, skip = 0, order = [];
+  const rows = () => [...colStore(col)].map(([id,d]) => row(id,d)).filter(x => match(x, criteria));
   const api = {
-    where(cond) {
-      state.criteria = cond;
-      return api;
-    },
-    skip(n) {
-      state.skip = n;
-      return api;
-    },
-    limit(n) {
-      state.limit = n;
-      return api;
-    },
-    orderBy(field, order) {
-      // 真排序：否则 P4（skip/limit 需全序）测不出来
-      state.order.push([field, order === 'desc' ? -1 : 1]);
-      return api;
-    },
+    doc: id => document(col, id),
+    where(value) { criteria = value; return api; },
+    limit(value) { limit = value; return api; },
+    skip(value) { skip = value; return api; },
+    orderBy(field, direction) { order.push([field, direction === 'desc' ? -1 : 1]); return api; },
+    async count() { return { total: rows().length }; },
     async get() {
-      if (hooks.beforeQuery) await hooks.beforeQuery(col, state.criteria);
-      let rows = [...colStore(col).entries()].map(([id, d]) => withId(id, d));
-      if (state.criteria) {
-        rows = rows.filter((r) =>
-          Object.entries(state.criteria).every(([k, v]) => r[k] === v)
-        );
-      }
-      if (state.order.length) {
-        rows.sort((a, b) => {
-          for (const [f, dir] of state.order) {
-            if (a[f] === b[f]) continue;
-            return a[f] < b[f] ? -dir : dir;
-          }
-          return 0;
-        });
-      }
-      rows = rows.slice(state.skip, state.skip + state.limit);
-      return { data: rows };
+      if (hooks.beforeQuery) await hooks.beforeQuery(col, criteria);
+      const data = rows().sort((a,b) => {
+        for (const [key, dir] of order) {
+          const av = a[key] instanceof Date ? a[key].getTime() : a[key], bv = b[key] instanceof Date ? b[key].getTime() : b[key];
+          if (av !== bv) return av < bv ? -dir : dir;
+        }
+        return 0;
+      });
+      return { data: data.slice(skip, skip + limit) };
     },
   };
   return api;
 }
-
-function collection(col) {
-  return Object.assign({ doc: (id) => docRef(col, id) }, queryRef(col));
+let queue = Promise.resolve();
+function runTransaction(fn) {
+  const result = queue.then(async () => {
+    const snapshot = structuredClone(store);
+    try { return await fn({ collection }); }
+    catch (error) { for (const key of Object.keys(store)) delete store[key]; Object.assign(store, snapshot); throw error; }
+  });
+  queue = result.catch(() => {}); return result;
 }
-
-function snapshot() {
-  const snap = {};
-  for (const k of Object.keys(store)) snap[k] = Object.fromEntries(store[k]);
-  return snap;
-}
-
-function restore(snap) {
-  for (const k of Object.keys(store)) delete store[k];
-  for (const k of Object.keys(snap)) store[k] = new Map(Object.entries(snap[k]));
-}
-
-async function runTransaction(fn) {
-  // 快照 + 失败回滚（真库是乐观锁重试，这里够用）
-  const snap = snapshot();
-  const tx = { collection: (c) => collection(c) };
-  try {
-    return await fn(tx);
-  } catch (e) {
-    restore(snap);
-    throw e;
-  }
-}
-
+const files = new Map();
 const cloud = {
-  init() {},
-  DYNAMIC_CURRENT_ENV: 'mock-env',
-  _openid: 'OPENID_A',
-  getWXContext() {
-    return { OPENID: cloud._openid };
-  },
+  init() {}, DYNAMIC_CURRENT_ENV: 'mock-env', _openid: 'A',
+  getWXContext: () => ({ OPENID: cloud._openid, ENV: 'mock-env' }),
+  database: () => ({ collection, runTransaction, command }),
+  async getTempFileURL({fileList}) { return { fileList: fileList.map(fileID => ({ fileID, status: 0, tempFileURL: 'https://mock.invalid/' + encodeURIComponent(fileID) })) }; },
+  async uploadFile({cloudPath, fileContent}) { const fileID = 'cloud://mock-env.bucket/' + cloudPath; files.set(fileID, Buffer.from(fileContent)); return { fileID }; },
+  async downloadFile({fileID}) { if (!files.has(fileID)) throw new Error('missing file'); return { fileContent: files.get(fileID) }; },
+  async deleteFile({fileList}) { return { fileList: fileList.map(fileID => { files.delete(fileID); return { fileID, status: 0 }; }) }; },
+  openapi: { subscribeMessage: { send: async () => ({}) } },
+  __store: store, __colStore: colStore, __hooks: hooks, __files: files,
+  __setOpenid(value) { cloud._openid = value; },
+  __reset() { for (const key of Object.keys(store)) delete store[key]; for (const key of Object.keys(hooks)) delete hooks[key]; files.clear(); },
 };
-
-module.exports = Object.assign(cloud, {
-  database: () => ({ collection, runTransaction }),
-  __store: store,
-  __colStore: colStore,
-  __hooks: hooks,
-  __setOpenid: (v) => (cloud._openid = v),
-  __reset: () => {
-    for (const k of Object.keys(store)) delete store[k];
-    for (const k of Object.keys(hooks)) delete hooks[k];
-  },
-});
+module.exports = cloud;

@@ -1,0 +1,5 @@
+{
+  "triggers": [
+    { "name": "abandonedMediaCleanup", "type": "timer", "config": "0 17 * * * * *" }
+  ]
+}

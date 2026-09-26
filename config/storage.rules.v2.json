@@ -1,0 +1,4 @@
+{
+  "read": "false",
+  "write": "auth != null && auth.openid != null && /^v2-upload\\//.test(resource.path) && resource.openid == auth.openid"
+}

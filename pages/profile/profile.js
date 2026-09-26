@@ -1,296 +1,83 @@
 const api = require('../../services/cloud');
-
-const REMINDER_TEMPLATE_ID = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
-const REMINDER_TIME_OPTIONS = ['20:00', '20:30', '21:00', '21:30', '22:00', '22:30'];
-
-const MOODS = [
-  { emoji: '🥰', label: '甜甜的' },
-  { emoji: '😊', label: '开心' },
-  { emoji: '😌', label: '平静' },
-  { emoji: '🥺', label: '想抱抱' },
-  { emoji: '😤', label: '有点气' },
-  { emoji: '😢', label: '难过' },
-  { emoji: '😴', label: '累了' },
-  { emoji: '🤍', label: '想安静' },
-];
-
-function formatMoodTime(value) {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-
-  const pad = (n) => (n < 10 ? '0' + n : '' + n);
-  const now = new Date();
-  const sameDay =
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate();
-
-  if (sameDay) {
-    return '今天 ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-  }
-
-  return (
-    d.getFullYear() +
-    '-' +
-    pad(d.getMonth() + 1) +
-    '-' +
-    pad(d.getDate()) +
-    ' ' +
-    pad(d.getHours()) +
-    ':' +
-    pad(d.getMinutes())
-  );
-}
-
-function viewProfile(profile) {
-  const item = profile || {};
-  return {
-    moodEmoji: item.moodEmoji || '',
-    moodText: item.moodText || '',
-    moodUpdatedAt: item.moodUpdatedAt || '',
-    moodUpdatedLabel: formatMoodTime(item.moodUpdatedAt),
-    hasMood: !!item.hasMood,
-  };
-}
-
-function reminderIndex(time) {
-  const index = REMINDER_TIME_OPTIONS.indexOf(time);
-  return index >= 0 ? index : REMINDER_TIME_OPTIONS.indexOf('21:30');
-}
-
+const { MOODS, wxCall } = require('../../services/entry-view');
+const { dateLabel } = require('../../helpers/interactions');
+const TEMPLATE = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
+const TIMES = ['20:00','20:30','21:00','21:30','22:00','22:30'];
+function profile(x) { return Object.assign({ moodEmoji: '', moodText: '', hasMood: false }, x || {}, { moodUpdatedLabel: dateLabel(x && x.moodUpdatedAt) }); }
 Page({
-  data: {
-    moods: MOODS,
-    authLoading: true,
-    saving: false,
-    bindingStatus: 'loading',
-
-    moodEmoji: '',
-    moodText: '',
-    savedMoodEmoji: '',
-    savedMoodText: '',
-    myUpdatedLabel: '',
-
-    reminderSaving: false,
-    reminderEnabled: false,
-    reminderTime: '21:30',
-    reminderTimeOptions: REMINDER_TIME_OPTIONS,
-    reminderTimeIndex: reminderIndex('21:30'),
-    reminderStatusText: '未开启提醒',
-
-    partner: {
-      moodEmoji: '',
-      moodText: '',
-      moodUpdatedLabel: '',
-      hasMood: false,
-    },
-  },
-
-  onShow() {
-    this.loadProfile();
-  },
-
-  onPullDownRefresh() {
-    this.loadProfile(true);
-  },
-
-  async loadProfile(isPullDown) {
-    if (!isPullDown) this.setData({ authLoading: true });
-
+  data: { moods: MOODS, authLoading: true, saving: false, bindingStatus: 'loading', moodEmoji: '', moodText: '', savedMoodEmoji: '', savedMoodText: '', myUpdatedLabel: '', partner: profile(), pendingAgreementCount: 0, pendingCouponCount: 0,
+    reminderSaving: false, reminderEnabled: false, reminderReady: false, reminderTime: '21:30', reminderTimeOptions: TIMES, reminderTimeIndex: 3, reminderStatusText: '未开启提醒', error: '' },
+  onShow() { this._disposed = false; this.loadProfile(); },
+  onUnload() { this._disposed = true; this._loadToken = (this._loadToken || 0) + 1; },
+  async onPullDownRefresh() { try { await this.loadProfile(); } finally { wx.stopPullDownRefresh(); } },
+  async loadProfile() {
+    if (this.data.saving || this.data.reminderSaving) return;
+    const token = this._loadToken = (this._loadToken || 0) + 1, revision = this._draftRevision || 0;
+    this.setData({ authLoading: true, error: '' });
     try {
       const session = await api.getSession();
-      const status = session.bindingStatus || 'unbound';
-
-      if (status !== 'active') {
-        this.setData({
-          authLoading: false,
-          bindingStatus: status,
-          partner: viewProfile(null),
-          reminderEnabled: false,
-          reminderStatusText: '完成绑定后可开启提醒',
-        });
-        return;
-      }
-
-      const [data, reminder] = await Promise.all([
-        api.getProfile(),
-        api.getReminderSettings().catch(() => ({
-          enabled: false,
-          time: '21:30',
-          needsRenewal: false,
-        })),
-      ]);
-      const me = viewProfile(data.me);
-      const partner = viewProfile(data.partner);
-      const reminderTime = reminder.time || '21:30';
-      const enabled = !!reminder.enabled;
-
-      this.setData({
-        authLoading: false,
-        bindingStatus: 'active',
-        moodEmoji: me.moodEmoji,
-        moodText: me.moodText,
-        savedMoodEmoji: me.moodEmoji,
-        savedMoodText: me.moodText,
-        myUpdatedLabel: me.moodUpdatedLabel,
-        partner,
-        reminderEnabled: enabled,
-        reminderTime,
-        reminderTimeIndex: reminderIndex(reminderTime),
-        reminderStatusText: enabled
-          ? '已授权：若当天未评价，将在 ' + reminderTime + ' 提醒'
-          : (reminder.needsRenewal ? '上一次提醒已发送，请再次开启' : '未开启提醒'),
-      });
-    } catch (e) {
-      if (api.isBindingError(e)) {
-        this.setData({
-          authLoading: false,
-          bindingStatus: 'unbound',
-          partner: viewProfile(null),
-          reminderEnabled: false,
-          reminderStatusText: '完成绑定后可开启提醒',
-        });
-      } else {
-        this.setData({ authLoading: false });
-        wx.showToast({ title: e.message || '个人页加载失败', icon: 'none' });
-      }
-    } finally {
-      if (isPullDown) wx.stopPullDownRefresh();
-    }
+      if (token !== this._loadToken) return;
+      const changed = this._scope !== session.coupleId; this._scope = session.coupleId;
+      if (changed) { this._dirty = false; this.setData({ moodEmoji: '', moodText: '', savedMoodEmoji: '', savedMoodText: '', partner: profile(), pendingAgreementCount: 0, pendingCouponCount: 0, reminderReady: false }); }
+      this.setData({ bindingStatus: session.bindingStatus });
+      if (session.bindingStatus !== 'active') { this.setData({ reminderEnabled: false, reminderReady: false }); return; }
+      const [data, reminder] = await Promise.all([api.getProfile(), api.getReminderSettings()]);
+      if (token !== this._loadToken) return;
+      const me = profile(data.me);
+      const update = { savedMoodEmoji: me.moodEmoji, savedMoodText: me.moodText, myUpdatedLabel: me.moodUpdatedLabel, partner: profile(data.partner),
+        pendingAgreementCount: data.pendingAgreementCount, pendingCouponCount: data.pendingCouponCount };
+      if (!this._dirty && revision === (this._draftRevision || 0)) Object.assign(update, { moodEmoji: me.moodEmoji, moodText: me.moodText });
+      this.setData(update); this.applyReminder(reminder);
+    } catch (error) {
+      if (token !== this._loadToken) return;
+      this.setData({ error: error.message || '加载失败，请重试', reminderReady: false });
+      if (api.isBindingError(error)) this.setData({ bindingStatus: 'unbound', partner: profile() });
+    } finally { if (token === this._loadToken) this.setData({ authLoading: false }); }
   },
-
-  goBind() {
-    wx.navigateTo({ url: '/pages/bind/bind' });
+  applyReminder(value) {
+    this._reminderVersion = value.version;
+    this.setData({ reminderReady: true, reminderEnabled: !!value.enabled, reminderTime: value.time, reminderTimeIndex: TIMES.indexOf(value.time),
+      reminderStatusText: value.enabled ? '已授权：当天未分享，将在 ' + value.time + ' 提醒' : value.needsRenewal ? '本次授权已使用或失效，可再次开启' : '未开启提醒' });
   },
-
-  chooseMood(e) {
-    if (this.data.bindingStatus !== 'active') return;
-    this.setData({ moodEmoji: e.currentTarget.dataset.emoji || '' });
-  },
-
-  onMoodTextInput(e) {
-    if (this.data.bindingStatus !== 'active') return;
-    this.setData({ moodText: e.detail.value });
-  },
-
+  goBind() { wx.navigateTo({ url: '/pages/bind/bind' }); },
+  goAgreements() { wx.navigateTo({ url: '/pages/permissions/permissions' }); },
+  goCoupons() { wx.navigateTo({ url: '/pages/privileges/privileges' }); },
+  chooseMood(e) { if (this.data.saving || this.data.authLoading) return; this._dirty = true; this._draftRevision = (this._draftRevision || 0) + 1; this.setData({ moodEmoji: e.currentTarget.dataset.emoji }); },
+  onMoodTextInput(e) { if (this.data.saving) return; this._dirty = true; this._draftRevision = (this._draftRevision || 0) + 1; this.setData({ moodText: e.detail.value }); },
   async saveMood() {
-    if (this.data.saving || this.data.bindingStatus !== 'active') return;
-
-    const moodEmoji = String(this.data.moodEmoji || '').trim();
-    const moodText = String(this.data.moodText || '').trim();
-
-    if (!moodEmoji && !moodText) {
-      wx.showToast({ title: '选一个心情，或写一句感受', icon: 'none' });
-      return;
-    }
-
-    this.setData({ saving: true });
-    wx.showLoading({ title: '更新心情', mask: true });
-
+    if (this.data.saving || this.data.authLoading || this.data.bindingStatus !== 'active') return;
+    if (!this.data.moodEmoji && !this.data.moodText.trim()) return wx.showToast({ title: '选一个心情，或写一句感受', icon: 'none' });
+    this._loadToken = (this._loadToken || 0) + 1; this.setData({ saving: true });
     try {
-      const result = await api.updateMood(moodEmoji, moodText);
-      const me = viewProfile(result);
-
-      this.setData({
-        moodEmoji: me.moodEmoji,
-        moodText: me.moodText,
-        savedMoodEmoji: me.moodEmoji,
-        savedMoodText: me.moodText,
-        myUpdatedLabel: me.moodUpdatedLabel,
-      });
-
-      wx.showToast({ title: 'TA 已经可以看到啦 💗', icon: 'none' });
-    } catch (e) {
-      wx.showToast({ title: e.message || '更新失败', icon: 'none' });
-    } finally {
-      wx.hideLoading();
-      this.setData({ saving: false });
-    }
+      const me = profile(await api.updateMood(this.data.moodEmoji, this.data.moodText.trim()));
+      this._dirty = false;
+      this.setData({ moodEmoji: me.moodEmoji, moodText: me.moodText, savedMoodEmoji: me.moodEmoji, savedMoodText: me.moodText, myUpdatedLabel: me.moodUpdatedLabel });
+      wx.showToast({ title: 'TA 已经可以看到啦', icon: 'none' });
+    } catch (error) { wx.showToast({ title: error.message || '更新失败', icon: 'none' }); }
+    finally { if (!this._disposed) this.setData({ saving: false }); }
   },
-
   async onReminderToggle(e) {
-    if (this.data.reminderSaving || this.data.bindingStatus !== 'active') return;
-    const wantsOn = !!(e && e.detail && e.detail.value);
-
-    if (!wantsOn) {
-      this.setData({ reminderSaving: true });
-      try {
-        await api.updateReminderSettings(false, this.data.reminderTime);
-        this.setData({
-          reminderEnabled: false,
-          reminderStatusText: '未开启提醒',
-        });
-      } catch (err) {
-        this.setData({ reminderEnabled: true });
-        wx.showToast({ title: err.message || '关闭失败', icon: 'none' });
-      } finally {
-        this.setData({ reminderSaving: false });
-      }
-      return;
-    }
-
-    this.setData({ reminderSaving: true });
+    if (this.data.reminderSaving || this.data.authLoading || !this.data.reminderReady || this.data.bindingStatus !== 'active') return;
+    const enabled = !!e.detail.value; this.setData({ reminderSaving: true });
     try {
-      const res = await new Promise((resolve, reject) => {
-        wx.requestSubscribeMessage({
-          tmplIds: [REMINDER_TEMPLATE_ID],
-          success: resolve,
-          fail: reject,
-        });
-      });
-
-      const decision = res && res[REMINDER_TEMPLATE_ID];
-      if (decision !== 'accept') {
-        this.setData({ reminderEnabled: false });
-        wx.showToast({
-          title: decision === 'ban' ? '请先在微信设置中允许订阅消息' : '需要允许通知才能开启提醒',
-          icon: 'none',
-        });
-        return;
+      if (enabled) {
+        const result = await wxCall('requestSubscribeMessage', { tmplIds: [TEMPLATE] });
+        if (result[TEMPLATE] !== 'accept') { this.setData({ reminderEnabled: false }); wx.showToast({ title: '允许订阅后才能开启提醒', icon: 'none' }); return; }
       }
-
-      const reminder = await api.updateReminderSettings(true, this.data.reminderTime);
-      this.setData({
-        reminderEnabled: true,
-        reminderStatusText: '已授权：若当天未评价，将在 ' + reminder.time + ' 提醒',
-      });
-      wx.showToast({ title: '未评价提醒已开启', icon: 'none' });
-    } catch (err) {
-      this.setData({ reminderEnabled: false });
-      wx.showToast({ title: err.message || '订阅授权失败', icon: 'none' });
-    } finally {
-      this.setData({ reminderSaving: false });
-    }
+      this.applyReminder(await api.updateReminderSettings(enabled, this.data.reminderTime, this._reminderVersion));
+    } catch (error) {
+      this.setData({ reminderReady: false, error: error.message || '设置未确认，请刷新后重试' });
+      try { this.applyReminder(await api.getReminderSettings()); } catch (_) {}
+    } finally { if (!this._disposed) this.setData({ reminderSaving: false }); }
   },
-
   async onReminderTimeChange(e) {
-    if (this.data.reminderSaving) return;
-    const index = Number(e && e.detail && e.detail.value);
-    const time = REMINDER_TIME_OPTIONS[index] || '21:30';
-    const oldTime = this.data.reminderTime;
-    const oldIndex = this.data.reminderTimeIndex;
-
-    this.setData({
-      reminderTime: time,
-      reminderTimeIndex: reminderIndex(time),
-      reminderSaving: true,
-    });
-
-    try {
-      const reminder = await api.updateReminderSettings(this.data.reminderEnabled, time);
-      this.setData({
-        reminderTime: reminder.time,
-        reminderTimeIndex: reminderIndex(reminder.time),
-        reminderStatusText: reminder.enabled
-          ? '已授权：若当天未评价，将在 ' + reminder.time + ' 提醒'
-          : this.data.reminderStatusText,
-      });
-    } catch (err) {
-      this.setData({ reminderTime: oldTime, reminderTimeIndex: oldIndex });
-      wx.showToast({ title: err.message || '修改时间失败', icon: 'none' });
-    } finally {
-      this.setData({ reminderSaving: false });
-    }
+    if (this.data.reminderSaving || this.data.authLoading || !this.data.reminderReady) return;
+    const time = TIMES[Number(e.detail.value)]; if (!time) return;
+    this.setData({ reminderSaving: true });
+    try { this.applyReminder(await api.updateReminderSettings(this.data.reminderEnabled, time, this._reminderVersion)); }
+    catch (error) {
+      this.setData({ reminderReady: false, error: error.message || '设置未确认，请刷新后重试' });
+      try { this.applyReminder(await api.getReminderSettings()); } catch (_) {}
+    } finally { if (!this._disposed) this.setData({ reminderSaving: false }); }
   },
 });

@@ -1,137 +1,63 @@
-<view class="container permission-page">
-  <view class="permission-hero">
-    <view class="permission-eyebrow">热念 · 权限管理</view>
-    <view class="permission-title">给彼此一点可爱的“特许”</view>
-    <view class="permission-sub">
-      你可以自定义授予 TA 的权限；TA 给你的权限只能查看，不能替 TA 修改。
+<view class="container agreement-page">
+  <view class="page-intro">
+    <view class="eyebrow">热念 · 我们的小约定</view>
+    <view class="intro-title">一起商量，一起做到</view>
+    <view class="intro-copy">任何一方都可以提议。你们都愿意，一份约定才会生效；也随时可以结束。</view>
+  </view>
+  <view class="notice" wx:if="{{loadError}}">
+    <view>{{loadError}}</view>
+    <button class="secondary-btn" wx:if="{{bindingRequired}}" bindtap="goBind">去绑定</button>
+    <button class="secondary-btn" wx:else bindtap="retryLoad" disabled="{{loading}}">重新加载</button>
+  </view>
+  <view class="card editor" wx:if="{{!bindingRequired}}">
+    <view class="card-title">{{replacesId ? '提议修改约定' : '发起一份约定'}}</view>
+    <view class="editor-note" wx:if="{{replacesId}}">这是一个新提议。等待 TA 接受期间，原来的约定仍然有效。</view>
+    <view class="preset-row" wx:else>
+      <button class="preset-chip" wx:for="{{presets}}" wx:key="title" data-index="{{index}}" bindtap="choosePreset" disabled="{{saving || uncertain}}">{{item.title}}</button>
+    </view>
+    <input class="field" placeholder="约定名称" value="{{title}}" maxlength="40" bindinput="onTitleInput" disabled="{{saving || uncertain}}" />
+    <textarea class="field content-field" placeholder="具体怎么做？什么时候做？把彼此能接受的安排写下来。" value="{{content}}" maxlength="500" bindinput="onContentInput" auto-height disabled="{{saving || uncertain}}" />
+    <view class="input-count">{{content.length}}/500</view>
+    <view class="editor-note" wx:if="{{editUnavailable}}">原约定的状态已变化。内容已保留，请复制需要的内容，再取消修改并发起新约定。</view>
+    <view class="actions">
+      <button class="secondary-btn" wx:if="{{replacesId}}" bindtap="cancelEdit" disabled="{{saving || uncertain}}">取消修改</button>
+      <button class="primary-btn" bindtap="submitAgreement" loading="{{saving}}" disabled="{{saving || busyId || !title || !content || editUnavailable}}">{{uncertain ? '重试确认' : replacesId ? '发起新版本' : '我同意，发给 TA'}}</button>
     </view>
   </view>
-
-  <view class="card permission-editor">
-    <view class="card-title">{{editingId ? '编辑我给 TA 的权限' : '新增一项权限'}}</view>
-
-    <view class="preset-row" wx:if="{{!editingId}}">
-      <view
-        class="preset-chip"
-        wx:for="{{presets}}"
-        wx:key="*this"
-        data-name="{{item}}"
-        bindtap="choosePreset"
-      >
-        {{item}}
-      </view>
-    </view>
-
-    <input
-      class="permission-input"
-      value="{{name}}"
-      placeholder="例如：亲嘴权、抱抱权、选片权"
-      maxlength="20"
-      bindinput="onNameInput"
-    />
-
-    <textarea
-      class="permission-note"
-      value="{{note}}"
-      placeholder="补一句规则或备注（选填）"
-      maxlength="100"
-      auto-height
-      bindinput="onNoteInput"
-    />
-
-    <view class="editor-actions">
-      <button
-        wx:if="{{editingId}}"
-        class="cancel-btn"
-        bindtap="cancelEdit"
-      >
-        取消
-      </button>
-      <button
-        class="save-btn"
-        bindtap="submitPermission"
-        disabled="{{saving || !name}}"
-      >
-        {{editingId ? '保存修改' : '授予 TA'}}
-      </button>
+  <view class="section-title">等待回应</view>
+  <view class="agreement-card status-pending" wx:for="{{pendingItems}}" wx:key="id">
+    <view class="item-head"><text>{{item.directionLabel}}</text><text class="status-badge">{{item.fromMe ? '等待 TA 回应' : '等待你回应'}}</text></view>
+    <view class="item-title">{{item.title}}</view><view class="item-content">{{item.content}}</view>
+    <view class="revision-note" wx:if="{{item.replacesId}}">这是一份修改提议，接受后将替换原约定。</view>
+    <view class="item-date">{{item.createdLabel}}</view>
+    <view class="actions">
+      <block wx:if="{{item.canRespond}}">
+        <button class="secondary-btn" data-id="{{item.id}}" data-action="reject" bindtap="agreementAction" disabled="{{busyId || saving}}">暂不接受</button>
+        <button class="primary-btn" data-id="{{item.id}}" data-action="accept" bindtap="agreementAction" disabled="{{busyId || saving}}">接受约定</button>
+      </block>
+      <button class="secondary-btn" wx:if="{{item.canWithdraw}}" data-id="{{item.id}}" data-action="withdraw" bindtap="agreementAction" disabled="{{busyId || saving}}">撤回提议</button>
     </view>
   </view>
-
-  <view class="section-head">
-    <view>
-      <view class="section-title">我给 TA 的</view>
-      <view class="section-sub">你可以暂停、恢复、编辑或删除</view>
-    </view>
-    <view class="section-count">{{myPermissions.length}}</view>
-  </view>
-
-  <view wx:if="{{myPermissions.length}}">
-    <view
-      class="permission-card {{item.enabled ? '' : 'permission-card-off'}}"
-      wx:for="{{myPermissions}}"
-      wx:key="id"
-    >
-      <view class="permission-main">
-        <view class="permission-name-row">
-          <view class="permission-name">{{item.name}}</view>
-          <view class="status-pill {{item.enabled ? 'status-on' : 'status-off'}}">
-            {{item.enabled ? '生效中' : '已暂停'}}
-          </view>
-        </view>
-        <view class="permission-note-text" wx:if="{{item.note}}">{{item.note}}</view>
-        <view class="permission-note-empty" wx:else>没有额外备注</view>
-      </view>
-
-      <view class="permission-controls">
-        <view class="switch-label">{{item.enabled ? '允许' : '暂停'}}</view>
-        <switch
-          checked="{{item.enabled}}"
-          color="#ff6b81"
-          data-id="{{item.id}}"
-          bindchange="onToggle"
-        />
-        <view class="text-action" data-id="{{item.id}}" bindtap="startEdit">编辑</view>
-        <view class="text-action danger-action" data-id="{{item.id}}" bindtap="deletePermission">删除</view>
-      </view>
+  <view class="empty-state" wx:if="{{ready && !pendingItems.length}}">{{nextCursor ? '已加载的约定中没有待回应项' : '暂时没有等待回应的约定'}}</view>
+  <view class="section-title">正在共同遵守</view>
+  <view class="agreement-card" wx:for="{{activeItems}}" wx:key="id">
+    <view class="item-head"><text>{{item.directionLabel}}</text><text class="status-badge active">共同生效</text></view>
+    <view class="item-title">{{item.title}}</view><view class="item-content">{{item.content}}</view>
+    <view class="item-date">{{item.updatedLabel}}</view>
+    <view class="actions">
+      <button class="secondary-btn" data-id="{{item.id}}" bindtap="startRevision" disabled="{{busyId || saving}}">提议修改</button>
+      <button class="quiet-btn" data-id="{{item.id}}" data-action="end" bindtap="agreementAction" disabled="{{busyId || saving}}">结束约定</button>
     </view>
   </view>
-
-  <view class="empty permission-empty" wx:else>
-    还没有给 TA 权限。可以先从「抱抱权」开始 💗
+  <view class="empty-state" wx:if="{{ready && !activeItems.length}}">{{nextCursor ? '可以继续加载更早的约定' : '把双方都愿意的小安排留在这里'}}</view>
+  <view class="section-title">约定历史</view>
+  <view class="agreement-card history-card" wx:for="{{historyItems}}" wx:key="id">
+    <view class="item-head"><text>{{item.directionLabel}}</text><text class="status-badge">{{item.statusLabel}}</text></view>
+    <view class="item-title">{{item.title}}</view><view class="item-content">{{item.content}}</view>
+    <view class="item-date">{{item.updatedLabel}}</view>
   </view>
-
-  <view class="section-head received-head">
-    <view>
-      <view class="section-title">TA 给我的</view>
-      <view class="section-sub">由 TA 决定是否生效</view>
-    </view>
-    <view class="section-count">{{receivedPermissions.length}}</view>
-  </view>
-
-  <view wx:if="{{receivedPermissions.length}}">
-    <view
-      class="permission-card received-card {{item.enabled ? '' : 'permission-card-off'}}"
-      wx:for="{{receivedPermissions}}"
-      wx:key="id"
-    >
-      <view class="permission-main">
-        <view class="permission-name-row">
-          <view class="permission-name">{{item.name}}</view>
-          <view class="status-pill {{item.enabled ? 'status-on' : 'status-off'}}">
-            {{item.enabled ? '我拥有' : '已暂停'}}
-          </view>
-        </view>
-        <view class="permission-note-text" wx:if="{{item.note}}">{{item.note}}</view>
-        <view class="permission-note-empty" wx:else>TA 没有写额外备注</view>
-      </view>
-    </view>
-  </view>
-
-  <view class="empty permission-empty" wx:else>
-    TA 还没有给你权限。
-  </view>
-
-  <view class="permission-footnote">
-    权限只是你们之间的小约定，不代表现实中的强制同意；任何时候都应尊重对方当下的意愿。
-  </view>
+  <view class="empty-state" wx:if="{{ready && !historyItems.length && !nextCursor}}">尚无历史约定</view>
+  <view class="loading-note" wx:if="{{loading}}">正在整理你们的约定…</view>
+  <button class="secondary-btn load-more" wx:if="{{nextCursor}}" bindtap="loadMore" loading="{{loading}}" disabled="{{loading}}">加载更早的约定</button>
+  <view class="footnote">共同约定以双方当下意愿为准。愿意讨论，也可以说“不”。</view>
 </view>

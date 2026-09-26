@@ -5,7 +5,8 @@
     "pages/bind/bind",
     "pages/permissions/permissions",
     "pages/privileges/privileges",
-    "pages/profile/profile"
+    "pages/profile/profile",
+    "pages/entry/entry"
   ],
   "window": {
     "navigationBarBackgroundColor": "#fff7f8",
@@ -20,8 +21,9 @@
     "backgroundColor": "#fffafb",
     "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/index/index", "text": "今天" },
-      { "pagePath": "pages/review/review", "text": "回顾" }
+      { "pagePath": "pages/index/index", "text": "日常" },
+      { "pagePath": "pages/review/review", "text": "回顾" },
+      { "pagePath": "pages/profile/profile", "text": "我们" }
     ]
   },
   "style": "v2",

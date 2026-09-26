@@ -1,0 +1,360 @@
+{
+  "description": "Deployment checklist; create these collections and indexes in the CloudBase console. Not a CLI import format.",
+  "collections": [
+    {
+      "name": "v2_users",
+      "permissions": {
+        "read": false,
+        "write": false
+      }
+    },
+    {
+      "name": "v2_couples",
+      "permissions": {
+        "read": false,
+        "write": false
+      }
+    },
+    {
+      "name": "v2_invites",
+      "permissions": {
+        "read": false,
+        "write": false
+      }
+    },
+    {
+      "name": "v2_entries",
+      "permissions": {
+        "read": false,
+        "write": false
+      }
+    },
+    {
+      "name": "v2_agreements",
+      "permissions": {
+        "read": false,
+        "write": false
+      }
+    },
+    {
+      "name": "v2_coupons",
+      "permissions": {
+        "read": false,
+        "write": false
+      }
+    },
+    {
+      "name": "v2_coupon_requests",
+      "permissions": {
+        "read": false,
+        "write": false
+      }
+    },
+    {
+      "name": "v2_media",
+      "permissions": {
+        "read": false,
+        "write": false
+      }
+    },
+    {
+      "name": "v2_operations",
+      "permissions": {
+        "read": false,
+        "write": false
+      }
+    }
+  ],
+  "indexes": [
+    {
+      "name": "v2_query_1",
+      "collection": "v2_entries",
+      "unique": false,
+      "fields": [
+        {
+          "field": "coupleId",
+          "direction": "asc"
+        },
+        {
+          "field": "deleted",
+          "direction": "asc"
+        },
+        {
+          "field": "createdAt",
+          "direction": "desc"
+        },
+        {
+          "field": "_id",
+          "direction": "desc"
+        }
+      ]
+    },
+    {
+      "name": "v2_query_2",
+      "collection": "v2_entries",
+      "unique": false,
+      "fields": [
+        {
+          "field": "coupleId",
+          "direction": "asc"
+        },
+        {
+          "field": "deleted",
+          "direction": "asc"
+        },
+        {
+          "field": "monthKey",
+          "direction": "asc"
+        },
+        {
+          "field": "createdAt",
+          "direction": "desc"
+        },
+        {
+          "field": "_id",
+          "direction": "desc"
+        }
+      ]
+    },
+    {
+      "name": "v2_query_3",
+      "collection": "v2_entries",
+      "unique": false,
+      "fields": [
+        {
+          "field": "coupleId",
+          "direction": "asc"
+        },
+        {
+          "field": "deleted",
+          "direction": "asc"
+        },
+        {
+          "field": "monthKey",
+          "direction": "asc"
+        },
+        {
+          "field": "dayKey",
+          "direction": "asc"
+        },
+        {
+          "field": "createdAt",
+          "direction": "desc"
+        },
+        {
+          "field": "_id",
+          "direction": "desc"
+        }
+      ]
+    },
+    {
+      "name": "v2_query_4",
+      "collection": "v2_entries",
+      "unique": false,
+      "fields": [
+        {
+          "field": "coupleId",
+          "direction": "asc"
+        },
+        {
+          "field": "deleted",
+          "direction": "asc"
+        },
+        {
+          "field": "dayKey",
+          "direction": "asc"
+        },
+        {
+          "field": "createdAt",
+          "direction": "desc"
+        },
+        {
+          "field": "_id",
+          "direction": "desc"
+        }
+      ]
+    },
+    {
+      "name": "v2_query_5",
+      "collection": "v2_agreements",
+      "unique": false,
+      "fields": [
+        {
+          "field": "coupleId",
+          "direction": "asc"
+        },
+        {
+          "field": "createdAt",
+          "direction": "desc"
+        },
+        {
+          "field": "_id",
+          "direction": "desc"
+        }
+      ]
+    },
+    {
+      "name": "v2_query_6",
+      "collection": "v2_coupons",
+      "unique": false,
+      "fields": [
+        {
+          "field": "coupleId",
+          "direction": "asc"
+        },
+        {
+          "field": "createdAt",
+          "direction": "desc"
+        },
+        {
+          "field": "_id",
+          "direction": "desc"
+        }
+      ]
+    },
+    {
+      "name": "v2_query_7",
+      "collection": "v2_agreements",
+      "unique": false,
+      "fields": [
+        {
+          "field": "coupleId",
+          "direction": "asc"
+        },
+        {
+          "field": "status",
+          "direction": "asc"
+        },
+        {
+          "field": "recipientOpenid",
+          "direction": "asc"
+        }
+      ]
+    },
+    {
+      "name": "v2_query_8",
+      "collection": "v2_coupons",
+      "unique": false,
+      "fields": [
+        {
+          "field": "coupleId",
+          "direction": "asc"
+        },
+        {
+          "field": "status",
+          "direction": "asc"
+        },
+        {
+          "field": "issuedBy",
+          "direction": "asc"
+        }
+      ]
+    },
+    {
+      "name": "v2_query_9",
+      "collection": "v2_coupon_requests",
+      "unique": false,
+      "fields": [
+        {
+          "field": "coupleId",
+          "direction": "asc"
+        },
+        {
+          "field": "couponId",
+          "direction": "asc"
+        },
+        {
+          "field": "createdAt",
+          "direction": "desc"
+        },
+        {
+          "field": "_id",
+          "direction": "desc"
+        }
+      ]
+    },
+    {
+      "name": "v2_query_10",
+      "collection": "v2_users",
+      "unique": false,
+      "fields": [
+        {
+          "field": "reminderEnabled",
+          "direction": "asc"
+        },
+        {
+          "field": "_id",
+          "direction": "asc"
+        }
+      ]
+    },
+    {
+      "name": "v2_query_11",
+      "collection": "v2_media",
+      "unique": false,
+      "fields": [
+        {
+          "field": "status",
+          "direction": "asc"
+        },
+        {
+          "field": "expiresAt",
+          "direction": "asc"
+        },
+        {
+          "field": "_id",
+          "direction": "asc"
+        }
+      ]
+    },
+    {
+      "name": "v2_query_12",
+      "collection": "v2_media",
+      "unique": false,
+      "fields": [
+        {
+          "field": "status",
+          "direction": "asc"
+        },
+        {
+          "field": "confirmLeaseUntil",
+          "direction": "asc"
+        },
+        {
+          "field": "_id",
+          "direction": "asc"
+        }
+      ]
+    },
+    {
+      "name": "v2_query_13",
+      "collection": "v2_media",
+      "unique": false,
+      "fields": [
+        {
+          "field": "status",
+          "direction": "asc"
+        },
+        {
+          "field": "_id",
+          "direction": "asc"
+        }
+      ]
+    },
+    {
+      "name": "v2_query_14",
+      "collection": "v2_media",
+      "unique": false,
+      "fields": [
+        {
+          "field": "stagingCleanupPending",
+          "direction": "asc"
+        },
+        {
+          "field": "_id",
+          "direction": "asc"
+        }
+      ]
+    }
+  ]
+}

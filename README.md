@@ -1,349 +1,46 @@
-# 热念 💕
+# 热念
 
-> 把每天的喜欢、在意和小情绪认真留下来。
-> 两个人绑定后，双方每天都可以各评价对方一次，也都能查看共同记录。
+两个人的日常分享小程序。新版底部入口为 **日常 / 回顾 / 我们**。
 
-## 当前功能
+## 新版流程
 
-| 页面 | 作用 |
+- **绑定**：微信邀请或 8 位邀请码，有效期 24 小时。已有待接受邀请的人也可以接受对方邀请；成功后原邀请原子作废，失败则保留。此版本不提供解绑。
+- **日常**：文字、图片、可选心情；一天可发多条，发布即对双方可见。最多 1000 字、9 张图片，每张不超过 5 MB。作者可以随时编辑、删除，编辑保留原日期并标注“已编辑”。
+- **回顾**：按月和日期浏览，统计分享条数、有记录的天数、双方都分享的天数。不再使用好差评、评分、连续打卡或固定示例关键词。
+- **我们**：双方当前心情、共同约定、心意券、待处理数量、未分享提醒。
+- **共同约定**：提出代表自己同意，另一方接受后生效。修改是一份新提议，接受前原版仍有效。任意一方可结束生效约定，历史保留。
+- **心意券**：自由赠送。收到的人申请兑现，赠送方确认后才算使用；拒绝或撤销申请恢复可用。赠送方只能撤回尚未申请的券。
+- **未分享提醒**：默认关闭，用户主动同意微信一次性订阅后开启。当天发过日常就不提醒，即使后来删除了该日常；单独更新心情不算发布日常。发送后需要再次授权。
+
+日常草稿仅保留在当前小程序进程，按关系隔离。关闭进程后不会恢复。保存结果不确定时保留原请求和内容，点击“重试确认”，避免重复发布。
+
+## 本地验证
+
+需要 Node.js 22 或以上，无需安装云函数依赖即可运行模拟测试：
+
+```sh
+node scripts/check-source.js
+node --test tests/renian-api/*.test.js tests/frontend/*.test.js
+```
+
+测试运行实际业务和页面 JS，只替换微信外壳、存储与网络接口。内存事务串行执行，不能替代 CloudBase 实际并发和微信真机验证。
+
+微信开发者工具导入本目录。先运行 setup-local.cmd 配置真实 AppID 与云环境；本地配置不提交。具体上线步骤见 [V2-DEPLOY.md](V2-DEPLOY.md)。
+
+## 数据与权限
+
+API 必须携带 apiVersion: 2，旧版本请求返回 CLIENT_UPGRADE_REQUIRED。所有业务鉴权使用云函数取得的 OPENID，不接受客户端冒充作者或关系。
+
+新版使用独立 v2_ 集合，旧 couples、couple_users、ratings 保留，不会自动迁移或删除。切换前必须导出并校验备份。集合及索引清单在 [config/database.v2.json](config/database.v2.json)，权限模型见 [AUTH.md](AUTH.md)。
+
+云函数：
+
+| 函数 | 用途 |
 |---|---|
-| **今日评价** | 我每天可以给 TA 写一条好评 / 差评；TA 也可以独立给我写一条 |
-| **回顾** | 合并历史、月报和成绩单：双方好评率、双向月历、高光 / 小摩擦、历史记录、生成回顾卡片 |
-| **双人绑定** | 微信好友邀请卡片 + 8 位备用绑定码，建立两人的对等共享关系 |
-| **未评价提醒** | 用户主动订阅后，在设定时间仍未评价则发送微信服务通知 |
+| renianApi | 绑定、日常、月度汇总、心情、约定、赠券、图片授权 |
+| dailyReminder | 每 5 分钟检查已订阅且当天未分享的人 |
+| mediaCleanup | 每小时清理到期临时图片和已删除记录的图片 |
 
-## 双向模型
+数据库仅服务端可读写。图片先上传到私有暂存区，服务端校验后复制到客户端不可写的发布区，再通过鉴权后的临时链接查看。存储规则使用官方支持的正则路径匹配，规则语法参考 [CloudBase 云存储安全规则](https://docs.cloudbase.net/storage/security-rules)。
 
-热念没有固定的“评价方 / 查看方”。
-
-一对关系一天最多有两条评价：
-
-```
-A -> B
-B -> A
-```
-
-两条互相独立。
-
-A 更新自己今天的评价时，只覆盖 A→B；不会覆盖 B→A。
-
-自己的记录始终可见；同一天双方都提交后，才公开对方该日的评价。
-这一规则由云函数统一执行，适用于今日页面、历史回顾和月度统计。
-过去日期未完成互评的记录仍保留在作者自己的回顾中，不向另一方公开。
-月度统计基于当前用户可见的记录，不展示固定示例关键词。
-
-修改可见性规则后，需要同时部署 `cloudfunctions/renianApi` 和小程序前端。
-
-本地回归验证：
-
-```text
-node tests/renian-api/race.test.js
-node --test tests/frontend/pages.test.js
-```
-
----
-
-## 安全模型
-
-客户端不直接读写云数据库。
-
-所有绑定和评价操作统一进入：
-
-```
-cloudfunctions/renianApi
-```
-
-云函数使用 `cloud.getWXContext().OPENID` 获取真实调用者身份，并在服务端检查用户是否属于当前 `coupleId`。
-
-即使修改前端 JS，也不能把自己伪装成绑定关系之外的用户。
-
----
-
-## 目录结构
-
-```
-renian/
-├── app.js
-├── app.json
-├── app.wxss
-├── config/
-│   ├── env.js
-│   └── env.local.js            # 本机云环境 ID，不入 Git
-├── project.private.config.json # 本机 AppID，不入 Git
-├── setup-local.cmd             # 首次本机配置/迁移
-├── update-main.cmd             # 安全更新
-├── update-main-force.cmd       # 强制同步远程 main
-├── database-preflight.cmd      # 只读备份 + 数据审计
-├── database-migrate.cmd        # 明确确认后执行迁移/建索引
-├── scripts/
-│   └── database-common.ps1
-├── services/
-│   └── cloud.js
-├── cloudfunctions/
-│   ├── renianApi/
-│   │   ├── index.js
-│   │   └── package.json
-│   └── dailyReminder/
-│       ├── index.js
-│       ├── package.json
-│       └── config.json
-├── pages/
-│   ├── index/
-│   ├── review/                  # 主回顾页：统计 + 月历 + 故事 + 历史
-│   └── bind/
-├── AUTH.md
-├── BRAND.md
-└── project.config.json
-```
-
----
-
-## 部署
-
-### 1. 首次配置本机环境
-
-本机 AppID 和云环境 ID 不再直接写入受 Git 管理的代码文件。
-
-首次更新到这一版后，运行：
-
-```text
-setup-local.cmd
-```
-
-脚本会生成：
-
-```text
-project.private.config.json
-config/env.local.js
-```
-
-两个文件都被 Git 忽略，因此后续更新不会覆盖本机配置。
-
-如果你是从旧版迁移，可先备份：
-
-```bat
-copy app.js app.local.bak.js
-copy project.config.json project.config.local.bak.json
-```
-
-新版 `setup-local.cmd` 会自动从这些备份中识别已有 AppID / 云环境 ID。
-
-### 1.1 更新代码
-
-安全更新：
-
-```text
-update-main.cmd
-```
-
-如果本地改过受 Git 跟踪的代码，它会停止。
-
-明确以远程 `main` 为准、丢弃本地代码修改时：
-
-```text
-update-main-force.cmd
-```
-
-强制更新只重置 Git 跟踪文件，不会删除 `project.private.config.json` 和 `config/env.local.js`。
-
-### 1.2 数据库预检与索引迁移
-
-数据库维护拆成两个阶段，**先只读预检，再明确执行迁移**。
-
-首次使用前需要：
-
-```text
-npm i -g @cloudbase/cli
-tcb login
-```
-
-第一步运行：
-
-```text
-database-preflight.cmd
-```
-
-它只做以下事情，不修改云数据库：
-
-1. 全量导出 `couples`、`couple_users`、`ratings`；
-2. 保存到 `backups/cloudbase/<时间戳>/raw/`；
-3. 直接读取导出的 JSON Lines 做本地数据审计；
-4. 检查 waiting 邀请码是否合法、是否重复；
-5. 列出所有需要规范化为 `USED_<pairId>` 的非 waiting 关系；
-6. 检查评价记录是否缺少 `coupleId/date/ratedBy`；
-7. 输出 `PRECHECK.txt` 和 `preflight-report.json`。
-
-只有看到：
-
-```text
-SAFE TO MIGRATE: True
-```
-
-才进入第二步：
-
-```text
-database-migrate.cmd
-```
-
-迁移脚本会**重新做一次最新全量备份和预检**，然后要求手工输入：
-
-```text
-MIGRATE
-```
-
-才会写库。写入规则为：
-
-- `status == waiting`：保留合法 8 位邀请码；
-- 所有非 `waiting` 关系：统一规范为 `USED_<pairId>`；
-- 每条旧数据按具体 `_id` 精确更新，并再次要求 `status != waiting`，避免误改正在变化的邀请。
-
-随后创建：
-
-```text
-couples
-  idx_inviteCode_unique
-  UNIQUE
-  inviteCode ASC
-
-ratings
-  idx_couple_date_ratedBy
-  NON-UNIQUE
-  coupleId ASC
-  date DESC
-  ratedBy ASC
-```
-
-迁移完成后会再生成一份 post-flight 全量备份和审计报告。
-
-备份目录已经加入 `.gitignore`，因为其中可能包含 OPENID、绑定关系和评价内容，不应提交到 GitHub。恢复说明见 `docs/DATABASE-RECOVERY.md`。
-
-### 2. 创建集合
-
-在云开发数据库创建：
-
-```
-couples
-couple_users
-ratings
-```
-
-### 3. 关闭客户端数据库直读写
-
-正式使用时，这三个集合不要设置成：
-
-```json
-{ "read": true, "write": true }
-```
-
-客户端只调用 `renianApi`，数据库由云函数在服务端访问。
-
-### 4. 部署云函数
-
-微信开发者工具中依次部署：
-
-```
-cloudfunctions/renianApi
-cloudfunctions/dailyReminder
-```
-
-两者都选择：
-
-**上传并部署：云端安装依赖（不上传 node_modules）**
-
-`dailyReminder/config.json` 已包含 `subscribeMessage.send` 云调用权限和每 5 分钟一次的定时触发器。提醒按北京时间判断，当前可选 20:00–22:30 的半点时间。
-
-订阅消息模板 ID：
-
-```
-tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk
-```
-
-模板字段按「提醒内容 / 截止时间」接入为 `thing1 / time2`。如果微信公众平台模板详情显示的字段键不同，只需同步修改 `cloudfunctions/dailyReminder/index.js` 顶部的 `CONTENT_KEY` / `DEADLINE_KEY`。
-
-> 当前模板属于一次性订阅消息。一次授权成功发送一条提醒后，本次资格即消耗；「我的」页会自动关闭提醒开关，用户需要再次主动开启，才能获得下一次提醒资格。
-
-### 5. 双人绑定
-
-第一位：
-
-1. 打开「双人绑定」；
-2. 点击「创建微信邀请」；
-3. 点击「微信邀请 TA」，把小程序卡片发给对方。
-
-第二位：
-
-1. 在微信里点开邀请卡片；
-2. 小程序自动带入一次性绑定码；
-3. 点击「接受邀请并绑定」。
-
-仍保留 8 位绑定码作为备用方案。绑定码有效期 **24 小时**，使用后失效。
-
-绑定后双方权限相同：都可以评价对方，也都可以查看双方记录。
-
----
-
-## 数据结构
-
-### couples
-
-```json
-{
-  "_id": "pair_xxx",
-  "status": "active",
-  "creatorOpenid": "...",
-  "partnerOpenid": "...",
-  "memberOpenids": ["...", "..."]
-}
-```
-
-### couple_users
-
-```json
-{
-  "_id": "<OPENID>",
-  "coupleId": "pair_xxx",
-  "status": "active"
-}
-```
-
-### ratings
-
-每条评价：
-
-```json
-{
-  "coupleId": "pair_xxx",
-  "date": "2026-09-22",
-  "type": "good",
-  "reason": "今天主动做了饭还洗了碗",
-  "ratedBy": "<评价人的 OPENID>",
-  "targetOpenid": "<被评价人的 OPENID>",
-  "updatedAt": "<时间>"
-}
-```
-
-文档 ID：
-
-```
-<coupleId>_<YYYY-MM-DD>_<authorHash>
-```
-
-因此同一对情侣每天最多两条，双方互不覆盖。
-
----
-
-## 统计口径
-
-- **双方好评率**：双方所有评价中，好评条数 / 总评价条数。
-- **双向日历**：左边是“我给 TA”，右边是“TA 给我”。
-- **双方连续好评**：同一天两个人都评价且两条均为好评，才算 1 天。
-
----
-
-## 旧数据
-
-最早版本的 `ratings` 只有日期，没有关系 ID，也没有评价方向。
-
-新版不会自动归属旧记录，以免把历史数据认错人。需要保留时应单独迁移。
-
-详细设计见 [AUTH.md](./AUTH.md)。
+现有 database-preflight.ps1 保留为旧版数据只读导出工具；database-migrate.ps1 是旧版迁移工具，**不用于 v2 切换**。

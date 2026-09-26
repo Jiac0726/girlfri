@@ -1,0 +1,16 @@
+<view class="journal-page">
+  <view class="page-title">{{editing ? '编辑这段日常' : '想和 TA 分享什么？'}}</view>
+  <view class="page-sub">每一点平凡，都可以是我们的小回忆</view>
+  <view wx:if="{{loading}}" class="state-panel">加载中…</view>
+  <view wx:if="{{error}}" class="error-panel">{{error}}<button wx:if="{{loading === false && !uncertain}}" class="text-button" bindtap="load">重新加载</button></view>
+  <view wx:if="{{!loading}}" class="editor">
+    <textarea value="{{text}}" maxlength="1000" placeholder="今天发生了什么，或者只是想说想你了…" disabled="{{saving || uncertain}}" bindinput="onText" />
+    <view class="counter">{{text.length}} / 1000</view>
+    <view class="photos"><view wx:for="{{images}}" wx:key="url" class="photo"><image src="{{item.url}}" mode="aspectFill" /><button data-index="{{index}}" bindtap="removeImage" disabled="{{saving || uncertain}}">×</button></view></view>
+    <button class="text-button" bindtap="chooseImages" disabled="{{saving || uncertain || images.length >= 9}}">＋ 添加照片（{{images.length}}/9）</button>
+    <view class="page-sub">此刻心情 · 可不选</view>
+    <view class="moods"><button wx:for="{{moods}}" wx:key="emoji" class="mood {{mood === item.emoji ? 'selected' : ''}}" data-emoji="{{item.emoji}}" bindtap="chooseMood" disabled="{{saving || uncertain}}">{{item.emoji}}<text>{{item.label}}</text></button></view>
+    <button class="primary-button" bindtap="save" disabled="{{saving}}" loading="{{saving}}">{{uncertain ? '重试确认' : editing ? '保存修改' : '分享给 TA'}}</button>
+    <view class="page-sub">发布后双方可见，之后仍可编辑或删除。</view>
+  </view>
+</view>

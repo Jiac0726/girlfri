@@ -4,10 +4,10 @@
       <text>{{savedMoodEmoji || moodEmoji || '♡'}}</text>
     </view>
     <view class="profile-hero-copy">
-      <view class="profile-eyebrow">热念 · 我的</view>
-      <view class="profile-title">今天的我</view>
+      <view class="profile-eyebrow">热念 · 我们</view>
+      <view class="profile-title">我们的两人空间</view>
       <view class="profile-sub" wx:if="{{bindingStatus === 'active'}}">
-        心情更新后，TA 打开「我的」就能看到。
+        心情更新后，TA 打开「我们」就能看到。
       </view>
       <view class="profile-sub" wx:else>
         绑定后，你们可以互相看到彼此现在的心情。
@@ -32,6 +32,11 @@
     <view class="bind-card-arrow">›</view>
   </view>
 
+  <view class="card" wx:if="{{error}}">{{error}}<button bindtap="loadProfile">重新加载</button></view>
+  <view class="our-links" wx:if="{{bindingStatus === 'active'}}">
+    <view class="our-link agreements-link" bindtap="goAgreements"><view>共同约定</view><text>{{pendingAgreementCount ? pendingAgreementCount + ' 份提议等你回应' : '一起商量的小安排'}}</text><text class="our-link-icon">♡</text></view>
+    <view class="our-link coupons-link" bindtap="goCoupons"><view>心意券</view><text>{{pendingCouponCount ? pendingCouponCount + ' 份申请等你确认' : '给彼此一点小偏爱'}}</text><text class="our-link-icon">✉</text></view>
+  </view>
   <view class="card mood-editor" wx:if="{{bindingStatus === 'active'}}">
     <view class="card-title">我的心情</view>
 
@@ -71,7 +76,7 @@
     <button
       class="mood-save-btn"
       bindtap="saveMood"
-      disabled="{{saving || (!moodEmoji && !moodText)}}"
+      disabled="{{saving || authLoading || (!moodEmoji && !moodText)}}"
     >
       更新我的心情
     </button>
@@ -81,13 +86,13 @@
   <view class="card reminder-card" wx:if="{{bindingStatus === 'active'}}">
     <view class="reminder-head">
       <view>
-        <view class="card-title">每日评价提醒</view>
-        <view class="reminder-sub">到点仍未评价时，微信会发一条服务通知。</view>
+        <view class="card-title">每日分享提醒</view>
+        <view class="reminder-sub">到点仍未分享时，微信会发一条服务通知。</view>
       </view>
       <switch
         color="#ff6b81"
         checked="{{reminderEnabled}}"
-        disabled="{{reminderSaving}}"
+        disabled="{{reminderSaving || authLoading || !reminderReady}}"
         bindchange="onReminderToggle"
       />
     </view>
@@ -95,13 +100,13 @@
     <view class="reminder-row">
       <view class="reminder-row-copy">
         <view class="reminder-row-title">提醒时间</view>
-        <view class="reminder-row-sub">仅在当天还没有评价时提醒</view>
+        <view class="reminder-row-sub">仅在当天还没有分享时提醒</view>
       </view>
       <picker
         mode="selector"
         range="{{reminderTimeOptions}}"
         value="{{reminderTimeIndex}}"
-        disabled="{{reminderSaving}}"
+        disabled="{{reminderSaving || authLoading || !reminderReady}}"
         bindchange="onReminderTimeChange"
       >
         <view class="reminder-time">{{reminderTime}} ›</view>

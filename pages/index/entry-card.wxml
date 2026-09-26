@@ -1,0 +1,13 @@
+<template name="entry-card">
+  <view class="entry-card">
+    <view class="entry-top"><view class="entry-avatar {{entry.fromMe ? 'mine' : 'partner'}}">{{entry.authorLabel}}</view><view class="entry-byline"><view class="entry-author">{{entry.fromMe ? '我的日常' : 'TA 的日常'}}</view><view class="entry-time">{{entry.dateLabel}} {{entry.timeLabel}}<text wx:if="{{entry.edited}}"> · 已编辑</text></view></view><text class="entry-mood" wx:if="{{entry.mood}}">{{entry.mood}}</text></view>
+    <text class="entry-text" wx:if="{{entry.text}}" selectable>{{entry.text}}</text>
+    <view class="entry-images {{entry.images.length === 1 ? 'single-image' : ''}}" wx:if="{{entry.images.length}}">
+      <view class="entry-image-cell" wx:for="{{entry.images}}" wx:for-item="photo" wx:key="id" data-id="{{entry.id}}" data-photoid="{{photo.id}}" bindtap="previewImages">
+        <image wx:if="{{photo.url && !photo.failed}}" class="entry-image" src="{{photo.url}}" mode="aspectFill" lazy-load data-photoid="{{photo.id}}" binderror="onEntryImageError" />
+        <view class="image-placeholder" wx:else>照片暂未加载<text>点按重试</text></view>
+      </view>
+    </view>
+    <view class="entry-actions" wx:if="{{entry.fromMe}}"><button class="text-button" data-id="{{entry.id}}" bindtap="editEntry" disabled="{{locked || busyEntryId}}">编辑</button><button class="text-button muted" data-id="{{entry.id}}" bindtap="deleteEntry" disabled="{{locked || busyEntryId}}">{{busyEntryId === entry.id ? '删除中…' : '删除'}}</button></view>
+  </view>
+</template>

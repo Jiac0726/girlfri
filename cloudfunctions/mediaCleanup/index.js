@@ -1,7 +1,7 @@
 const cloud = require('wx-server-sdk');
-const { createReminderWorker } = require('./worker');
+const { createMediaCleanup } = require('./worker');
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
-const worker = createReminderWorker(cloud);
+const worker = createMediaCleanup(cloud);
 
 exports.main = async () => {
   if (cloud.getWXContext().OPENID) {
