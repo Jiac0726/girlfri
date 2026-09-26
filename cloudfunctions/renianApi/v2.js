@@ -29,7 +29,7 @@ function createV2Api(cloud, options = {}) {
   const ctx = createContext(cloud, options.database);
   const pairs = createPairs(ctx);
   const media = createMedia(ctx);
-  const { db, get, put, membership, partner, session, ownedDocument, mutate, page, count } = ctx;
+  const { db, transaction, get, put, membership, partner, session, ownedDocument, mutate, page, count } = ctx;
 
   function entryInput(event) {
     const ratingType = text(event.ratingType, 16, '打分');
@@ -394,7 +394,7 @@ function createV2Api(cloud, options = {}) {
 
   async function privateMemoUpdate(event, openid) {
     const memo = text(event.text, 1500, '恋爱备忘录');
-    return db.runTransaction(async tx => {
+    return transaction(async tx => {
       const member = await membership(tx, openid);
       const currentVersion = member.user.privateMemoVersion || 0;
       if (event.expectedVersion !== undefined) {
@@ -416,7 +416,7 @@ function createV2Api(cloud, options = {}) {
     const moodEmoji = text(event.moodEmoji, 8, '心情');
     const moodText = text(event.moodText, 60, '心情文字');
     assert(moodEmoji || moodText, 'INVALID_MOOD', '选一个心情，或者写一句现在的感受');
-    return db.runTransaction(async tx => {
+    return transaction(async tx => {
       const member = await membership(tx, openid);
       const now = new Date();
       const user = Object.assign({}, member.user, { moodEmoji, moodText, moodUpdatedAt: now, updatedAt: now });
@@ -428,7 +428,7 @@ function createV2Api(cloud, options = {}) {
     assert(typeof event.enabled === 'boolean', 'INVALID_REMINDER', '提醒设置不正确');
     const time = event.time === undefined ? '21:30' : event.time;
     assert(REMINDER_TIMES.has(time), 'INVALID_REMINDER_TIME', '请选择列表中的提醒时间');
-    return db.runTransaction(async tx => {
+    return transaction(async tx => {
       const member = await membership(tx, openid);
       if (event.expectedVersion !== undefined) assert(event.expectedVersion === (member.user.reminderVersion || 0), 'VERSION_CONFLICT', '提醒设置已更新，请刷新');
       const now = new Date();
