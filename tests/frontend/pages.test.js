@@ -49,6 +49,21 @@ test('home loads only summary, blocks actions while loading, then opens composer
   assert.equal(events[0].value.url,'/pages/entry/entry');
   assert.equal(events[1].value.url,'/pages/feed/feed');
 });
+test('home shows received miss count and sends a miss with a request id',async()=>{
+  const sent=[];
+  const {page,events}=loadPage('index',{
+    getSession:async()=>Object.assign({},session,{missCount:3}),
+    getEntryMonth:async()=>({totalEntries:0,recordDays:0,sharedDays:0,days:[]}),
+    sendMiss:async data=>{sent.push(data);return {sent:true,partnerCount:1};},
+  });
+  await page.refresh();
+  assert.equal(page.data.missCount,3);
+  await page.sendMiss();
+  assert.equal(sent.length,1);
+  assert.match(sent[0].requestId,/^request_/);
+  assert.equal(events.find(x=>x.method==='showToast').value.title,'想念送过去了 ♡');
+});
+
 test('expanded feed owns the full entry list',async()=>{
   const {page}=loadPage('feed',{getSession:async()=>session,listEntries:async()=>({items:[entry],nextCursor:null})});
   await page.refresh();

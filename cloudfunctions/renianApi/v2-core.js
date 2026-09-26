@@ -103,6 +103,7 @@ function createContext(cloud, database) {
       inviteCode: waiting && pair.creatorOpenid === openid ? pair.inviteCode : '',
       inviteExpiresAt: waiting ? iso(pair.inviteExpiresAt) : null,
       inviteExpired: !!waiting && new Date(pair.inviteExpiresAt).getTime() <= Date.now(),
+      missCount: Math.max(0, Number(member.user && member.user.missReceivedCount) || 0),
       serverDate: utcDay(),
     };
   }

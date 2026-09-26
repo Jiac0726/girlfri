@@ -424,6 +424,23 @@ function createV2Api(cloud, options = {}) {
       return cleanMood(user);
     });
   }
+  async function missSend(event, openid) {
+    return mutate('miss.send', event, openid, async (tx, member) => {
+      const otherOpenid = partner(member.pair, openid);
+      assert(otherOpenid, 'PAIR_INVALID', '关系状态异常');
+      const other = await get(tx, 'users', otherOpenid);
+      assert(other && other.coupleId === member.pair._id && other.status === 'active', 'PAIR_INVALID', '关系状态异常');
+      const now = new Date();
+      const partnerCount = Math.max(0, Number(other.missReceivedCount) || 0) + 1;
+      await put(tx, 'users', otherOpenid, Object.assign({}, other, {
+        missReceivedCount: partnerCount,
+        missUpdatedAt: now,
+        updatedAt: now,
+      }));
+      return { sent: true, partnerCount, sentAt: iso(now) };
+    });
+  }
+
   async function reminderUpdate(event, openid) {
     assert(typeof event.enabled === 'boolean', 'INVALID_REMINDER', '提醒设置不正确');
     const time = event.time === undefined ? '21:30' : event.time;
@@ -476,6 +493,7 @@ function createV2Api(cloud, options = {}) {
       case 'profile.mood.update': return profileUpdate(event, openid);
       case 'reminder.get': return cleanReminder((await membership(db, openid)).user);
       case 'reminder.update': return reminderUpdate(event, openid);
+      case 'miss.send': return missSend(event, openid);
       case 'media.prepare': return media.prepare(event, openid);
       case 'media.confirm': return media.confirm(event, openid);
       case 'media.urls': return media.urls(event, openid);
