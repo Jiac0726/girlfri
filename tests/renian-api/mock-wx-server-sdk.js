@@ -61,6 +61,41 @@ function collection(col) {
   };
   return api;
 }
+function nodeDocument(col, id) {
+  const raw = document(col, id);
+  return {
+    async get() {
+      const result = await raw.get();
+      return { data: result && result.data ? [result.data] : [] };
+    },
+    async set(data) { return raw.set({ data }); },
+    async update(data) { return raw.update({ data }); },
+    async remove() { return raw.remove(); },
+  };
+}
+function nodeCollection(col) {
+  const raw = collection(col);
+  const api = {
+    doc: id => nodeDocument(col, id),
+    where(value) { raw.where(value); return api; },
+    limit(value) { raw.limit(value); return api; },
+    skip(value) { raw.skip(value); return api; },
+    orderBy(field, direction) { raw.orderBy(field, direction); return api; },
+    count: () => raw.count(),
+    get: () => raw.get(),
+  };
+  return api;
+}
+function nodeDatabase() {
+  return {
+    collection: nodeCollection,
+    command,
+    async runTransaction(fn) {
+      const result = await runTransaction(async () => fn({ collection: nodeCollection }));
+      return { result, errMsg: 'runTransaction:ok' };
+    },
+  };
+}
 let queue = Promise.resolve();
 function runTransaction(fn) {
   const result = queue.then(async () => {
@@ -75,6 +110,7 @@ const cloud = {
   init() {}, DYNAMIC_CURRENT_ENV: 'mock-env', _openid: 'A',
   getWXContext: () => ({ OPENID: cloud._openid, ENV: 'mock-env' }),
   database: () => ({ collection, runTransaction, command }),
+  __nodeDatabase: nodeDatabase,
   async getTempFileURL({fileList}) { return { fileList: fileList.map(fileID => ({ fileID, status: 0, tempFileURL: 'https://mock.invalid/' + encodeURIComponent(fileID) })) }; },
   async uploadFile({cloudPath, fileContent}) { const fileID = 'cloud://mock-env.bucket/' + cloudPath; files.set(fileID, Buffer.from(fileContent)); return { fileID }; },
   async downloadFile({fileID}) { if (!files.has(fileID)) throw new Error('missing file'); return { fileContent: files.get(fileID) }; },

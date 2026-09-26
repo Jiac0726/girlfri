@@ -8,7 +8,7 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 // Database writes use @cloudbase/node-sdk because CloudBase transactions
 // (runTransaction) are supported by the server Node SDK.
 const app = cloudbase.init({
-  env: process.env.TCB_ENV || cloudbase.SYMBOL_CURRENT_ENV,
+  env: cloudbase.SYMBOL_CURRENT_ENV,
 });
 const database = app.database();
 const handle = createV2Api(cloud, { database });
