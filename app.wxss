@@ -21,6 +21,11 @@ page {
   --rule: #ebd8dd;      /* 分隔线 */
   --gold: #b98a2e;      /* 特权卡点缀，全站仅此一处非玫瑰 */
 
+  /* 页面与卡片统一规格 */
+  --page-gutter: 32rpx;
+  --card-radius: 28rpx;
+  --card-pad: 28rpx;
+
   /* 间距阶：等比推进（×1.5 左右），禁止随手写值打断比例 */
   --s-1: 8rpx;
   --s-2: 16rpx;
@@ -104,14 +109,16 @@ page {
    样板页已不再使用；铺开改造完成后整段删除。               */
 
 .container {
-  padding: 30rpx 30rpx 60rpx;
+  padding: 30rpx var(--page-gutter) 60rpx;
   box-sizing: border-box;
 }
 
 .card {
+  width: 100%;
+  box-sizing: border-box;
   background: #ffffff;
-  border-radius: 28rpx;
-  padding: 36rpx;
+  border-radius: var(--card-radius);
+  padding: var(--card-pad);
   margin-bottom: 28rpx;
   box-shadow: 0 6rpx 24rpx rgba(255, 107, 129, 0.1);
 }
