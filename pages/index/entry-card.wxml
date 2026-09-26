@@ -1,6 +1,7 @@
 <template name="entry-card">
   <view class="entry-card">
     <view class="entry-top"><view class="entry-avatar {{entry.fromMe ? 'mine' : 'partner'}}">{{entry.authorLabel}}</view><view class="entry-byline"><view class="entry-author">{{entry.fromMe ? '我的日常' : 'TA 的日常'}}</view><view class="entry-time">{{entry.dateLabel}} {{entry.timeLabel}}<text wx:if="{{entry.edited}}"> · 已编辑</text></view></view><text class="entry-mood" wx:if="{{entry.mood}}">{{entry.mood}}</text></view>
+    <view class="legacy-rating-badge {{entry.legacyRatingType}}" wx:if="{{entry.legacyRatingLabel}}">旧版评价 · {{entry.legacyRatingLabel}}</view>
     <text class="entry-text" wx:if="{{entry.text}}" selectable>{{entry.text}}</text>
     <view class="entry-images {{entry.images.length === 1 ? 'single-image' : ''}}" wx:if="{{entry.images.length}}">
       <view class="entry-image-cell" wx:for="{{entry.images}}" wx:for-item="photo" wx:key="id" data-id="{{entry.id}}" data-photoid="{{photo.id}}" bindtap="previewImages">
