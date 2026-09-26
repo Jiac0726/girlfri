@@ -3,6 +3,7 @@
 const { createContext, assert, fail, hash, text, version, utcDay, iso } = require('./v2-core');
 const { createPairs } = require('./v2-pairs');
 const { createMedia } = require('./v2-media');
+const { entryVisibleTo } = require('./v2-visibility');
 
 const REMINDER_TEMPLATE_ID = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
 const MISS_TEMPLATE_ID = 'RWnfT0dJaUjWh6e1XsFpL6H2mshGw05zT2zBLP3clro';
@@ -38,7 +39,7 @@ function validateDay(value) {
 function createV2Api(cloud, options = {}) {
   const ctx = createContext(cloud, options.database);
   const pairs = createPairs(ctx);
-  const media = createMedia(ctx);
+  const media = createMedia(ctx, options);
   const { db, transaction, get, put, membership, partner, session, ownedDocument, mutate, page, count } = ctx;
 
   let missTemplateFields = null;
@@ -90,7 +91,7 @@ function createV2Api(cloud, options = {}) {
   }
   async function entryView(doc, openid, committed = false) {
     let images;
-    try { images = await media.entryImages(doc); }
+    try { images = await media.entryImages(doc, !committed); }
     catch (error) {
       if (!committed) throw error;
       // The write already committed. A temporary preview failure must not make
@@ -133,9 +134,6 @@ function createV2Api(cloud, options = {}) {
       return changed;
     });
     return entryView(await get(db, 'entries', result._id) || result, openid, true);
-  }
-  function entryVisibleTo(doc, openid) {
-    return !doc.legacyPrivate || doc.authorOpenid === openid;
   }
   async function entryList(event, openid) {
     const member = await membership(db, openid);

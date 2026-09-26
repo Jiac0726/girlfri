@@ -355,6 +355,29 @@
           "direction": "asc"
         }
       ]
+    },
+    {
+      "name": "v2_query_15",
+      "collection": "v2_media",
+      "unique": false,
+      "fields": [
+        {
+          "field": "status",
+          "direction": "asc"
+        },
+        {
+          "field": "stagingFileID",
+          "direction": "asc"
+        },
+        {
+          "field": "fileID",
+          "direction": "asc"
+        },
+        {
+          "field": "_id",
+          "direction": "asc"
+        }
+      ]
     }
   ]
 }

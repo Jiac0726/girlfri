@@ -20,7 +20,7 @@ v2 **继承旧数据，不要求老用户重新绑定**。
 1. 保存当前线上小程序与云函数版本号，并记录当前代码提交作为回滚点。
 2. 运行 `database-preflight.ps1`。它只读导出旧 `couples / couple_users / ratings` 到 `backups/cloudbase/<时间戳>/raw/`，不修改数据库。
 3. 核对导出文件、条数和 `PRECHECK.txt`。只有预检通过才继续。
-4. **不需要手动创建 9 个 v2 集合和 14 个索引。** 部署下面的临时迁移函数后，`v2-migrate-legacy.cmd` 会自动创建缺失集合，并按 `config/database.v2.json` 自动创建索引。
+4. **不需要手动创建 9 个 v2 集合和 15 个索引。** 部署下面的临时迁移函数后，`v2-migrate-legacy.cmd` 会自动创建缺失集合，并按 `config/database.v2.json` 自动创建索引。
 5. 应用 `config/storage.rules.v2.json`，确认客户端只能写自己的暂存路径，不能直接读发布区或覆盖别人的文件。数据库访问策略仍需按线上 CloudBase 的当前策略体系核验为“客户端不可直接读写”；自动建表/建索引不等于自动修改线上鉴权策略。
 
 旧 `database-migrate.ps1` 不是 v2 数据继承脚本，不要用它代替下面的迁移。
@@ -49,7 +49,7 @@ cloudfunctions/legacyV2Migration
 
 1. 再做一次最新旧库完整备份；
 2. 调用 `legacyV2Migration prepare` 自动创建缺失的 9 个 `v2_` 集合；
-3. 读取 `config/database.v2.json`，通过 CloudBase CLI 自动创建 14 个复合索引；
+3. 读取 `config/database.v2.json`，通过 CloudBase CLI 自动创建 15 个复合索引；
 4. 调用 `plan` 检查迁移数量、旧数据一致性和 v2 目标集合；
 5. 要求手工输入 `MIGRATE_V2` 后才复制旧数据，最后再次读取迁移状态。
 
@@ -147,3 +147,12 @@ node --test tests/renian-api/*.test.js tests/frontend/*.test.js
 ```
 
 模拟测试不能替代 CloudBase 实际事务、微信订阅模板和云存储规则的真机验证。
+
+## 2026-09-27 审查修复更新
+
+- 重新部署 renianApi 和 mediaCleanup（云端安装依赖），两者使用已初始化的 Node SDK 取得文件元数据。prepare 返回上传路径前，先登记暂存文件 ID。
+- 按 config/database.v2.json 补充 v2_query_15 索引：v2_media 的 status、stagingFileID、fileID、_id 均为升序。该索引用于补偿旧版未登记 ID、却被标成 deleted 的临时上传。
+- 图片授权与正文统一检查旧版私密记录可见性。列表和详情中的图片暂不可用时显示占位，文字与其他图片继续返回；显式图片授权接口仍严格校验。
+- 若迁移已完成，不需要重新迁移。若仍需迁移，部署新版 legacyV2Migration 后，先停止旧版写入；迁移和续跑期间都保持旧库不变，且不开放 v2 用户写入。
+- 新迁移保存源数据指纹，续跑及完成前重新校验；完成前逐集合核对目标 ID、数量和字段内容。源数据变化返回 SOURCE_CHANGED，目标缺失或不一致返回 TARGET_MISMATCH，均不会标记完成。
+- 旧版 running 标记没有源指纹时不再自动续跑。先备份旧库和部分 v2 结果，再由管理员核对恢复；不要直接删除进度标记或清空目标集合来绕过检查。

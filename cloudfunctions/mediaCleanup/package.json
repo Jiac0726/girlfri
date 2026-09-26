@@ -3,5 +3,5 @@
   "version": "2.0.0",
   "private": true,
   "main": "index.js",
-  "dependencies": { "wx-server-sdk": "4.0.2" }
+  "dependencies": { "wx-server-sdk": "4.0.2", "@cloudbase/node-sdk": "3.17.2" }
 }

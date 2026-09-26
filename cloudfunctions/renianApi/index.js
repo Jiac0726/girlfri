@@ -11,7 +11,7 @@ const app = cloudbase.init({
   env: cloudbase.SYMBOL_CURRENT_ENV,
 });
 const database = app.database();
-const handle = createV2Api(cloud, { database });
+const handle = createV2Api(cloud, { database, getUploadMetadata: input => app.getUploadMetadata(input) });
 
 function fail(code, message) {
   return { ok: false, error: { code, message } };

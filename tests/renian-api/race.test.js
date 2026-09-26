@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const cloud = require('./mock-wx-server-sdk');
 const { createV2Api } = require('../../cloudfunctions/renianApi/v2');
 const { utcDay } = require('../../cloudfunctions/renianApi/v2-core');
-const handle = createV2Api(cloud, { database: cloud.__nodeDatabase() });
+const handle = createV2Api(cloud, { database: cloud.__nodeDatabase(), getUploadMetadata: async ({cloudPath}) => ({data:{fileId: 'cloud://mock-env.bucket/' + cloudPath}}) });
 let serial = 0;
 const call = (action, who = 'A', data = {}) => handle(Object.assign({ action, requestId: 'request_' + (++serial) }, data), who);
 const failure = (promise, code) => assert.rejects(promise, e => e.code === code && e.isBusiness === true);
@@ -215,7 +215,7 @@ test('media prepare registers abandoned file, validates owner and file signature
   await pair();
   const m=await call('media.prepare','A',{name:'x',size:35});
   const fileID='cloud://mock-env.bucket/'+m.cloudPath;
-  assert.equal(cloud.__colStore('v2_media').get(m.id).stagingFileID,'');
+  assert.equal(cloud.__colStore('v2_media').get(m.id).stagingFileID,fileID);
   await failure(call('media.confirm','B',{id:m.id,fileID}),'FORBIDDEN');
   await failure(call('media.confirm','A',{id:m.id,fileID:'cloud://foreign/'+m.cloudPath}),'INVALID_MEDIA_FILE');
   const png=Buffer.alloc(35); Buffer.from([137,80,78,71,13,10,26,10]).copy(png); png.writeUInt32BE(13,8); png.write('IHDR',12); png.writeUInt32BE(1,16); png.writeUInt32BE(1,20);

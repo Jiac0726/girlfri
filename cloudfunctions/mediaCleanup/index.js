@@ -1,7 +1,9 @@
 const cloud = require('wx-server-sdk');
+const cloudbase = require('@cloudbase/node-sdk');
 const { createMediaCleanup } = require('./worker');
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
-const worker = createMediaCleanup(cloud);
+const storage = cloudbase.init({ env: cloudbase.SYMBOL_CURRENT_ENV });
+const worker = createMediaCleanup(cloud, undefined, { getUploadMetadata: input => storage.getUploadMetadata(input) });
 
 exports.main = async () => {
   if (cloud.getWXContext().OPENID) {

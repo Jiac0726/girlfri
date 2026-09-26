@@ -1,4 +1,4 @@
-function createMediaCleanup(cloud, clock = () => new Date()) {
+function createMediaCleanup(cloud, clock = () => new Date(), options = {}) {
   const db = cloud.database();
   const media = () => db.collection('v2_media');
   const atOrBefore = (value, now) => value && new Date(value).getTime() <= now.getTime();
@@ -44,16 +44,37 @@ function createMediaCleanup(cloud, clock = () => new Date()) {
       claimed = null;
       const ref = tx.collection('v2_media').doc(id);
       const record = await get(ref);
-      if (!record || record.status === 'attached' || record.status === 'deleted') return;
+      if (!record || record.status === 'attached') return;
+      // Older prepares did not register file IDs, and old cleanup may have marked
+      // these rows deleted without removing their uploaded storage object.
+      const legacyOrphan = record.status === 'deleted' && record.cloudPath && !record.stagingFileID && !record.fileID;
+      if (record.status === 'deleted' && !legacyOrphan) return;
       const now = clock();
       const expired = (['prepared', 'ready'].includes(record.status) && atOrBefore(record.expiresAt, now)) ||
         (record.status === 'confirming' && atOrBefore(record.confirmLeaseUntil, now));
       const pending = record.status === 'cleanup_pending' && (!record.cleanupAfter || atOrBefore(record.cleanupAfter, now));
-      if (!expired && !pending && record.status !== 'cleanup_claimed') return;
+      if (!expired && !pending && !legacyOrphan && record.status !== 'cleanup_claimed') return;
       await ref.update({ data: { status: 'cleanup_claimed', updatedAt: now } });
       claimed = record;
     });
     if (!claimed) return false;
+    if (claimed.cloudPath && !claimed.stagingFileID) {
+      if (!claimed.ownerOpenid || !claimed.cloudPath.startsWith('v2-upload/' + claimed.ownerOpenid + '/') ||
+          /[?#%\\]/.test(claimed.cloudPath) || typeof options.getUploadMetadata !== 'function') {
+        throw new Error('UNREGISTERED_STAGING_FILE');
+      }
+      const metadata = await options.getUploadMetadata({ cloudPath: claimed.cloudPath });
+      const fileID = metadata && metadata.data && metadata.data.fileId;
+      const match = typeof fileID === 'string' && /^cloud:\/\/[^/]+\/(.+)$/.exec(fileID);
+      if (!match || match[1] !== claimed.cloudPath) throw new Error('INVALID_STAGING_FILE');
+      await db.runTransaction(async tx => {
+        const ref = tx.collection('v2_media').doc(id);
+        const latest = await get(ref);
+        if (!latest || latest.status !== 'cleanup_claimed' || latest.cloudPath !== claimed.cloudPath) throw new Error('CLEANUP_STATE_CHANGED');
+        await ref.update({ data: { stagingFileID: fileID } });
+      });
+      claimed.stagingFileID = fileID;
+    }
     // A failure leaves cleanup_claimed in the DB for the next scheduled run.
     for (const fileID of [...new Set([claimed.fileID, claimed.stagingFileID].filter(Boolean))]) {
       if (!/^cloud:\/\/[^/]+\/v2-(upload|published)\//.test(fileID)) throw new Error('INVALID_MEDIA_FILE');
@@ -77,6 +98,7 @@ function createMediaCleanup(cloud, clock = () => new Date()) {
       { status: 'confirming', confirmLeaseUntil: db.command.lte(now) },
       { status: 'cleanup_pending' },
       { status: 'cleanup_claimed' },
+      { status: 'deleted', stagingFileID: '', fileID: '' },
       { stagingCleanupPending: true },
     ];
     let removed = 0, failed = 0;

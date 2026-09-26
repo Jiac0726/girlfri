@@ -2,6 +2,14 @@
 
 const cloud = require('wx-server-sdk');
 const { transformLegacy } = require('./migration');
+const crypto = require('crypto');
+function canonical(value) {
+  if (value && typeof value.toJSON === 'function') return canonical(value.toJSON());
+  if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
+  if (value && typeof value === 'object') return '{' + Object.keys(value).sort().map(k => JSON.stringify(k) + ':' + canonical(value[k])).join(',') + '}';
+  return JSON.stringify(value);
+}
+function fingerprint(value) { return crypto.createHash('sha256').update(canonical(value)).digest('hex'); }
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
@@ -150,18 +158,22 @@ async function apply(event) {
     throw new Error('CONFIRM_REQUIRED: confirm must equal MIGRATE_V2_FROM_LEGACY');
   }
 
-  const legacy = await loadLegacy();
-  const transformed = transformLegacy(legacy, new Date());
-  if (!transformed.ok) {
-    return { ok: false, stage: 'validation', counts: transformed.counts, blockers: transformed.blockers, warnings: transformed.warnings };
-  }
-
   const currentMarker = await marker();
   if (currentMarker && currentMarker.status === 'completed') {
     return { ok: true, alreadyCompleted: true, receipt: currentMarker.receipt || currentMarker };
   }
-
+  const startedAt = currentMarker && currentMarker.startedAt || new Date();
+  const legacy = await loadLegacy();
+  const sourceFingerprint = fingerprint(legacy);
   const resume = !!(currentMarker && currentMarker.status === 'running');
+  if (resume && currentMarker.sourceFingerprint !== sourceFingerprint) {
+    throw new Error('SOURCE_CHANGED: 源数据已变化或旧迁移缺少指纹。请停止旧库写入并核对备份及部分迁移结果，不能按旧条数续跑。');
+  }
+  const transformed = transformLegacy(legacy, startedAt);
+  if (!transformed.ok) {
+    return { ok: false, stage: 'validation', counts: transformed.counts, blockers: transformed.blockers, warnings: transformed.warnings };
+  }
+
   if (!resume) {
     const targets = await targetState();
     const unavailable = Object.entries(targets).filter(([, state]) => !state.exists);
@@ -184,14 +196,14 @@ async function apply(event) {
     }
     await setMarker({
       status: 'running',
-      startedAt: new Date(),
+      startedAt,
+      sourceFingerprint,
       sourceCounts: transformed.counts,
       progress: {},
     });
   }
 
   const progress = Object.assign({}, currentMarker && currentMarker.progress || {});
-  const startedAt = currentMarker && currentMarker.startedAt || new Date();
   try {
     for (const name of WRITABLE_TARGETS) {
       const docs = transformed.documents[name] || [];
@@ -201,11 +213,27 @@ async function apply(event) {
         await setMarker({
           status: 'running',
           startedAt,
+          sourceFingerprint,
           sourceCounts: transformed.counts,
           progress,
         });
       });
       progress[name] = docs.length;
+    }
+
+    if (fingerprint(await loadLegacy()) !== sourceFingerprint) throw new Error('SOURCE_CHANGED: 迁移期间源数据发生变化，尚未确认完成。');
+    for (const name of WRITABLE_TARGETS) {
+      const expected = transformed.documents[name] || [];
+      const actual = await readAll(name);
+      const byId = new Map(actual.map(doc => [doc._id, doc]));
+      if (new Set(expected.map(doc => doc._id)).size !== expected.length || actual.length !== expected.length) {
+        throw new Error('TARGET_MISMATCH: ' + name + ' 记录数量或 ID 不匹配');
+      }
+      for (const doc of expected) {
+        const stored = byId.get(doc._id);
+        const projected = stored && Object.fromEntries(Object.keys(doc).map(key => [key, stored[key]]));
+        if (!stored || fingerprint(projected) !== fingerprint(doc)) throw new Error('TARGET_MISMATCH: ' + name + ' 记录内容不匹配');
+      }
     }
 
     const receipt = {
@@ -219,6 +247,7 @@ async function apply(event) {
     await setMarker({
       status: 'completed',
       startedAt,
+      sourceFingerprint,
       completedAt: receipt.completedAt,
       sourceCounts: transformed.counts,
       progress,
@@ -230,6 +259,7 @@ async function apply(event) {
     await setMarker({
       status: 'running',
       startedAt,
+      sourceFingerprint,
       sourceCounts: transformed.counts,
       progress,
       lastError: String((error && (error.errMsg || error.message)) || error).slice(0, 500),

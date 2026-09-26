@@ -1,6 +1,7 @@
 'use strict';
 
 const { assert, fail, hash, randomId, text } = require('./v2-core');
+const { entryVisibleTo } = require('./v2-visibility');
 const MAX_BYTES = 5 * 1024 * 1024;
 const TTL = 24 * 3600000;
 const LEASE = 5 * 60000;
@@ -14,7 +15,7 @@ function imageExtension(buffer) {
   return '';
 }
 
-function createMedia(ctx) {
+function createMedia(ctx, options = {}) {
   const { cloud, db, transaction, get, put, membership, mutate, ownedDocument } = ctx;
   function parsedFile(fileID, path) {
     const environment = String((cloud.getWXContext() || {}).ENV || process.env.TCB_ENV || process.env.SCF_NAMESPACE || '');
@@ -24,16 +25,18 @@ function createMedia(ctx) {
     assert(match && (match[1] === environment || match[1].startsWith(environment + '.')) && match[2] === path && !/[?#%\\]/.test(match[2]), 'INVALID_MEDIA_FILE', '图片不属于本次上传');
     return { authority: match[1] };
   }
-  async function signed(documents) {
+  async function signed(documents, tolerant = false) {
     const ids = [...new Set(documents.map(m => m.fileID).filter(Boolean))];
     const urls = new Map();
     for (let start = 0; start < ids.length; start += 50) {
-      const response = await cloud.getTempFileURL({ fileList: ids.slice(start, start + 50) });
+      let response;
+      try { response = await cloud.getTempFileURL({ fileList: ids.slice(start, start + 50) }); }
+      catch (error) { if (!tolerant) throw error; continue; }
       for (const item of response.fileList || []) {
         if ((item.status === undefined || item.status === 0) && item.tempFileURL) urls.set(item.fileID, item.tempFileURL);
       }
     }
-    assert(ids.every(id => urls.has(id)), 'MEDIA_URL_FAILED', '图片暂时无法加载，请重试');
+    if (!tolerant) assert(ids.every(id => urls.has(id)), 'MEDIA_URL_FAILED', '图片暂时无法加载，请重试');
     return documents.map(doc => ({ id: doc._id, fileID: doc.fileID, url: urls.get(doc.fileID) || '' }));
   }
   async function prepare(event, openid) {
@@ -51,9 +54,20 @@ function createMedia(ctx) {
     });
     const current = await get(db, 'media', doc._id);
     assert(current && ['prepared', 'confirming', 'ready', 'attached'].includes(current.status), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
-    // The client uploads only to the exact random path issued above. The returned
-    // fileID is verified against this path and current environment during confirm,
-    // so prepare does not need a second server SDK just to pre-compute fileID.
+    if (current.status !== 'attached') assert(new Date(current.expiresAt).getTime() > Date.now(), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
+    if (!current.stagingFileID) {
+      assert(typeof options.getUploadMetadata === 'function', 'MEDIA_ENV_UNAVAILABLE', '图片服务暂时不可用');
+      // Reuse the database's initialized Node SDK. Register identity before the
+      // client can upload so an interrupted upload remains discoverable by cleanup.
+      const metadata = await options.getUploadMetadata({ cloudPath: doc.cloudPath });
+      const fileID = metadata && metadata.data && metadata.data.fileId;
+      parsedFile(fileID, doc.cloudPath);
+      await transaction(async tx => {
+        const latest = await get(tx, 'media', doc._id);
+        assert(latest && latest.status === 'prepared' && new Date(latest.expiresAt).getTime() > Date.now(), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
+        await put(tx, 'media', doc._id, Object.assign({}, latest, { stagingFileID: fileID }));
+      });
+    }
     return { id: doc._id, cloudPath: doc.cloudPath };
   }
   async function deleteStaging(doc) {
@@ -155,6 +169,7 @@ function createMedia(ctx) {
           assert((memo && (memo.images || []).includes(id)) || legacyMatch, 'MEDIA_UNAVAILABLE', '图片已不可用');
         } else {
           const entry = await ownedDocument(db, 'entries', doc.entryId, member.pair._id);
+          assert(entryVisibleTo(entry, openid), 'NOT_FOUND', '图片不存在或无权访问');
           assert(!entry.deleted && entry.images.includes(id), 'MEDIA_UNAVAILABLE', '图片已不可用');
         }
       } else {
@@ -225,16 +240,20 @@ function createMedia(ctx) {
     return signed(docs);
   }
 
-  async function entryImages(entry) {
+  async function entryImages(entry, tolerant = false) {
     if (entry.deleted || !entry.images.length) return [];
     const docs = [];
     for (const id of entry.images) {
-      const doc = await get(db, 'media', id);
-      assert(doc && doc.coupleId === entry.coupleId && doc.entryId === entry._id &&
-        (!doc.attachmentType || doc.attachmentType === 'entry') && doc.status === 'attached', 'MEDIA_UNAVAILABLE', '图片状态已改变，请刷新');
-      docs.push(doc);
+      let doc;
+      try { doc = await get(db, 'media', id); }
+      catch (error) { if (!tolerant) throw error; }
+      const valid = doc && doc.coupleId === entry.coupleId && doc.entryId === entry._id &&
+        (!doc.attachmentType || doc.attachmentType === 'entry') && doc.status === 'attached';
+      if (!tolerant) assert(valid, 'MEDIA_UNAVAILABLE', '图片状态已改变，请刷新');
+      // Never sign an invalid or foreign asset, even when degrading the UI.
+      docs.push(valid ? doc : { _id: id, fileID: '' });
     }
-    return signed(docs);
+    return signed(docs, tolerant);
   }
 
   return { prepare, confirm, urls, sync, syncPrivateMemo, privateMemoImages, entryImages };
