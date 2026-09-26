@@ -115,18 +115,21 @@ test('binding failure has a retry state; own invite replacement requires confirm
   await page.refresh();assert.equal(page.data.bindingStatus,'error');await page.refresh();
   page.setData({joinCode:'BCDEFGHJ'});await page.joinPair();assert.equal(joins,0);assert.equal(page.data.inviteCode,'ABCDEFGH');
 });
-test('profile private memo saves only through the owner memo API',async()=>{
+test('profile private memo creates an item with attached image ids',async()=>{
   const writes=[];
+  const saved={id:'memo1',title:'礼物',text:'下次见面记得带礼物',images:[{id:'photo',url:'signed'}],version:1,updatedAt:'2026-09-26T06:00:00Z'};
   const {page,events}=loadPage('profile',{
-    updatePrivateMemo:async(text,version)=>{writes.push([text,version]);return {text,version:version+1,updatedAt:'2026-09-26T06:00:00Z'};},
+    createPrivateMemo:async data=>{writes.push(JSON.parse(JSON.stringify(data)));return saved;},
+    listPrivateMemos:async()=>({items:[saved]}),
   });
-  page.setData({bindingStatus:'active',authLoading:false,privateMemo:'',savedPrivateMemo:''});
-  page._memoVersion=2;
-  page.onPrivateMemoInput({detail:{value:'下次见面记得带礼物'}});
-  await page.savePrivateMemo();
-  assert.deepEqual(writes[0],['下次见面记得带礼物',2]);
-  assert.equal(page.data.savedPrivateMemo,'下次见面记得带礼物');
-  assert.equal(page._memoVersion,3);
+  page.setData({bindingStatus:'active',authLoading:false,memoTitle:'礼物',memoText:'下次见面记得带礼物',memoImages:[{id:'photo',url:'signed'}]});
+  await page.saveMemo();
+  assert.equal(writes.length,1);
+  assert.equal(writes[0].title,'礼物');
+  assert.equal(writes[0].text,'下次见面记得带礼物');
+  assert.deepEqual(writes[0].images,['photo']);
+  assert.equal(page.data.memoItems.length,1);
+  assert.equal(page.data.memoText,'');
   assert.equal(events.find(x=>x.method==='showToast').value.title,'只保存给你自己');
 });
 test('reminder is enabled only after explicit subscribe acceptance, with setting version',async()=>{
