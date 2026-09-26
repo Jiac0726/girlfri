@@ -93,6 +93,39 @@ private memo media 使用 ownerOpenid 与 memo 归属校验。
 ### P-007 迁移防重复/防源变化
 legacy migration 使用 source fingerprint、progress marker、目标集合非空保护和完成 receipt。
 
+### F-004 心意券“写入成功 + 列表刷新失败”会丢失重试凭据
+**状态：已确认，确定性前端状态 Bug。**
+
+`pages/privileges/privileges.js` 的 `gift()` 在 `api.giftCoupon()` 成功后立即把 `this._gift` 置空、清空标题/备注，再调用 `load()` 刷新列表。如果写入已经成功但随后 `load()` 因网络错误失败，catch 会把页面置为 uncertain，但原 requestId/内容已经丢失。
+
+结果是按钮显示“重试确认”，实际上没有原操作可重试；用户重新填写后会生成新的 requestId。对于创建类操作，这可能产生重复心意券，也会让“重试确认”语义失效。
+
+**最小修复方向：**
+先保留 `_gift`，直到刷新成功；刷新失败时继续使用原 requestId 重试，不重新生成券。
+
+### F-005 共同约定“写入成功 + 列表刷新失败”同样丢失原操作
+**状态：已确认，确定性前端状态 Bug。**
+
+`pages/permissions/permissions.js` 的 `submitAgreement()` 在 `api.proposeAgreement()` 成功后立即：
+1. 清除 requestId；
+2. 清空 `_pendingProposal`；
+3. 清空编辑内容；
+4. 再调用 `loadAgreements()`。
+
+如果第 4 步失败，页面会进入 uncertain，但原 proposal 和 requestId 已不可恢复。再次点击“重试确认”不能复用原提议，甚至表单已经清空。
+
+### F-006 私密备忘“写入成功 + 列表刷新失败”也丢失原操作
+**状态：已确认，确定性前端状态 Bug。**
+
+`pages/profile/profile.js` 的 `saveMemo()` 在 create/update 成功后先调用 `resetMemoEditor()`，然后才执行 `listPrivateMemos()`。若列表读取失败，catch 看不到 `_memoPending`，因此不能进入真正的“待确认重试”路径；编辑内容也已经被清空。
+
+这与当前页面文案“保存结果待确认，请重试确认”的设计不一致。对新建备忘录尤其可能造成重复条目。
+
+### F-007 心意券/约定/备忘缺少“mutation 成功后刷新失败”的回归测试
+**状态：已确认，测试缺口。**
+
+`tests/frontend/pages.test.js` 目前覆盖了 mutation 本身超时、重试保持 requestId 等场景，但没有覆盖“服务端 mutation 已经返回成功，随后列表刷新请求失败”的两阶段场景。这正是 F-004/F-005/F-006 的触发条件。
+
 ## 5. 新增发现
 
 ### D-001 RELEASE-CHECKLIST 与当前 v2 代码不一致
