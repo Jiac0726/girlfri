@@ -151,6 +151,22 @@ test('profile private memo creates an item with attached image ids',async()=>{
   assert.equal(page.data.memoText,'');
   assert.equal(events.find(x=>x.method==='showToast').value.title,'只保存给你自己');
 });
+test('miss notification authorization stores one accepted one-time quota',async()=>{
+  const writes=[];
+  const template='RWnfT0dJaUjWh6e1XsFpL6H2mshGw05zT2zBLP3clro';
+  const {page,events}=loadPage('profile',{
+    authorizeMissNotify:async data=>{writes.push(data);return {templateId:template,quota:1,enabled:true};},
+    getMissNotifySettings:async()=>({templateId:template,quota:0,enabled:false}),
+  },{requestSubscribeMessage:options=>options.success({[template]:'accept'})});
+  page.setData({bindingStatus:'active',authLoading:false,missNotifyReady:true});
+  await page.authorizeMissNotify();
+  assert.equal(writes.length,1);
+  assert.match(writes[0].requestId,/^request_/);
+  assert.equal(page.data.missNotifyQuota,1);
+  assert.equal(page.data.missNotifyStatusText,'已允许 1 次想念提醒');
+  assert.equal(events.find(x=>x.method==='showToast').value.title,'下一次想念会提醒你 ♡');
+});
+
 test('reminder is enabled only after explicit subscribe acceptance, with setting version',async()=>{
   const changes=[];
   const {page}=loadPage('profile',{updateReminderSettings:async(...data)=>{changes.push(data);return {enabled:true,time:'21:30',version:3};}},
