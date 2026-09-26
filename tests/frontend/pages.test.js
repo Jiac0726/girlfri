@@ -80,15 +80,19 @@ test('drafts are cleared when switching relationship',()=>{
   drafts.activate('A');drafts.write('A','',{text:'private'});drafts.activate('B');
   assert.equal(drafts.read('B',''),null);assert.equal(drafts.read('A',''),null);
 });
-test('review ignores an older month response',async()=>{
+test('review ignores an older month response and keeps compact day labels',async()=>{
   const old=deferred();const {page}=loadPage('review',{
     getSession:async()=>session,
-    getEntryMonth:month=>month==='2026-08'?old.promise:Promise.resolve({month,totalEntries:2,recordDays:1,sharedDays:1,days:[]}),
+    getEntryMonth:month=>month==='2026-08'?old.promise:Promise.resolve({month,totalEntries:2,recordDays:1,sharedDays:1,days:[{date:'2026-09-26',count:2}]}),
     listEntries:async()=>({items:[]}),
   });
   page.setData({month:'2026-08'});const first=page.refresh();await tick();
   page.setData({month:'2026-09'});await page.refresh();old.resolve({month:'2026-08',totalEntries:99,days:[]});await first;
-  assert.equal(page.data.month,'2026-09');assert.equal(page.data.totalEntries,2);
+  assert.equal(page.data.month,'2026-09');assert.equal(page.data.monthLabel,'9月');assert.equal(page.data.totalEntries,2);
+  assert.equal(page.data.days[0].dayLabel,'26日');
+  page.chooseDay({currentTarget:{dataset:{day:'2026-09-26'}}});
+  assert.equal(page.data.selectedDayLabel,'26日');
+  page.clearDay();assert.equal(page.data.selectedDay,'');
 });
 test('gift retries a timeout without duplicate request or changing content',async()=>{
   const writes=[];let count=0;
