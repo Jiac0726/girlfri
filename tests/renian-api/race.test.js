@@ -134,23 +134,41 @@ test('coupon double request and double approval commit once', async () => {
   assert.equal(approvals[0].status,'used'); assert.equal(approvals[1].status,'used');
   assert.equal(cloud.__colStore('v2_coupon_requests').size,1);
 });
-test('private love memo is readable only through the owner profile', async () => {
+test('private love memo items and images are owner-only', async () => {
   await pair();
-  const saved = await call('profile.memo.update','A',{text:'记得周末准备一束花',expectedVersion:0});
-  assert.equal(saved.text,'记得周末准备一束花');
-  assert.equal(saved.version,1);
 
-  const aProfile = await call('profile.get','A');
-  const bProfile = await call('profile.get','B');
-  assert.equal(aProfile.privateMemo.text,'记得周末准备一束花');
-  assert.equal(aProfile.privateMemo.version,1);
-  assert.equal(bProfile.privateMemo.text,'');
-  assert.equal(JSON.stringify(bProfile).includes('记得周末准备一束花'),false);
+  const prepared = await call('media.prepare','A',{name:'memo-photo',size:35});
+  const fileID='cloud://mock-env.bucket/'+prepared.cloudPath;
+  const png=Buffer.alloc(35); Buffer.from([137,80,78,71,13,10,26,10]).copy(png); png.writeUInt32BE(13,8); png.write('IHDR',12); png.writeUInt32BE(1,16); png.writeUInt32BE(1,20);
+  cloud.__files.set(fileID,png);
+  const ready = await call('media.confirm','A',{id:prepared.id,fileID});
 
-  await failure(call('profile.memo.update','A',{text:'过期写入',expectedVersion:0}),'VERSION_CONFLICT');
-  const cleared = await call('profile.memo.update','A',{text:'',expectedVersion:1});
-  assert.equal(cleared.text,'');
-  assert.equal(cleared.version,2);
+  const memo = await call('memo.create','A',{title:'礼物',text:'记得周末准备一束花',images:[ready.id]});
+  assert.equal(memo.title,'礼物');
+  assert.equal(memo.images.length,1);
+  assert.equal((await call('memo.list','A')).items.length,1);
+  assert.equal((await call('memo.list','B')).items.length,0);
+  await failure(call('media.urls','B',{ids:[ready.id]}),'FORBIDDEN');
+
+  const changed = await call('memo.update','A',{id:memo.id,expectedVersion:1,title:'礼物清单',text:'准备一束花',images:[ready.id]});
+  assert.equal(changed.version,2);
+  assert.equal(changed.title,'礼物清单');
+  await failure(call('memo.update','A',{id:memo.id,expectedVersion:1,title:'旧写入',text:'x',images:[ready.id]}),'VERSION_CONFLICT');
+
+  await call('memo.delete','A',{id:memo.id,expectedVersion:2});
+  assert.equal((await call('memo.list','A')).items.length,0);
+  assert.equal(cloud.__colStore('v2_media').get(ready.id).status,'cleanup_pending');
+});
+
+test('old single private memo appears as one item without exposing it to partner', async () => {
+  await pair();
+  await call('profile.memo.update','A',{text:'旧版单条备忘',expectedVersion:0});
+  const mine = await call('memo.list','A');
+  const partnerList = await call('memo.list','B');
+  assert.equal(mine.items.length,1);
+  assert.equal(mine.items[0].text,'旧版单条备忘');
+  assert.equal(partnerList.items.length,0);
+  assert.equal(JSON.stringify(await call('profile.get','B')).includes('旧版单条备忘'),false);
 });
 test('reminders default off and settings reject stale updates', async () => {
   await pair(); assert.equal((await call('reminder.get')).enabled,false);

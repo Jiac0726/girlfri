@@ -417,8 +417,39 @@
 .private-memo-head .card-title{margin-bottom:6rpx}
 .private-memo-sub{color:#a18690;font-size:21rpx;line-height:1.6}
 .private-memo-lock{flex-shrink:0;padding:7rpx 14rpx;border-radius:999rpx;background:#f4e9ed;color:#8c6e79;font-size:19rpx;line-height:1.4}
-.private-memo-input{width:100%;min-height:190rpx;margin-top:24rpx;padding:22rpx 24rpx;box-sizing:border-box;border:1rpx solid #eedce2;border-radius:20rpx;background:#fffafb;color:#4f3b44;font-size:26rpx;line-height:1.75}
-.private-memo-meta{display:flex;align-items:center;justify-content:space-between;gap:18rpx;margin-top:10rpx;color:#b49aa3;font-size:19rpx}
-.private-memo-save{width:100%;height:82rpx;margin-top:20rpx;border-radius:999rpx;background:#8f4960;color:#fff;font-size:25rpx;font-weight:600;line-height:82rpx}
-.private-memo-save::after{border:0}
-.private-memo-save[disabled]{background:#eadce1;color:#b99fa8}
+.memo-editor{margin-top:24rpx;padding:22rpx;border:1rpx solid #eedce2;border-radius:22rpx;background:#fffafb}
+.memo-title-input{width:100%;height:76rpx;box-sizing:border-box;padding:0 18rpx;border-radius:16rpx;background:#fff;color:#503c45;font-size:25rpx}
+.private-memo-input{width:100%;min-height:170rpx;margin-top:14rpx;padding:18rpx;box-sizing:border-box;border-radius:16rpx;background:#fff;color:#4f3b44;font-size:25rpx;line-height:1.75}
+.memo-draft-images{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10rpx;margin-top:16rpx}
+.memo-draft-image{position:relative;height:150rpx;overflow:hidden;border-radius:14rpx;background:#f6e9ed}
+.memo-draft-image image{width:100%;height:100%;display:block}
+.memo-draft-image button{position:absolute;top:6rpx;right:6rpx;width:42rpx;height:42rpx;margin:0;padding:0;border-radius:50%;background:rgba(62,43,51,.72);color:#fff;font-size:24rpx;line-height:42rpx}
+.memo-draft-image button::after{border:0}
+.memo-add-photo{width:100%;height:72rpx;margin-top:16rpx;border:1rpx dashed #ddb7c4;border-radius:16rpx;background:#fff6f8;color:#a84f6a;font-size:23rpx;line-height:72rpx}
+.memo-add-photo::after{border:0}
+.memo-add-photo[disabled]{background:#faf4f6;color:#c6adb5}
+.private-memo-meta{display:flex;align-items:center;justify-content:space-between;gap:18rpx;margin-top:12rpx;color:#b49aa3;font-size:19rpx}
+.memo-editor-actions{display:flex;gap:12rpx;margin-top:18rpx}
+.private-memo-save,.memo-cancel{height:78rpx;margin:0;border-radius:999rpx;font-size:24rpx;line-height:78rpx}
+.private-memo-save{flex:1;background:#8f4960;color:#fff;font-weight:600}
+.memo-cancel{width:170rpx;background:#f2e6ea;color:#8b6874}
+.private-memo-save::after,.memo-cancel::after{border:0}
+.private-memo-save[disabled],.memo-cancel[disabled]{background:#eadce1;color:#b99fa8}
+.memo-list-head{display:flex;align-items:center;justify-content:space-between;margin-top:30rpx;padding:0 4rpx 14rpx;color:#674a56;font-size:24rpx;font-weight:700}
+.memo-list-head text:last-child{color:#b399a3;font-size:19rpx;font-weight:400}
+.memo-empty{padding:28rpx 18rpx;border-radius:18rpx;background:#fff8fa;color:#ad909a;font-size:22rpx;line-height:1.7;text-align:center}
+.memo-item{margin-top:14rpx;padding:22rpx;border:1rpx solid #efdee4;border-radius:20rpx;background:#fff}
+.memo-item-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18rpx}
+.memo-item-title{min-width:0;color:#523c46;font-size:26rpx;font-weight:700;word-break:break-all}
+.memo-item-date{flex-shrink:0;color:#b39aa3;font-size:18rpx}
+.memo-item-text{margin-top:12rpx;color:#6a515b;font-size:24rpx;line-height:1.75;white-space:pre-wrap;word-break:break-word}
+.memo-item-images{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8rpx;margin-top:16rpx}
+.memo-item-images.single{grid-template-columns:minmax(0,1fr)}
+.memo-item-image{height:150rpx;overflow:hidden;border-radius:12rpx;background:#f6eaee}
+.memo-item-images.single .memo-item-image{height:300rpx}
+.memo-item-image image{width:100%;height:100%;display:block}
+.memo-item-actions{display:flex;justify-content:flex-end;gap:20rpx;margin-top:16rpx;padding-top:14rpx;border-top:1rpx solid #f3e8eb}
+.memo-action{margin:0;padding:4rpx 0;background:transparent;color:#a84f6a;font-size:22rpx;line-height:1.6}
+.memo-action.delete{color:#9f7d88}
+.memo-action::after{border:0}
+
