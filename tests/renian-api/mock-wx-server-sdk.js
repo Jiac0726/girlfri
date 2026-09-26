@@ -30,10 +30,10 @@ function document(col, id) {
       if (!colStore(col).has(id)) throw missing();
       const data = row(id, colStore(col).get(id));
       if (hooks.afterGet) await hooks.afterGet(col, id);
-      return { data };
+      return { data: [data] };
     },
-    async set({data}) { if (hooks.beforeSet) await hooks.beforeSet(col, id, data); colStore(col).set(id, structuredClone(data)); return { _id: id }; },
-    async update({data}) { if (hooks.beforeUpdate) await hooks.beforeUpdate(col, id, data); if (!colStore(col).has(id)) throw missing(); colStore(col).set(id, Object.assign({}, colStore(col).get(id), structuredClone(data))); return {}; },
+    async set(data) { if (hooks.beforeSet) await hooks.beforeSet(col, id, data); colStore(col).set(id, structuredClone(data)); return { _id: id }; },
+    async update(data) { if (hooks.beforeUpdate) await hooks.beforeUpdate(col, id, data); if (!colStore(col).has(id)) throw missing(); colStore(col).set(id, Object.assign({}, colStore(col).get(id), structuredClone(data))); return {}; },
     async remove() { colStore(col).delete(id); return {}; },
   };
 }
