@@ -12,7 +12,7 @@
 .stat text{display:block;margin-bottom:2rpx;color:#643f50;font-size:34rpx;font-weight:700;line-height:1.25}
 
 .days-scroll{width:100%;margin-top:18rpx;white-space:nowrap}
-.days{display:flex;gap:10rpx;width:max-content;padding:2rpx 2rpx 6rpx}
+.days{display:inline-flex;gap:10rpx;padding:2rpx 2rpx 6rpx}
 .day{flex-shrink:0;width:104rpx;height:72rpx;margin:0;padding:8rpx 6rpx;border:1rpx solid #efdee4;border-radius:18rpx;background:#fff8fa;color:#927381;font-size:19rpx;line-height:1.2}
 .day text{display:block;color:#765564;font-size:22rpx;font-weight:600}
 .day view{margin-top:4rpx}
