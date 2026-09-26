@@ -183,6 +183,28 @@ test('miss-you tap increments only the partner and retries are idempotent', asyn
   assert.equal((await call('session.get','B')).missCount,2);
 });
 
+test('miss notification requires recipient authorization and consumes one quota', async () => {
+  await pair();
+  const settings = await call('miss.notify.authorize','B',{requestId:'miss_auth_request'});
+  assert.equal(settings.quota,1);
+  assert.equal((await call('miss.notify.get','B')).enabled,true);
+
+  const result = await call('miss.send','A',{requestId:'miss_notify_request'});
+  assert.equal(result.partnerCount,1);
+  assert.equal(result.notified,true);
+  assert.equal(cloud.__subscribeMessages.length,1);
+  const message = cloud.__subscribeMessages[0];
+  assert.equal(message.touser,'B');
+  assert.equal(message.templateId,'RWnfT0dJaUjWh6e1XsFpL6H2mshGw05zT2zBLP3clro');
+  assert.equal(message.data.number8.value,'1');
+  assert.match(message.data.time7.value,/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+  assert.equal((await call('miss.notify.get','B')).quota,0);
+
+  const retry = await call('miss.send','A',{requestId:'miss_notify_request'});
+  assert.equal(retry.partnerCount,1);
+  assert.equal(cloud.__subscribeMessages.length,1);
+});
+
 test('reminders default off and settings reject stale updates', async () => {
   await pair(); assert.equal((await call('reminder.get')).enabled,false);
   const on=await call('reminder.update','A',{enabled:true,time:'21:30',expectedVersion:0});

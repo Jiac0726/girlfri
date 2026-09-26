@@ -188,6 +188,34 @@
   </view>
 
 
+  <view class="card miss-notify-card" wx:if="{{bindingStatus === 'active'}}">
+    <view class="miss-notify-head">
+      <view>
+        <view class="card-title">想念提醒</view>
+        <view class="miss-notify-sub">TA 点“想念”时，可以用微信服务通知提醒你。</view>
+      </view>
+      <view class="miss-notify-badge">{{missNotifyQuota ? missNotifyQuota + ' 次' : '未授权'}}</view>
+    </view>
+
+    <view class="miss-notify-status">
+      <text class="reminder-dot {{missNotifyQuota ? 'active' : ''}}"></text>
+      <text>{{missNotifyStatusText}}</text>
+    </view>
+
+    <button
+      class="miss-notify-button"
+      bindtap="authorizeMissNotify"
+      loading="{{missNotifySaving}}"
+      disabled="{{missNotifySaving || authLoading || !missNotifyReady}}"
+    >
+      {{missNotifyQuota ? '再允许一次提醒' : '允许下一次想念提醒'}}
+    </button>
+
+    <view class="reminder-note">
+      这是一次性订阅：每允许 1 次，就能收到 1 次想念通知；用完后可再次允许。
+    </view>
+  </view>
+
   <view class="card reminder-card" wx:if="{{bindingStatus === 'active'}}">
     <view class="reminder-head">
       <view>

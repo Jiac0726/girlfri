@@ -317,6 +317,64 @@
 }
 
 
+
+.miss-notify-card {
+  margin-top: 34rpx;
+  background: linear-gradient(145deg, #fffdfd, #fff4f7);
+}
+.miss-notify-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 18rpx;
+}
+.miss-notify-head > view:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.miss-notify-sub {
+  margin-top: 6rpx;
+  color: #aa8995;
+  font-size: 22rpx;
+  line-height: 1.55;
+}
+.miss-notify-badge {
+  flex-shrink: 0;
+  padding: 8rpx 14rpx;
+  border-radius: 999rpx;
+  background: #f8e6ec;
+  color: #a64d68;
+  font-size: 19rpx;
+  line-height: 1.4;
+}
+.miss-notify-status {
+  display: flex;
+  align-items: center;
+  margin-top: 22rpx;
+  color: #9f828d;
+  font-size: 21rpx;
+}
+.miss-notify-status .reminder-dot.active {
+  background: #ff6b81;
+  box-shadow: 0 0 0 7rpx rgba(255, 107, 129, 0.12);
+}
+.miss-notify-button {
+  width: 100%;
+  height: 82rpx;
+  margin-top: 20rpx;
+  border-radius: 999rpx;
+  background: #9f415d;
+  color: #fff8fa;
+  font-size: 24rpx;
+  line-height: 82rpx;
+}
+.miss-notify-button::after {
+  border: 0;
+}
+.miss-notify-button[disabled] {
+  background: #ead9df;
+  color: #b99fa8;
+}
+
 .reminder-card {
   margin-top: 34rpx;
 }

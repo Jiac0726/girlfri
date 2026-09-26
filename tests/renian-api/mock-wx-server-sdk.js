@@ -106,6 +106,7 @@ function runTransaction(fn) {
   queue = result.catch(() => {}); return result;
 }
 const files = new Map();
+const subscribeMessages = [];
 const cloud = {
   init() {}, DYNAMIC_CURRENT_ENV: 'mock-env', _openid: 'A',
   getWXContext: () => ({ OPENID: cloud._openid, ENV: 'mock-env' }),
@@ -115,9 +116,19 @@ const cloud = {
   async uploadFile({cloudPath, fileContent}) { const fileID = 'cloud://mock-env.bucket/' + cloudPath; files.set(fileID, Buffer.from(fileContent)); return { fileID }; },
   async downloadFile({fileID}) { if (!files.has(fileID)) throw new Error('missing file'); return { fileContent: files.get(fileID) }; },
   async deleteFile({fileList}) { return { fileList: fileList.map(fileID => { files.delete(fileID); return { fileID, status: 0 }; }) }; },
-  openapi: { subscribeMessage: { send: async () => ({}) } },
-  __store: store, __colStore: colStore, __hooks: hooks, __files: files,
+  openapi: { subscribeMessage: {
+    getTemplateList: async () => ({
+      data: [{
+        priTmplId: 'RWnfT0dJaUjWh6e1XsFpL6H2mshGw05zT2zBLP3clro',
+        title: '聊天消息通知',
+        content: '消息时间:{{time7.DATA}}\n消息条数:{{number8.DATA}}',
+        type: 2,
+      }],
+    }),
+    send: async input => { subscribeMessages.push(structuredClone(input)); return {}; },
+  } },
+  __store: store, __colStore: colStore, __hooks: hooks, __files: files, __subscribeMessages: subscribeMessages,
   __setOpenid(value) { cloud._openid = value; },
-  __reset() { for (const key of Object.keys(store)) delete store[key]; for (const key of Object.keys(hooks)) delete hooks[key]; files.clear(); },
+  __reset() { for (const key of Object.keys(store)) delete store[key]; for (const key of Object.keys(hooks)) delete hooks[key]; files.clear(); subscribeMessages.length = 0; },
 };
 module.exports = cloud;
