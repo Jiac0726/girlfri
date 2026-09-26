@@ -27,18 +27,33 @@ function loadPage(name, api = {}, customWx = {}) {
 }
 const session={bindingStatus:'active',coupleId:'pair',serverDate:'2026-09-26'};
 const entry={id:'entry',text:'hello',mood:'',images:[],version:1,fromMe:true,createdAt:'2026-09-26T01:00:00Z',dayKey:'2026-09-26'};
-test('older feed response cannot restore a previous relation',async()=>{
+test('older home summary response cannot restore a previous relation',async()=>{
   const old=deferred();let calls=0;
-  const {page}=loadPage('index',{getSession:()=>++calls===1?old.promise:Promise.resolve({bindingStatus:'unbound'}),listEntries:async()=>({items:[entry]})});
+  const {page}=loadPage('index',{
+    getSession:()=>++calls===1?old.promise:Promise.resolve({bindingStatus:'unbound'}),
+    getEntryMonth:async()=>({totalEntries:9,recordDays:3,sharedDays:2,days:[]}),
+  });
   const a=page.refresh(); await page.refresh(); old.resolve(session); await a;
-  assert.equal(page.data.bindingStatus,'unbound'); assert.equal(page.data.entries.length,0);
+  assert.equal(page.data.bindingStatus,'unbound'); assert.equal(page.data.totalEntries,0);
 });
-test('feed re-fetches current date on show and blocks composing while loading',async()=>{
+test('home loads only summary, blocks actions while loading, then opens composer and full feed',async()=>{
   const wait=deferred();
-  const {page,events}=loadPage('index',{getSession:()=>wait.promise,listEntries:async()=>({items:[entry]})});
-  const loading=page.refresh();page.writeEntry();assert.equal(events.length,0);
-  wait.resolve(session);await loading;page.writeEntry();
-  assert.equal(page.data.today,'2026-09-26');assert.equal(events[0].value.url,'/pages/entry/entry');
+  const {page,events}=loadPage('index',{
+    getSession:()=>wait.promise,
+    getEntryMonth:async()=>({totalEntries:6,recordDays:3,sharedDays:2,days:[{date:'2026-09-26',count:2}]}),
+  });
+  const loading=page.refresh();page.writeEntry();page.goDailyFeed();assert.equal(events.length,0);
+  wait.resolve(session);await loading;
+  assert.equal(page.data.today,'2026-09-26');assert.equal(page.data.todayEntries,2);assert.equal(page.data.totalEntries,6);
+  page.writeEntry();page.goDailyFeed();
+  assert.equal(events[0].value.url,'/pages/entry/entry');
+  assert.equal(events[1].value.url,'/pages/feed/feed');
+});
+test('expanded feed owns the full entry list',async()=>{
+  const {page}=loadPage('feed',{getSession:async()=>session,listEntries:async()=>({items:[entry],nextCursor:null})});
+  await page.refresh();
+  assert.equal(page.data.entries.length,1);
+  assert.equal(page.data.entries[0].text,'hello');
 });
 test('entry timeout freezes the submitted payload and retries with the same request id',async()=>{
   const sent=[];let tries=0;

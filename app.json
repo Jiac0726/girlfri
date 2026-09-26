@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/feed/feed",
     "pages/review/review",
     "pages/bind/bind",
     "pages/permissions/permissions",
@@ -21,9 +22,18 @@
     "backgroundColor": "#fffafb",
     "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/index/index", "text": "日常" },
-      { "pagePath": "pages/review/review", "text": "回顾" },
-      { "pagePath": "pages/profile/profile", "text": "我们" }
+      {
+        "pagePath": "pages/index/index",
+        "text": "日常"
+      },
+      {
+        "pagePath": "pages/review/review",
+        "text": "回顾"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我们"
+      }
     ]
   },
   "style": "v2",

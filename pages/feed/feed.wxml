@@ -1,0 +1,45 @@
+<import src="../index/entry-card.wxml" />
+<view class="journal-page feed-page">
+  <view class="feed-page-head">
+    <view>
+      <view class="eyebrow">热念 · 我们的日常</view>
+      <view class="page-title">全部日常</view>
+      <view class="page-sub">{{dateLabel}} · 往下翻，就能看到更早的记录。</view>
+    </view>
+    <button class="feed-compose" bindtap="writeEntry" disabled="{{loading || authLoading}}">＋</button>
+  </view>
+
+  <view class="state-panel" wx:if="{{authLoading}}">
+    <view class="state-symbol">♡</view>
+    <view>正在展开我们的日常…</view>
+  </view>
+
+  <view class="error-panel" wx:if="{{error}}">
+    <text>{{error}}</text>
+    <button class="text-button" bindtap="retry" disabled="{{loading}}">重新加载</button>
+  </view>
+
+  <block wx:if="{{bindingStatus === 'active'}}">
+    <view class="state-panel compact" wx:if="{{loading && !entries.length}}">正在加载记录…</view>
+    <view class="state-panel" wx:elif="{{!entries.length && !error}}">
+      <view class="state-symbol">✿</view>
+      <view class="state-title">第一篇，从今天开始</view>
+      <view class="state-copy">不用特别的事，平常的一天也值得留下。</view>
+      <button class="primary-button" bindtap="writeEntry">记下第一条</button>
+    </view>
+
+    <template wx:for="{{entries}}" wx:key="id" is="entry-card" data="{{entry:item, busyEntryId:busyEntryId, locked:loading}}" />
+
+    <view class="list-footer" wx:if="{{entries.length}}">
+      <view wx:if="{{loadingMore}}">正在翻开更多日常…</view>
+      <button wx:elif="{{moreError}}" class="text-button" bindtap="loadMore">{{moreError}} · 重试</button>
+      <button wx:elif="{{hasMore}}" class="text-button" bindtap="loadMore">看看更早的日常</button>
+      <view wx:else>已经翻到最初的那一页 ♡</view>
+    </view>
+  </block>
+
+  <view class="state-panel" wx:elif="{{!authLoading && !error}}">
+    <view class="state-title">需要先完成双人绑定</view>
+    <button class="primary-button" bindtap="goBind">去绑定</button>
+  </view>
+</view>

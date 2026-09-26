@@ -1,67 +1,118 @@
 const api = require('../../services/cloud');
 const view = require('../../services/entry-view');
 const drafts = require('../../services/entry-drafts');
-Page(Object.assign({}, view.entryActions, {
+
+Page({
   data: {
-    authLoading: true, loading: false, loadingMore: false, bindingStatus: 'loading',
-    entries: [], nextCursor: null, hasMore: false, error: '', moreError: '', busyEntryId: '',
-    today: '', dateLabel: '',
+    authLoading: true,
+    loading: false,
+    bindingStatus: 'loading',
+    error: '',
+    today: '',
+    dateLabel: '',
+    monthLabel: '',
+    totalEntries: 0,
+    recordDays: 0,
+    sharedDays: 0,
+    todayEntries: 0,
   },
-  onShow() { this._disposed = false; this.refresh(); },
-  onUnload() { this._disposed = true; this._listToken = (this._listToken || 0) + 1; },
-  onPullDownRefresh() { this.refresh(true); },
-  onReachBottom() { this.loadMore(); },
+
+  onShow() {
+    this._disposed = false;
+    this.refresh();
+  },
+
+  onUnload() {
+    this._disposed = true;
+    this._token = (this._token || 0) + 1;
+  },
+
+  onPullDownRefresh() {
+    this.refresh(true);
+  },
+
   async refresh(pull) {
-    const token = this._listToken = (this._listToken || 0) + 1;
-    this.setData({ authLoading: true, loading: true, loadingMore: false, error: '', moreError: '' });
+    const token = this._token = (this._token || 0) + 1;
+    this.setData({ authLoading: true, loading: true, error: '' });
+
     try {
       const session = await api.getSession();
-      if (token !== this._listToken || this._disposed) return;
+      if (token !== this._token || this._disposed) return;
+
       const active = session.bindingStatus === 'active';
       const scope = active ? session.coupleId : '';
       drafts.activate(scope || '');
-      if (scope !== this._scope) this.setData({ entries: [], nextCursor: null, hasMore: false });
       this._scope = scope;
+
       const today = view.todayUTC8(session);
-      this.setData({ authLoading: false, bindingStatus: session.bindingStatus || 'unbound', today,
-        dateLabel: Number(today.slice(5, 7)) + '月' + Number(today.slice(8)) + '日' });
-      if (!active) { this.setData({ entries: [], nextCursor: null, hasMore: false }); return; }
+      const month = today.slice(0, 7);
+      this.setData({
+        authLoading: false,
+        bindingStatus: session.bindingStatus || 'unbound',
+        today,
+        dateLabel: Number(today.slice(5, 7)) + '月' + Number(today.slice(8)) + '日',
+        monthLabel: Number(today.slice(5, 7)) + '月',
+      });
+
+      if (!active) {
+        this.setData({ totalEntries: 0, recordDays: 0, sharedDays: 0, todayEntries: 0 });
+        return;
+      }
       if (!scope) throw new Error('关系资料未就绪，请重试');
-      const result = await api.listEntries({ limit: 20 });
-      if (token !== this._listToken || this._disposed) return;
-      this._imageRetries = {};
-      this.setData({ entries: view.viewEntries(result.items, today), nextCursor: result.nextCursor || null, hasMore: !!result.nextCursor });
+
+      const stats = await api.getEntryMonth(month);
+      if (token !== this._token || this._disposed) return;
+      const todayStat = (stats.days || []).find(day => day.date === today);
+      this.setData({
+        totalEntries: Number(stats.totalEntries || 0),
+        recordDays: Number(stats.recordDays || 0),
+        sharedDays: Number(stats.sharedDays || 0),
+        todayEntries: todayStat ? Number(todayStat.count || 0) : 0,
+      });
     } catch (error) {
-      if (token !== this._listToken || this._disposed) return;
+      if (token !== this._token || this._disposed) return;
       if (api.isBindingError(error)) {
-        this._scope = ''; drafts.activate('');
-        this.setData({ bindingStatus: 'unbound', entries: [], hasMore: false, nextCursor: null });
-      } else this.setData({ error: error.message || '日常没有加载出来，请重试' });
+        this._scope = '';
+        drafts.activate('');
+        this.setData({
+          bindingStatus: 'unbound',
+          totalEntries: 0,
+          recordDays: 0,
+          sharedDays: 0,
+          todayEntries: 0,
+        });
+      } else {
+        this.setData({ error: error.message || '日常概览没有加载出来，请重试' });
+      }
     } finally {
-      if (token === this._listToken && !this._disposed) this.setData({ authLoading: false, loading: false });
+      if (token === this._token && !this._disposed) {
+        this.setData({ authLoading: false, loading: false });
+      }
       if (pull) wx.stopPullDownRefresh();
     }
   },
-  async loadMore() {
-    if (this.data.loading || this.data.authLoading || this.data.loadingMore || !this.data.hasMore) return;
-    const token = this._listToken, cursor = this.data.nextCursor;
-    this.setData({ loadingMore: true, moreError: '' });
-    try {
-      const result = await api.listEntries({ cursor, limit: 20 });
-      if (token !== this._listToken || this._disposed) return;
-      this.setData({ entries: view.appendEntries(this.data.entries, view.viewEntries(result.items, this.data.today)),
-        nextCursor: result.nextCursor || null, hasMore: !!result.nextCursor });
-    } catch (error) {
-      if (token === this._listToken && !this._disposed) this.setData({ moreError: error.message || '加载更多失败，请重试' });
-    } finally { if (token === this._listToken && !this._disposed) this.setData({ loadingMore: false }); }
+
+  retry() {
+    this.refresh();
   },
-  retry() { this.refresh(); },
-  afterEntryDeleted() { return this.refresh(); },
+
   writeEntry() {
     if (!this.data.loading && !this.data.authLoading && this.data.bindingStatus === 'active' && this._scope) {
       wx.navigateTo({ url: '/pages/entry/entry' });
     }
   },
-  goBind() { wx.navigateTo({ url: '/pages/bind/bind' }); },
-  goProfile() { wx.switchTab({ url: '/pages/profile/profile' }); },
-}));
+
+  goDailyFeed() {
+    if (!this.data.loading && !this.data.authLoading && this.data.bindingStatus === 'active' && this._scope) {
+      wx.navigateTo({ url: '/pages/feed/feed' });
+    }
+  },
+
+  goBind() {
+    wx.navigateTo({ url: '/pages/bind/bind' });
+  },
+
+  goProfile() {
+    wx.switchTab({ url: '/pages/profile/profile' });
+  },
+});
