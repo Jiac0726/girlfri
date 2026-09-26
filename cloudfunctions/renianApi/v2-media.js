@@ -155,40 +155,97 @@ function createMedia(ctx, options = {}) {
     for (const id of [...new Set(event.ids)]) {
       const doc = await ownedDocument(db, 'media', id, member.pair._id);
       if (doc.status === 'attached') {
-        const entry = await ownedDocument(db, 'entries', doc.entryId, member.pair._id);
-        assert(!entry.deleted && entry.images.includes(id), 'MEDIA_UNAVAILABLE', '图片已不可用');
-      } else assert(doc.status === 'ready' && doc.ownerOpenid === openid && new Date(doc.expiresAt).getTime() > Date.now(), 'FORBIDDEN', '图片尚未分享或已失效');
+        if (doc.attachmentType === 'private_memo') {
+          assert(doc.ownerOpenid === openid, 'FORBIDDEN', '这张图片只属于你的私密备忘录');
+          const memo = (member.user.privateMemoItems || []).find(item => item.id === doc.entryId);
+          const legacyMemoId = 'memo_legacy_' + hash(openid).slice(0, 24);
+          const legacyMatch = !member.user.privateMemoMigrated && member.user.privateMemo && doc.entryId === legacyMemoId;
+          assert((memo && (memo.images || []).includes(id)) || legacyMatch, 'MEDIA_UNAVAILABLE', '图片已不可用');
+        } else {
+          const entry = await ownedDocument(db, 'entries', doc.entryId, member.pair._id);
+          assert(!entry.deleted && entry.images.includes(id), 'MEDIA_UNAVAILABLE', '图片已不可用');
+        }
+      } else {
+        assert(doc.status === 'ready' && doc.ownerOpenid === openid && new Date(doc.expiresAt).getTime() > Date.now(), 'FORBIDDEN', '图片尚未分享或已失效');
+      }
       docs.push(doc);
     }
     return { items: (await signed(docs)).map(({ id, url }) => ({ id, url })) };
   }
+
   async function sync(tx, member, openid, entryId, before, after) {
     for (const id of after) {
       const doc = await ownedDocument(tx, 'media', id, member.pair._id);
       assert(doc.ownerOpenid === openid, 'FORBIDDEN', '只能分享自己上传的图片');
-      if (before.includes(id)) assert(doc.status === 'attached' && doc.entryId === entryId, 'MEDIA_UNAVAILABLE', '图片状态已改变');
-      else {
+      if (before.includes(id)) {
+        assert(doc.status === 'attached' && doc.entryId === entryId && (!doc.attachmentType || doc.attachmentType === 'entry'), 'MEDIA_UNAVAILABLE', '图片状态已改变');
+      } else {
         assert(doc.status === 'ready' && !doc.entryId && new Date(doc.expiresAt).getTime() > Date.now(), 'MEDIA_UNAVAILABLE', '图片已使用或已过期，请重新上传');
-        await put(tx, 'media', id, Object.assign({}, doc, { status: 'attached', entryId, refCount: 1, expiresAt: null, updatedAt: new Date() }));
+        await put(tx, 'media', id, Object.assign({}, doc, { status: 'attached', entryId, attachmentType: 'entry', refCount: 1, expiresAt: null, updatedAt: new Date() }));
       }
     }
     for (const id of before.filter(id => !after.includes(id))) {
       const doc = await ownedDocument(tx, 'media', id, member.pair._id);
-      assert(doc.entryId === entryId && doc.status === 'attached', 'MEDIA_UNAVAILABLE', '图片状态已改变');
+      assert(doc.entryId === entryId && doc.status === 'attached' && (!doc.attachmentType || doc.attachmentType === 'entry'), 'MEDIA_UNAVAILABLE', '图片状态已改变');
       await put(tx, 'media', id, Object.assign({}, doc, { status: 'cleanup_pending', refCount: 0, cleanupAfter: new Date(), updatedAt: new Date() }));
     }
   }
+
+  async function syncPrivateMemo(tx, member, openid, memoId, before, after) {
+    for (const id of after) {
+      const doc = await ownedDocument(tx, 'media', id, member.pair._id);
+      assert(doc.ownerOpenid === openid, 'FORBIDDEN', '只能使用自己上传的图片');
+      if (before.includes(id)) {
+        assert(doc.status === 'attached' && doc.entryId === memoId && doc.attachmentType === 'private_memo', 'MEDIA_UNAVAILABLE', '备忘录图片状态已改变');
+      } else {
+        assert(doc.status === 'ready' && !doc.entryId && new Date(doc.expiresAt).getTime() > Date.now(), 'MEDIA_UNAVAILABLE', '图片已使用或已过期，请重新上传');
+        await put(tx, 'media', id, Object.assign({}, doc, {
+          status: 'attached',
+          entryId: memoId,
+          attachmentType: 'private_memo',
+          refCount: 1,
+          expiresAt: null,
+          updatedAt: new Date(),
+        }));
+      }
+    }
+    for (const id of before.filter(id => !after.includes(id))) {
+      const doc = await ownedDocument(tx, 'media', id, member.pair._id);
+      assert(doc.ownerOpenid === openid && doc.entryId === memoId && doc.attachmentType === 'private_memo' && doc.status === 'attached', 'MEDIA_UNAVAILABLE', '备忘录图片状态已改变');
+      await put(tx, 'media', id, Object.assign({}, doc, {
+        status: 'cleanup_pending',
+        refCount: 0,
+        cleanupAfter: new Date(),
+        updatedAt: new Date(),
+      }));
+    }
+  }
+
+  async function privateMemoImages(item, openid, coupleId) {
+    if (!(item.images || []).length) return [];
+    const docs = [];
+    for (const id of item.images) {
+      const doc = await get(db, 'media', id);
+      assert(doc && doc.coupleId === coupleId && doc.ownerOpenid === openid && doc.entryId === item.id &&
+        doc.attachmentType === 'private_memo' && doc.status === 'attached', 'MEDIA_UNAVAILABLE', '备忘录图片状态已改变，请刷新');
+      docs.push(doc);
+    }
+    return signed(docs);
+  }
+
   async function entryImages(entry) {
     if (entry.deleted || !entry.images.length) return [];
     const docs = [];
     for (const id of entry.images) {
       const doc = await get(db, 'media', id);
-      assert(doc && doc.coupleId === entry.coupleId && doc.entryId === entry._id && doc.status === 'attached', 'MEDIA_UNAVAILABLE', '图片状态已改变，请刷新');
+      assert(doc && doc.coupleId === entry.coupleId && doc.entryId === entry._id &&
+        (!doc.attachmentType || doc.attachmentType === 'entry') && doc.status === 'attached', 'MEDIA_UNAVAILABLE', '图片状态已改变，请刷新');
       docs.push(doc);
     }
     return signed(docs);
   }
-  return { prepare, confirm, urls, sync, entryImages };
+
+  return { prepare, confirm, urls, sync, syncPrivateMemo, privateMemoImages, entryImages };
 }
 
 module.exports = { createMedia, imageExtension, MAX_BYTES };
