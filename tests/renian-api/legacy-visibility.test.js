@@ -42,6 +42,8 @@ test('partner cannot read a one-sided inherited rating but author still can', as
   assert.equal(mine.items.length, 1);
   assert.equal(mine.items[0].legacyPrivate, true);
   assert.equal(mine.items[0].legacyRatingLabel, '有点糟');
+  assert.equal(mine.items[0].ratingType, 'bad');
+  assert.equal(mine.items[0].ratingLabel, '有点糟');
 
   const partner = await call('entry.list', 'B', { month: '2026-09' });
   assert.equal(partner.items.length, 0);
