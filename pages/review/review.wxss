@@ -1,2 +1,45 @@
 @import "../index/index.wxss";
-.month-picker{margin:32rpx 0;font-size:32rpx;font-weight:600;color:#9f415d}.stats{display:flex;padding:32rpx 10rpx;background:linear-gradient(120deg,#fce1eb,#ede7fc);border-radius:28rpx}.stats view{flex:1;text-align:center;font-size:23rpx;color:#846273}.stats text{display:block;font-size:48rpx;font-weight:600;color:#6b384b;margin-bottom:10rpx}.days{display:flex;flex-wrap:wrap;gap:12rpx;margin-top:28rpx}.day{margin:0;font-size:22rpx;line-height:2.8;background:#fff8fa;color:#997082;border-radius:28rpx}.day.selected{background:#edc7d5;color:#753e54}
+
+.review-page{padding-top:36rpx}
+.review-head{display:flex;align-items:flex-start;justify-content:space-between;gap:22rpx;margin-bottom:24rpx}
+.review-head .page-title{font-size:36rpx;margin-top:10rpx}
+.review-head .page-sub{margin-top:8rpx;font-size:22rpx}
+
+.month-picker{display:flex;align-items:center;justify-content:center;min-width:150rpx;height:64rpx;box-sizing:border-box;padding:0 18rpx;border:1rpx solid #ead6dd;border-radius:999rpx;background:#fffafb;color:#8e5065;font-size:23rpx;font-weight:600}
+
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:18rpx 10rpx;border:1rpx solid #eadbe0;border-radius:22rpx;background:linear-gradient(120deg,#fcebf0,#f2edfb)}
+.stat{text-align:center;color:#8c707b;font-size:19rpx;line-height:1.35}
+.stat text{display:block;margin-bottom:2rpx;color:#643f50;font-size:34rpx;font-weight:700;line-height:1.25}
+
+.days-scroll{width:100%;margin-top:18rpx;white-space:nowrap}
+.days{display:inline-flex;gap:10rpx;padding:2rpx 2rpx 6rpx}
+.day{flex-shrink:0;width:104rpx;height:72rpx;margin:0;padding:8rpx 6rpx;border:1rpx solid #efdee4;border-radius:18rpx;background:#fff8fa;color:#927381;font-size:19rpx;line-height:1.2}
+.day text{display:block;color:#765564;font-size:22rpx;font-weight:600}
+.day view{margin-top:4rpx}
+.day.selected{border-color:#cf7d96;background:#f4d6e0;color:#8b4f63}
+.day.selected text{color:#743b51}
+.day::after{border:0}
+
+.review-list-head{display:flex;align-items:center;justify-content:space-between;gap:18rpx;margin:24rpx 2rpx 14rpx}
+.review-list-title{color:#513b45;font-size:27rpx;font-weight:700}
+.review-list-sub{margin-top:3rpx;color:#aa9099;font-size:19rpx}
+.clear-day{flex-shrink:0;margin:0;padding:8rpx 16rpx;border-radius:999rpx;background:#f8e9ee;color:#9e5269;font-size:20rpx;line-height:1.6}
+.clear-day::after{border:0}
+
+.review-page .entry-card{padding:22rpx;margin-bottom:14rpx;border-radius:22rpx}
+.review-page .entry-avatar{width:58rpx;height:58rpx;font-size:21rpx}
+.review-page .entry-top{gap:14rpx}
+.review-page .entry-author{font-size:24rpx}
+.review-page .entry-time{font-size:19rpx}
+.review-page .entry-mood{font-size:34rpx}
+.review-page .entry-meta-row{margin-top:15rpx}
+.review-page .entry-text{margin-top:16rpx;font-size:26rpx;line-height:1.7}
+.review-page .entry-images{margin-top:16rpx;gap:6rpx}
+.review-page .entry-image-cell{height:150rpx}
+.review-page .single-image .entry-image-cell{height:330rpx}
+.review-page .entry-actions{margin-top:16rpx;padding-top:12rpx;gap:18rpx}
+.review-page .entry-actions .text-button{font-size:21rpx}
+
+.state-panel.review-empty{padding:42rpx 18rpx}
+.review-more{text-align:center;padding:10rpx 0 24rpx}
+.review-more .text-button{margin:0 auto}

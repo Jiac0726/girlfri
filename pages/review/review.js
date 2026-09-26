@@ -1,13 +1,26 @@
 const api = require('../../services/cloud');
 const view = require('../../services/entry-view');
 Page(Object.assign({}, view.entryActions, {
-  data: { loading: true, loadingMore: false, bindingStatus: 'loading', month: '', today: '', selectedDay: '', days: [], totalEntries: 0, recordDays: 0, sharedDays: 0, entries: [], nextCursor: null, hasMore: false, error: '', busyEntryId: '' },
+  data: { loading: true, loadingMore: false, bindingStatus: 'loading', month: '', monthLabel: '', today: '', selectedDay: '', selectedDayLabel: '', days: [], totalEntries: 0, recordDays: 0, sharedDays: 0, entries: [], nextCursor: null, hasMore: false, error: '', busyEntryId: '' },
   onShow() { this._disposed = false; this.refresh(); },
   onUnload() { this._disposed = true; this._token = (this._token || 0) + 1; },
   async onPullDownRefresh() { try { await this.refresh(); } finally { wx.stopPullDownRefresh(); } },
   onReachBottom() { this.loadMore(); },
-  changeMonth(e) { this.setData({ month: e.detail.value, selectedDay: '' }); this.refresh(); },
-  chooseDay(e) { this.setData({ selectedDay: this.data.selectedDay === e.currentTarget.dataset.day ? '' : e.currentTarget.dataset.day }); this.refresh(); },
+  changeMonth(e) {
+    this.setData({ month: e.detail.value, selectedDay: '', selectedDayLabel: '' });
+    this.refresh();
+  },
+  chooseDay(e) {
+    const day = e.currentTarget.dataset.day;
+    const next = this.data.selectedDay === day ? '' : day;
+    this.setData({ selectedDay: next, selectedDayLabel: next ? Number(next.slice(8)) + '日' : '' });
+    this.refresh();
+  },
+  clearDay() {
+    if (!this.data.selectedDay) return;
+    this.setData({ selectedDay: '', selectedDayLabel: '' });
+    this.refresh();
+  },
   async refresh() {
     const token = this._token = (this._token || 0) + 1;
     this.setData({ loading: true, loadingMore: false, error: '' });
@@ -17,12 +30,24 @@ Page(Object.assign({}, view.entryActions, {
       if (this._scope !== (session.coupleId || '')) this.setData({ entries: [], days: [], nextCursor: null, hasMore: false, totalEntries: 0, recordDays: 0, sharedDays: 0 });
       this._scope = session.coupleId || '';
       const today = view.todayUTC8(session), month = this.data.month || today.slice(0, 7);
-      this.setData({ bindingStatus: session.bindingStatus, today, month });
+      this.setData({
+        bindingStatus: session.bindingStatus,
+        today,
+        month,
+        monthLabel: Number(month.slice(5, 7)) + '月',
+        selectedDayLabel: this.data.selectedDay ? Number(this.data.selectedDay.slice(8)) + '日' : '',
+      });
       if (session.bindingStatus !== 'active') { this.setData({ entries: [], days: [], hasMore: false, totalEntries: 0, recordDays: 0, sharedDays: 0 }); return; }
       const [stats, result] = await Promise.all([api.getEntryMonth(month), api.listEntries({ month, day: this.data.selectedDay || undefined, limit: 20 })]);
       if (token !== this._token || this._disposed) return;
       this._imageRetries = {};
-      this.setData(Object.assign({}, stats, { entries: view.viewEntries(result.items, today), nextCursor: result.nextCursor, hasMore: !!result.nextCursor }));
+      const days = (stats.days || []).map(day => Object.assign({}, day, { dayLabel: Number(day.date.slice(8)) + '日' }));
+      this.setData(Object.assign({}, stats, {
+        days,
+        entries: view.viewEntries(result.items, today),
+        nextCursor: result.nextCursor,
+        hasMore: !!result.nextCursor,
+      }));
     } catch (error) {
       if (token === this._token && !this._disposed) {
         this.setData({ error: error.message || '回顾加载失败' });
