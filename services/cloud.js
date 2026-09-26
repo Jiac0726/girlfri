@@ -43,7 +43,16 @@ async function call(action, data) {
   }
 
   const result = res && res.result;
-  if (!result || result.ok !== true) throw toError(result);
+  if (!result || result.ok !== true) {
+    console.error('[renian api error]', {
+      functionName: FUNCTION_NAME,
+      action,
+      cloudEnv: env.cloudEnv,
+      error: result && result.error,
+      rawResult: result,
+    });
+    throw toError(result);
+  }
   return result.data;
 }
 
