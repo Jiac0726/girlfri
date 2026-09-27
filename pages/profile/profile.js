@@ -265,14 +265,15 @@ Page({
       }
       const editing = !!this._memoPending.id;
       await (editing ? api.updatePrivateMemoItem(this._memoPending) : api.createPrivateMemo(this._memoPending));
-      this.resetMemoEditor();
       const memos = await api.listPrivateMemos();
+      if (!memos || !Array.isArray(memos.items)) throw new Error('备忘录刷新失败，请重试确认');
       this.setData({
         memoItems: (memos.items || []).map(item => Object.assign({}, item, {
           updatedLabel: dateLabel(item.updatedAt || item.createdAt),
           images: (item.images || []).map(image => Object.assign({}, image, { failed: false })),
         })),
       });
+      this.resetMemoEditor();
       wx.showToast({ title: '只保存给你自己', icon: 'none' });
     } catch (error) {
       const uncertain = !!this._memoPending && isUncertain(error);
