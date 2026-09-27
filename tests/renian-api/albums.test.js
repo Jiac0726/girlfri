@@ -181,9 +181,9 @@ test('active relationship initializes the daily system album before any entry ex
 test('session initialization backfills daily album for an existing active relationship', async () => {
   await pair();
   const store = cloud.__colStore('v2_albums');
-  const current = [...store.values()].find(item => item.title === '日常照片');
+  const current = [...store.entries()].find(([, item]) => item.title === '日常照片');
   assert.ok(current);
-  store.delete(current._id);
+  store.delete(current[0]);
   assert.equal([...store.values()].some(item => item.title === '日常照片'), false);
 
   await call('session.get', 'A');
