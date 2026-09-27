@@ -49,6 +49,23 @@ function wxCall(name, options) {
 function isUncertain(error) {
   return !error || !error.code || ['CLOUD_INVOKE_FAILED', 'UNKNOWN', 'INTERNAL_ERROR', 'INTERNAL'].includes(error.code);
 }
+const COMPATIBLE_IMAGE_TYPES = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp']);
+async function makeCompatibleImage(src) {
+  const compressed = await wxCall('compressImage', { src, quality: 95 });
+  if (!compressed || !compressed.tempFilePath) {
+    const error = new Error('原图格式暂不兼容，请取消“原图”后重新选择');
+    error.code = 'INVALID_MEDIA_TYPE';
+    throw error;
+  }
+  const info = await wxCall('getImageInfo', { src: compressed.tempFilePath }).catch(() => null);
+  const type = String(info && info.type || '').toLowerCase();
+  if (type && !COMPATIBLE_IMAGE_TYPES.has(type)) {
+    const error = new Error('原图格式暂不兼容，请取消“原图”后重新选择');
+    error.code = 'INVALID_MEDIA_TYPE';
+    throw error;
+  }
+  return compressed.tempFilePath;
+}
 function updateUrls(entries, urls, ids) {
   const byId = {};
   (urls || []).forEach((item) => { byId[item.id] = item.url; });
@@ -127,4 +144,4 @@ const entryActions = {
     }
   },
 };
-module.exports = { MOODS, RATINGS, todayUTC8, dayLabel, viewEntry, viewEntries, appendEntries, wxCall, isUncertain, entryActions };
+module.exports = { MOODS, RATINGS, todayUTC8, dayLabel, viewEntry, viewEntries, appendEntries, wxCall, isUncertain, makeCompatibleImage, entryActions };
