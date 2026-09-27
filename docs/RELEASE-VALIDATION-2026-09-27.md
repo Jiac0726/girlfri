@@ -24,13 +24,13 @@
 
 | 项目 | 代码期望 | 实际环境结果 |
 |---|---|---|
-| AppID / 云环境 | 本地配置指向同一小程序与 CloudBase 环境 | 待提供；仓库 AppID 为占位值，无 env.local.js |
-| 迁移状态 | 已迁移应有 completed 标记；不重跑迁移 | 待只读核对 |
-| 数据库 | 9 集合、16 索引，客户端不可直接读写 | 待控制台核对规则及索引就绪状态 |
+| AppID / 云环境 | 本地配置指向同一小程序与 CloudBase 环境 | 用户已提供并写入 Git 忽略的本机配置，configured=true；CLI 可访问指定环境，AppID 与环境关联仍待微信工具核对 |
+| 迁移状态 | 已迁移应有 completed 标记；不重跑迁移 | 已只读确认 legacy_v1_to_v2.status=completed，不重跑迁移 |
+| 数据库 | 9 集合、16 索引，客户端不可直接读写 | 9 集合可读取索引元数据；v2_query_1～15 名称与字段顺序/方向匹配；缺 v2_query_16；权限规则仍待核对 |
 | 云存储 | 客户端仅写本人 v2-upload 暂存路径，发布区服务端签名读取 | 待实际规则与双账号越权验证 |
 | 日常提醒 | `tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk`，API 与 worker 一致 | 待核对 AppID 下模板存在及字段匹配 |
 | 想念提醒 | `RWnfT0dJaUjWh6e1XsFpLzgeI6naPdDE6Yq1VSbHusw` | 待真实授权与接收 |
-| 定时器 | dailyRatingReminderTimer 每 5 分钟；abandonedMediaCleanup 每小时第 17 分钟 | 待控制台实际触发器核对 |
+| 定时器 | dailyRatingReminderTimer 每 5 分钟；abandonedMediaCleanup 每小时第 17 分钟 | fn detail 返回两个函数的 Triggers 均为空，待补充并核验启用 |
 | 操作记录回收 | 保留 90 天，单次最多读取 100 条，跳过迁移标记 | 模拟测试通过；真实日志待验收 |
 
 ## 真机执行清单
@@ -48,6 +48,22 @@
 
 ## 发布顺序与回滚
 
+### 云端只读核对结果及待确认修改
+
+2026-09-27 使用已登录的 CloudBase CLI 对用户指定环境读取函数元数据、迁移标记投影和索引，不读取业务内容、不执行任何云端写入。三个正式函数均为 Active、Nodejs16.13、256 MB、超时 3 秒、版本 $LATEST。修改时间（CLI 原始值，未假设时区）：renianApi 为 `2026-09-27 02:43:50`，dailyReminder 为 `02:43:47`，mediaCleanup 为 `02:43:48`。部署时间不能证明线上代码对应哪个 Git 提交。
+
+已下载三个现网函数代码及依赖至 Git 忽略的 `backups/cloudbase/release-2026-09-27/`，保存选定部署参数 `function-metadata.json` 和 17 个源码/配置文件的 SHA-256 清单 `sha256.json`。未导出环境变量、业务数据或执行恢复演练；完整回滚准备仍需核对控制台权限/环境配置。
+
+逐文件比较（统一换行后）：dailyReminder 顶层源码和配置全部一致；renianApi 的 v2.js、v2-media.js 不同，现网缺私密图片容错及媒体申请租约修复；mediaCleanup 的 worker.js、package.json 不同，现网缺 90 天幂等回收且 SDK 版本未统一。其余顶层文件一致。建议重新部署 renianApi、mediaCleanup；dailyReminder 仅需核对权限并更新超时/定时器配置。
+
+生产修改待确认清单：
+
+- 创建缺失的非唯一索引 v2_query_16：v2_operations，createdAt ASC、_id ASC；保留现有索引和数据。
+- 核对已下载的云函数备份及控制台配置、确认恢复步骤后，部署经验证的 renianApi、mediaCleanup 代码与依赖。dailyReminder 源码一致，无需为代码差异重复部署。暂不更改运行时版本，先验证现有运行时兼容性。
+- renianApi 调整为 60 秒 / 512 MB；dailyReminder、mediaCleanup 调整为 60 秒 / 256 MB。当前 3 秒配置与上传校验及批量工作负载不匹配。
+- 确认提醒模板、访问规则和函数版本后，再创建并启用 dailyRatingReminderTimer（`0 */5 * * * * *`）及 abandonedMediaCleanup（`0 17 * * * * *`）。提醒触发器启用后可能向已订阅用户发送消息；清理触发器会实际删除过期媒体及 90 天前幂等记录，因此不在只读核对时启用。
+- 小程序上传、合并与正式发布继续等待真机及双账号验收，不随索引/函数配置修改自动执行。
+
 1. 填写下表，保存线上前端、云函数版本及配置；只读确认 V2 迁移状态。未完成 V2 的环境另按迁移文档处理，不纳入自动发布。
 2. 已是 V2 的环境：只补缺失索引，尤其 v2_query_15、v2_query_16，等待就绪；核对数据库与存储规则。
 3. 部署候选版本 renianApi、mediaCleanup、dailyReminder，选择云端安装依赖；核对函数权限及定时器，不重复添加定时器。生产变更前需确认。
@@ -58,9 +74,9 @@
 | 回滚依据 | 实际值（发布前必填） |
 |---|---|
 | 线上小程序版本 / 对应提交 | 待核实 |
-| renianApi / dailyReminder / mediaCleanup 线上版本 | 待核实 |
-| 云环境 / 规则与定时器快照位置 | 待核实，保存在受控本地位置 |
-| V2 迁移状态 / 验证时间 | 待核实 |
+| renianApi / dailyReminder / mediaCleanup 线上版本 | 均为 $LATEST；时间、资源、代码归档和源码 SHA-256 已保存，控制台配置完整性及恢复演练待核实 |
+| 云环境 / 规则与定时器快照位置 | 指定环境已连接；函数参数及空定时器列表保存在本地备份 function-metadata.json，数据库/存储规则待核实 |
+| V2 迁移状态 / 验证时间 | completed / 2026-09-27 只读核实 |
 | 数据备份位置 / 时间 / 恢复负责人 | 待核实，禁止提交用户数据 |
 
 本轮不新增业务 API 或数据结构，不执行迁移、生产部署、合并或正式发布。
