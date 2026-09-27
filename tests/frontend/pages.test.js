@@ -397,16 +397,31 @@ test('miss template rejection or filtering never grants quota',async()=>{
   }
 });
 
-test('reminder is enabled only after explicit subscribe acceptance, with setting version',async()=>{
+test('daily reminder is enabled from settings only after explicit subscribe acceptance, with setting version',async()=>{
   const changes=[];
-  const {page}=loadPage('profile',{updateReminderSettings:async(...data)=>{changes.push(data);return {enabled:true,time:'21:30',version:3};}},
+  const {page}=loadPage('settings',{updateReminderSettings:async(...data)=>{changes.push(data);return {enabled:true,time:'21:30',version:3};}},
     {requestSubscribeMessage:options=>options.success({tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk:'accept'})});
-  page.setData({bindingStatus:'active',authLoading:false,reminderReady:true});page._reminderVersion=2;
+  page.setData({bindingStatus:'active',loading:false,reminderReady:true});page._reminderVersion=2;
   await page.onReminderToggle({detail:{value:true}});assert.deepEqual(changes[0],[true,'21:30',2]);
 });
-test('subscription rejection never enables server setting',async()=>{
-  let writes=0;const {page}=loadPage('profile',{updateReminderSettings:async()=>writes++},{requestSubscribeMessage:options=>options.success({})});
-  page.setData({bindingStatus:'active',authLoading:false,reminderReady:true});await page.onReminderToggle({detail:{value:true}});assert.equal(writes,0);
+test('daily reminder subscription rejection in settings never enables server setting',async()=>{
+  let writes=0;const {page}=loadPage('settings',{updateReminderSettings:async()=>writes++},{requestSubscribeMessage:options=>options.success({})});
+  page.setData({bindingStatus:'active',loading:false,reminderReady:true});await page.onReminderToggle({detail:{value:true}});assert.equal(writes,0);
+});
+
+test('settings loads both daily share reminder and miss notification state', async () => {
+  let reminderReads=0, missReads=0;
+  const {page}=loadPage('settings',{
+    getSession:async()=>session,
+    getReminderSettings:async()=>{reminderReads++;return {enabled:true,time:'22:00',version:4};},
+    getMissNotifySettings:async()=>{missReads++;return {quota:1,templateId:'miss-template'};},
+  });
+  await page.loadSettings();
+  assert.equal(reminderReads,1);
+  assert.equal(missReads,1);
+  assert.equal(page.data.reminderEnabled,true);
+  assert.equal(page.data.reminderTime,'22:00');
+  assert.equal(page.data.missNotifyQuota,1);
 });
 test('cloud service always sends API v2 and fixed action',async()=>{
   let sent;const module={exports:{}};
