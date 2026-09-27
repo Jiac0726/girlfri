@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const COLLECTIONS = Object.freeze({
   users: 'v2_users', couples: 'v2_couples', invites: 'v2_invites', entries: 'v2_entries',
   agreements: 'v2_agreements', coupons: 'v2_coupons', requests: 'v2_coupon_requests',
-  media: 'v2_media', operations: 'v2_operations', albums: 'v2_albums', photos: 'v2_album_photos',
+  media: 'v2_media', operations: 'v2_operations', albums: 'v2_albums', photos: 'v2_album_photos', comments: 'v2_album_comments',
 });
 
 class BusinessError extends Error {
