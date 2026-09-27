@@ -5,6 +5,7 @@ const { entryVisibleTo } = require('./v2-visibility');
 const MAX_BYTES = 5 * 1024 * 1024;
 const TTL = 24 * 3600000;
 const LEASE = 5 * 60000;
+const PROVISION_LEASE = 30 * 1000;
 
 function imageExtension(buffer) {
   if (!Buffer.isBuffer(buffer) || buffer.length < 12) return '';
@@ -57,16 +58,54 @@ function createMedia(ctx, options = {}) {
     if (current.status !== 'attached') assert(new Date(current.expiresAt).getTime() > Date.now(), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
     if (!current.stagingFileID) {
       assert(typeof options.getUploadMetadata === 'function', 'MEDIA_ENV_UNAVAILABLE', '图片服务暂时不可用');
-      // Reuse the database's initialized Node SDK. Register identity before the
-      // client can upload so an interrupted upload remains discoverable by cleanup.
-      const metadata = await options.getUploadMetadata({ cloudPath: doc.cloudPath });
-      const fileID = metadata && metadata.data && metadata.data.fileId;
-      parsedFile(fileID, doc.cloudPath);
-      await transaction(async tx => {
-        const latest = await get(tx, 'media', doc._id);
-        assert(latest && latest.status === 'prepared' && new Date(latest.expiresAt).getTime() > Date.now(), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
-        await put(tx, 'media', doc._id, Object.assign({}, latest, { stagingFileID: fileID }));
-      });
+      let latest = current;
+      for (let attempt = 0; attempt < 3 && !latest.stagingFileID; attempt++) {
+        const provisionToken = randomId('provision');
+        const claimed = await transaction(async tx => {
+          const row = await get(tx, 'media', doc._id);
+          assert(row && ['prepared', 'confirming', 'ready', 'attached'].includes(row.status), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
+          if (row.stagingFileID) return row;
+          assert(new Date(row.expiresAt).getTime() > Date.now(), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
+          const leaseUntil = row.stagingProvisionLeaseUntil && new Date(row.stagingProvisionLeaseUntil).getTime() > Date.now();
+          if (leaseUntil) return row;
+          return Object.assign({}, row, { stagingProvisionToken: provisionToken, stagingProvisionLeaseUntil: new Date(Date.now() + PROVISION_LEASE), updatedAt: new Date() });
+        });
+        if (claimed.stagingFileID) {
+          latest = claimed;
+          break;
+        }
+        if (claimed.stagingProvisionToken !== provisionToken) {
+          for (let poll = 0; poll < 15; poll++) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+            latest = await get(db, 'media', doc._id);
+            if (!latest) fail('MEDIA_EXPIRED', '上传已过期，请重新选择图片');
+            if (latest.stagingFileID || !(latest.stagingProvisionLeaseUntil && new Date(latest.stagingProvisionLeaseUntil).getTime() > Date.now())) break;
+          }
+          continue;
+        }
+        try {
+          // Reuse the database's initialized Node SDK. Register identity before the
+          // client can upload so an interrupted upload remains discoverable by cleanup.
+          const metadata = await options.getUploadMetadata({ cloudPath: doc.cloudPath });
+          const fileID = metadata && metadata.data && metadata.data.fileId;
+          parsedFile(fileID, doc.cloudPath);
+          latest = await transaction(async tx => {
+            const row = await get(tx, 'media', doc._id);
+            assert(row && row.stagingProvisionToken === provisionToken && row.status === 'prepared' &&
+              new Date(row.expiresAt).getTime() > Date.now(), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
+            return Object.assign({}, row, { stagingFileID: fileID, stagingProvisionToken: '', stagingProvisionLeaseUntil: null, updatedAt: new Date() });
+          });
+        } catch (error) {
+          await transaction(async tx => {
+            const row = await get(tx, 'media', doc._id);
+            if (row && row.stagingProvisionToken === provisionToken) {
+              await put(tx, 'media', doc._id, Object.assign({}, row, { stagingProvisionToken: '', stagingProvisionLeaseUntil: null, updatedAt: new Date() }));
+            }
+          }).catch(() => null);
+          throw error;
+        }
+      }
+      assert(latest.stagingFileID, 'MEDIA_PROVISION_BUSY', '图片上传准备仍在进行，请稍后重试');
     }
     return { id: doc._id, cloudPath: doc.cloudPath };
   }
