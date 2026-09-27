@@ -26,6 +26,60 @@ function loadPage(name, api = {}, customWx = {}) {
   return {page,events,wx,read};
 }
 const session={bindingStatus:'active',coupleId:'pair',serverDate:'2026-09-26'};
+test('album create keeps request identity through a committed write and failed refresh', async () => {
+  const writes = []; let failRefresh = false;
+  const { page } = loadPage('albums', {
+    getSession: async () => session,
+    listAlbums: async () => { if (failRefresh) throw Error('refresh failed'); return { items: [] }; },
+    createAlbum: async data => { writes.push(JSON.parse(JSON.stringify(data))); failRefresh = writes.length === 1; },
+  }, { getStorageSync: () => null, setStorageSync() {} });
+  page.onLoad({}); await page.refresh(); page.onTitle({ detail: { value: '一起旅行' } });
+  await page.createAlbum(); assert.equal(page.data.pending, true);
+  failRefresh = false;
+  await page.runPending();
+  assert.deepEqual(writes[0], writes[1]); assert.equal(writes.length, 2);
+  assert.equal(page.data.pending, false);
+});
+test('album upload resumes confirmation without uploading the same file twice', async () => {
+  let uploads = 0, confirms = 0; const batches = [];
+  const { page } = loadPage('albums', {
+    getSession: async () => session,
+    listAlbumPhotos: async () => ({ album: { id: 'album', title: '我们', photoCount: 0 }, items: [] }),
+    prepareMedia: async () => ({ id: 'media', cloudPath: 'staging/path' }),
+    confirmMedia: async () => { if (++confirms === 1) throw Object.assign(Error('network'), { code: 'CLOUD_INVOKE_FAILED' }); return { id: 'media' }; },
+    addAlbumPhotos: async data => batches.push(data),
+  }, { getStorageSync: () => null, setStorageSync() {}, cloud: { uploadFile: async () => { uploads++; return { fileID: 'staged' }; } } });
+  page.onLoad({ albumId: 'album' }); await page.refresh();
+  page.setData({ images: [{ localPath: 'tmp.jpg', url: 'tmp.jpg', size: 20, requestId: 'upload_once' }] });
+  await page.uploadPhotos(); assert.equal(page.data.images[0].fileID, 'staged');
+  await page.uploadPhotos(); assert.equal(uploads, 1); assert.equal(confirms, 2); assert.equal(batches.length, 1);
+  assert.equal(page.data.images.length, 0); assert.equal(page.data.pending, false);
+});
+test('album pending mutation survives page recreation and confirms without duplicate identity', async () => {
+  const storage = {}, writes = []; let reject = true;
+  const remote = {
+    getSession: async () => session, listAlbums: async () => ({ items: [] }),
+    createAlbum: async data => { writes.push(JSON.parse(JSON.stringify(data))); if (reject) throw Object.assign(Error('lost response'), { code: 'CLOUD_INVOKE_FAILED' }); },
+  };
+  const local = { getStorageSync: key => storage[key], setStorageSync: (key, value) => { storage[key] = JSON.parse(JSON.stringify(value)); } };
+  const first = loadPage('albums', remote, local).page; first.onLoad({}); await first.refresh();
+  first.onTitle({ detail: { value: '我们的相册' } }); await first.createAlbum(); first.onUnload();
+  reject = false;
+  const next = loadPage('albums', remote, local).page; next.onLoad({}); await next.refresh();
+  assert.equal(next.data.pending, true); await next.runPending();
+  assert.deepEqual(writes[0], writes[1]); assert.equal(next.data.pending, false);
+});
+test('album partner photo has no client delete path and relationship loss clears visible media', async () => {
+  let active = true, removed = 0;
+  const { page } = loadPage('albums', {
+    getSession: async () => active ? session : { bindingStatus: 'unbound' },
+    listAlbumPhotos: async () => ({ album: { id: 'album' }, items: [{ id: 'photo', fromMe: false, url: 'private-url' }] }),
+    deleteAlbumPhoto: async () => { removed++; },
+  }, { getStorageSync: () => null, setStorageSync() {} });
+  page.onLoad({ albumId: 'album' }); await page.refresh();
+  await page.deletePhoto({ currentTarget: { dataset: { id: 'photo' } } }); assert.equal(removed, 0);
+  active = false; await page.refresh(); assert.equal(page.data.items.length, 0); assert.equal(page.data.active, false);
+});
 const entry={id:'entry',text:'hello',mood:'',images:[],version:1,fromMe:true,createdAt:'2026-09-26T01:00:00Z',dayKey:'2026-09-26'};
 test('older home summary response cannot restore a previous relation',async()=>{
   const old=deferred();let calls=0;

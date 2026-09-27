@@ -72,6 +72,11 @@ function isBindingError(err) {
 }
 
 module.exports = {
+  listAlbums: (query) => call('album.list', query),
+  createAlbum: (data) => call('album.create', data),
+  listAlbumPhotos: (query) => call('album.photos', query),
+  addAlbumPhotos: (data) => call('album.addPhotos', data),
+  deleteAlbumPhoto: (data) => call('album.deletePhoto', data),
   getSession: () => call('session.get'),
   createInvite: () => call('pair.create'),
   refreshInvite: () => call('pair.refresh'),

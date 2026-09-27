@@ -136,6 +136,7 @@ Page({
     }
   },
   goBind() { wx.navigateTo({ url: '/pages/bind/bind' }); },
+  goAlbums() { wx.navigateTo({ url: '/pages/albums/albums' }); },
   goAgreements() { wx.navigateTo({ url: '/pages/permissions/permissions' }); },
   goCoupons() { wx.navigateTo({ url: '/pages/privileges/privileges' }); },
   onMemoTitleInput(e) {

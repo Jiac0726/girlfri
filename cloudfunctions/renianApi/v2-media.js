@@ -210,6 +210,10 @@ function createMedia(ctx, options = {}) {
           const legacyMemoId = 'memo_legacy_' + hash(openid).slice(0, 24);
           const legacyMatch = !member.user.privateMemoMigrated && member.user.privateMemo && doc.entryId === legacyMemoId;
           assert((memo && (memo.images || []).includes(id)) || legacyMatch, 'MEDIA_UNAVAILABLE', '图片已不可用');
+        } else if (doc.attachmentType === 'album_photo') {
+          const photo = await ownedDocument(db, 'photos', doc.entryId, member.pair._id);
+          await ownedDocument(db, 'albums', photo.albumId, member.pair._id);
+          assert(!photo.deleted && photo.mediaId === id && photo.authorOpenid === doc.ownerOpenid, 'MEDIA_UNAVAILABLE', '照片已不可用');
         } else {
           const entry = await ownedDocument(db, 'entries', doc.entryId, member.pair._id);
           assert(entryVisibleTo(entry, openid), 'NOT_FOUND', '图片不存在或无权访问');
@@ -304,7 +308,17 @@ function createMedia(ctx, options = {}) {
     return signed(docs, tolerant);
   }
 
-  return { prepare, confirm, urls, sync, syncPrivateMemo, privateMemoImages, entryImages };
+  async function albumImages(photos) {
+    const docs = [];
+    for (const photo of photos) {
+      const doc = await get(db, 'media', photo.mediaId);
+      const valid = doc && !photo.deleted && doc.coupleId === photo.coupleId && doc.ownerOpenid === photo.authorOpenid &&
+        doc.status === 'attached' && doc.attachmentType === 'album_photo' && doc.entryId === photo._id;
+      docs.push(valid ? doc : { _id: photo.mediaId, fileID: '' });
+    }
+    return signed(docs, true);
+  }
+  return { prepare, confirm, urls, sync, syncPrivateMemo, privateMemoImages, entryImages, albumImages };
 }
 
 module.exports = { createMedia, imageExtension, MAX_BYTES };

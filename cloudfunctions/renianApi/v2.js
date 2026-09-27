@@ -3,6 +3,7 @@
 const { createContext, assert, fail, hash, text, version, utcDay, iso } = require('./v2-core');
 const { createPairs } = require('./v2-pairs');
 const { createMedia } = require('./v2-media');
+const { createAlbums } = require('./v2-albums');
 const { entryVisibleTo } = require('./v2-visibility');
 
 const REMINDER_TEMPLATE_ID = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
@@ -40,6 +41,7 @@ function createV2Api(cloud, options = {}) {
   const ctx = createContext(cloud, options.database);
   const pairs = createPairs(ctx);
   const media = createMedia(ctx, options);
+  const albums = createAlbums(ctx, media);
   const { db, transaction, get, put, membership, partner, session, ownedDocument, mutate, page, count } = ctx;
 
   let missTemplateFields = null;
@@ -571,6 +573,11 @@ function createV2Api(cloud, options = {}) {
       case 'pair.refresh': return pairs.issue(openid, true);
       case 'pair.cancel': return pairs.cancel(openid);
       case 'pair.join': return pairs.join(openid, event.inviteCode);
+      case 'album.list': return albums.list(event, openid);
+      case 'album.create': return albums.create(event, openid);
+      case 'album.photos': return albums.photos(event, openid);
+      case 'album.addPhotos': return albums.add(event, openid);
+      case 'album.deletePhoto': return albums.remove(event, openid);
       case 'entry.list': return entryList(event, openid);
       case 'entry.get': {
         const member = await membership(db, openid);
