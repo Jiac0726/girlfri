@@ -509,3 +509,45 @@ test('album stale media confirmation automatically reprovisions and retries once
   assert.match(batches[0].images[0], /^media-/);
   assert.equal(page.data.images.length, 0);
 });
+
+
+test('album unsupported original is converted and retried automatically', async () => {
+  let prepareCount = 0, uploadCount = 0, confirmCount = 0, compressed = 0;
+  const batches = [];
+  const { page } = loadPage('albums', {
+    getSession: async () => session,
+    listAlbumPhotos: async () => ({ album: { id: 'album', title: '我们', photoCount: 0 }, items: [] }),
+    prepareMedia: async () => ({ id: 'media-' + (++prepareCount), cloudPath: 'staging/' + prepareCount }),
+    confirmMedia: async data => {
+      confirmCount++;
+      if (confirmCount === 1) throw Object.assign(new Error('heic'), { code: 'INVALID_MEDIA_TYPE' });
+      return { id: data.id, url: 'signed' };
+    },
+    addAlbumPhotos: async data => batches.push(data),
+  }, {
+    getStorageSync: () => null,
+    setStorageSync() {},
+    compressImage: options => { compressed++; options.success({ tempFilePath: 'converted.jpg' }); },
+    getImageInfo: options => options.success({ type: 'jpeg', path: options.src, width: 100, height: 100 }),
+    cloud: { uploadFile: async options => ({ fileID: 'cloud://mock/' + (++uploadCount) }) },
+  });
+  page.onLoad({ albumId: 'album' });
+  await page.refresh();
+  page.setData({ images: [{ localPath: 'original.heic', url: 'original.heic', size: 1024, requestId: 'upload-heic' }] });
+  await page.uploadPhotos();
+  assert.equal(compressed, 1);
+  assert.equal(prepareCount, 2);
+  assert.equal(uploadCount, 2);
+  assert.equal(confirmCount, 2);
+  assert.equal(batches.length, 1);
+  assert.equal(page.data.images.length, 0);
+});
+
+test('image compatibility fallback rejects a format that remains unsupported after compression', async () => {
+  const { read } = loadPage('albums', {}, {
+    compressImage: options => options.success({ tempFilePath: 'still.heic' }),
+    getImageInfo: options => options.success({ type: 'heic', path: options.src, width: 100, height: 100 }),
+  });
+  const view = read(path.join(root, 'services/entry-view.js'));
+  await assert.rejects(view.makeCompatibleImage('original.heic'), error => error.code === 'INVALID_MEDIA_TYPE');
+});
