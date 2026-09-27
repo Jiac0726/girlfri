@@ -241,7 +241,12 @@ function createMedia(ctx, options = {}) {
     for (const id of before.filter(id => !after.includes(id))) {
       const doc = await ownedDocument(tx, 'media', id, member.pair._id);
       assert(doc.entryId === entryId && doc.status === 'attached' && (!doc.attachmentType || doc.attachmentType === 'entry'), 'MEDIA_UNAVAILABLE', '图片状态已改变');
-      await put(tx, 'media', id, Object.assign({}, doc, { status: 'cleanup_pending', refCount: 0, cleanupAfter: new Date(), updatedAt: new Date() }));
+      const refs = Math.max(1, Number(doc.refCount) || 1);
+      if (refs > 1) {
+        await put(tx, 'media', id, Object.assign({}, doc, { refCount: refs - 1, updatedAt: new Date() }));
+      } else {
+        await put(tx, 'media', id, Object.assign({}, doc, { status: 'cleanup_pending', refCount: 0, cleanupAfter: new Date(), updatedAt: new Date() }));
+      }
     }
   }
 
@@ -312,9 +317,12 @@ function createMedia(ctx, options = {}) {
     const docs = [];
     for (const photo of photos) {
       const doc = await get(db, 'media', photo.mediaId);
-      const valid = doc && !photo.deleted && doc.coupleId === photo.coupleId && doc.ownerOpenid === photo.authorOpenid &&
-        doc.status === 'attached' && doc.attachmentType === 'album_photo' && doc.entryId === photo._id;
-      docs.push(valid ? doc : { _id: photo.mediaId, fileID: '' });
+      const common = doc && !photo.deleted && doc.coupleId === photo.coupleId && doc.ownerOpenid === photo.authorOpenid &&
+        doc.status === 'attached';
+      const directAlbum = common && doc.attachmentType === 'album_photo' && doc.entryId === photo._id;
+      const entryBacked = common && !!photo.sourceEntryId && (!doc.attachmentType || doc.attachmentType === 'entry') &&
+        doc.entryId === photo.sourceEntryId && (Number(doc.refCount) || 0) >= 2;
+      docs.push(directAlbum || entryBacked ? doc : { _id: photo.mediaId, fileID: '' });
     }
     return signed(docs, true);
   }

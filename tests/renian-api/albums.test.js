@@ -77,3 +77,44 @@ test('album input limits and stale deletion versions are enforced', async () => 
   ready(p.coupleId, 'a'); const added = await call('album.addPhotos', 'A', { albumId: album.id, images: ['a'] });
   await assert.rejects(call('album.deletePhoto', 'A', { id: added.ids[0], expectedVersion: 2 }), e => e.code === 'VERSION_CONFLICT');
 });
+
+
+test('daily entry images are automatically collected into the shared daily album and survive entry deletion', async () => {
+  const p = await pair();
+  ready(p.coupleId, 'daily1');
+  const entry = await call('entry.create', 'A', { text: '今天很好', images: ['daily1'] });
+  const albums = await call('album.list', 'B');
+  const daily = albums.items.find(item => item.title === '日常照片');
+  assert.ok(daily);
+  assert.equal(daily.photoCount, 1);
+  let photos = await call('album.photos', 'B', { albumId: daily.id });
+  assert.equal(photos.items.length, 1);
+  assert.equal(photos.items[0].mediaId, 'daily1');
+  assert.ok(photos.items[0].url);
+  assert.equal(cloud.__colStore('v2_media').get('daily1').refCount, 2);
+
+  await call('entry.delete', 'A', { id: entry.id, expectedVersion: entry.version });
+  photos = await call('album.photos', 'B', { albumId: daily.id });
+  assert.equal(photos.items.length, 1);
+  assert.ok(photos.items[0].url);
+  const media = cloud.__colStore('v2_media').get('daily1');
+  assert.equal(media.status, 'attached');
+  assert.equal(media.attachmentType, 'album_photo');
+  assert.equal(media.refCount, 1);
+});
+
+test('deleting an auto-collected album photo does not remove the image from its daily entry', async () => {
+  const p = await pair();
+  ready(p.coupleId, 'daily2');
+  const entry = await call('entry.create', 'A', { text: '保留在日常', images: ['daily2'] });
+  const daily = (await call('album.list', 'A')).items.find(item => item.title === '日常照片');
+  const photo = (await call('album.photos', 'A', { albumId: daily.id })).items[0];
+  await call('album.deletePhoto', 'A', { id: photo.id, expectedVersion: photo.version });
+  const refreshed = await call('entry.get', 'A', { id: entry.id });
+  assert.equal(refreshed.images.length, 1);
+  assert.ok(refreshed.images[0].url);
+  const media = cloud.__colStore('v2_media').get('daily2');
+  assert.equal(media.status, 'attached');
+  assert.equal(media.attachmentType, 'entry');
+  assert.equal(media.refCount, 1);
+});

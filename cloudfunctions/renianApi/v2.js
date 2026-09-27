@@ -118,6 +118,7 @@ function createV2Api(cloud, options = {}) {
       const doc = Object.assign({ _id: id, coupleId: member.pair._id, authorOpenid: openid, createdAt: now, updatedAt: now,
         dayKey: utcDay(now), monthKey: utcDay(now).slice(0, 7), version: 1, edited: false, deleted: false }, input);
       await put(tx, 'entries', id, doc);
+      await albums.captureEntryImages(tx, member, openid, id, input.images);
       await put(tx, 'users', openid, Object.assign({}, member.user, { lastSharedDate: doc.dayKey, lastSharedAt: now, updatedAt: now }));
       return doc;
     });
@@ -130,7 +131,10 @@ function createV2Api(cloud, options = {}) {
       assert(doc.authorOpenid === openid, 'FORBIDDEN', '只能修改或删除自己的分享');
       version(doc, event.expectedVersion);
       assert(!doc.deleted, 'ENTRY_DELETED', '这条分享已删除');
-      await media.sync(tx, member, openid, doc._id, doc.images, input ? input.images : []);
+      const afterImages = input ? input.images : [];
+      await media.sync(tx, member, openid, doc._id, doc.images, afterImages);
+      await albums.captureEntryImages(tx, member, openid, doc._id, afterImages);
+      await albums.releaseEntryImages(tx, member, doc._id, doc.images.filter(id => !afterImages.includes(id)));
       const changed = Object.assign({}, doc, input || { text: '', mood: '', images: [], deleted: true, deletedAt: new Date() }, { version: doc.version + 1, updatedAt: new Date(), edited: input ? true : doc.edited });
       await put(tx, 'entries', doc._id, changed);
       return changed;
