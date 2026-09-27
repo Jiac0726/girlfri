@@ -102,12 +102,12 @@ Page({
       const result = await wxCall('chooseMedia', {
         count: 6 - this.data.memoImages.length,
         mediaType: ['image'],
-        sizeType: ['compressed'],
+        sizeType: ['original', 'compressed'],
         sourceType: ['album', 'camera'],
       });
       const selected = [];
       for (const file of result.tempFiles || []) {
-        if (file.size > 5 * 1024 * 1024) throw new Error('请选择每张不超过 5 MB 的图片');
+        if (file.size > 20 * 1024 * 1024) throw new Error('请选择每张不超过 20 MB 的图片');
         selected.push({
           localPath: file.tempFilePath,
           url: file.tempFilePath,
