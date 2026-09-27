@@ -1,5 +1,5 @@
 const api = require('../../services/cloud');
-const { MOODS, wxCall, isUncertain } = require('../../services/entry-view');
+const { MOODS, wxCall, isUncertain, makeCompatibleImage } = require('../../services/entry-view');
 const { dateLabel } = require('../../helpers/interactions');
 const TEMPLATE = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
 const TIMES = ['20:00','20:30','21:00','21:30','22:00','22:30'];
@@ -136,7 +136,7 @@ Page({
     for (let i = 0; i < this.data.memoImages.length; i++) {
       const item = Object.assign({}, this.data.memoImages[i]);
       if (item.id && !item.localPath) continue;
-      for (let attempt = 0; attempt < 2; attempt++) {
+      for (let attempt = 0; attempt < 3; attempt++) {
         try {
           if (!item.prepared) {
             item.prepared = await api.prepareMedia({ requestId: item.uploadRequestId, name: 'private-memo', size: item.size });
@@ -152,14 +152,29 @@ Page({
           break;
         } catch (error) {
           const staleUpload = ['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE'].includes(error.code);
-          if (staleUpload) {
+          if (staleUpload && !item.staleRetried) {
+            item.staleRetried = true;
             delete item.prepared;
             delete item.stagingFileID;
             item.uploadRequestId = api.newRequestId();
             this.replaceMemoImage(i, item);
-            if (attempt === 0) continue;
+            continue;
           }
-          if (['INVALID_MEDIA_TYPE', 'INVALID_MEDIA_SIZE'].includes(error.code)) {
+          if (error.code === 'INVALID_MEDIA_TYPE' && !item.compatConverted && item.localPath) {
+            try {
+              item.localPath = await makeCompatibleImage(item.localPath);
+              item.url = item.localPath;
+              item.compatConverted = true;
+              delete item.prepared;
+              delete item.stagingFileID;
+              item.uploadRequestId = api.newRequestId();
+              this.replaceMemoImage(i, item);
+              continue;
+            } catch (convertError) {
+              throw memoMediaError('兼容原图格式', convertError);
+            }
+          }
+          if (error.code === 'INVALID_MEDIA_SIZE') {
             delete item.prepared;
             delete item.stagingFileID;
             item.uploadRequestId = api.newRequestId();
