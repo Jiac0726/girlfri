@@ -7,23 +7,41 @@ const dailyAlbumId = coupleId => 'album_daily_' + hash(coupleId).slice(0, 40);
 const dailyPhotoId = (entryId, mediaId) => 'photo_daily_' + hash(entryId + ':' + mediaId).slice(0, 40);
 
 function createAlbums(ctx, media) {
-  const { db, get, membership, ownedDocument, mutate, put, page } = ctx;
+  const { db, transaction, get, membership, ownedDocument, mutate, put, page } = ctx;
   const albumView = doc => ({ id: doc._id, title: doc.title, photoCount: doc.photoCount || 0, createdAt: iso(doc.createdAt) });
   const commentView = (doc, openid) => ({ id: doc._id, text: doc.text, fromMe: doc.authorOpenid === openid, createdAt: iso(doc.createdAt) });
+  async function ensureDailyAlbumRecord(source, member) {
+    const albumId = dailyAlbumId(member.pair._id);
+    let album = await get(source, 'albums', albumId);
+    if (album) return album;
+    const now = new Date();
+    album = { _id: albumId, coupleId: member.pair._id, title: DAILY_ALBUM_TITLE, creatorOpenid: '',
+      photoCount: 0, system: true, kind: 'daily', createdAt: now, updatedAt: now };
+    await put(source, 'albums', albumId, album);
+    return album;
+  }
+  async function ensureDailyAlbum(openid) {
+    const member = await membership(db, openid, false);
+    if (!member.pair || member.pair.status !== 'active' || !member.user || member.user.status !== 'active') return null;
+    const albumId = dailyAlbumId(member.pair._id);
+    const existing = await get(db, 'albums', albumId);
+    if (existing) return albumView(existing);
+    const album = await transaction(async tx => {
+      const activeMember = await membership(tx, openid);
+      return ensureDailyAlbumRecord(tx, activeMember);
+    });
+    return albumView(album);
+  }
   async function list(event, openid) {
     const member = await membership(db, openid);
+    await ensureDailyAlbum(openid);
     const result = await page('albums', { coupleId: member.pair._id }, event);
     return { items: result.items.map(albumView), nextCursor: result.nextCursor };
   }
   async function captureEntryImages(tx, member, openid, entryId, mediaIds) {
-    const albumId = dailyAlbumId(member.pair._id);
+    const album = await ensureDailyAlbumRecord(tx, member);
+    const albumId = album._id;
     const now = new Date();
-    let album = await get(tx, 'albums', albumId);
-    if (!album) {
-      album = { _id: albumId, coupleId: member.pair._id, title: DAILY_ALBUM_TITLE, creatorOpenid: '',
-        photoCount: 0, system: true, kind: 'daily', createdAt: now, updatedAt: now };
-      await put(tx, 'albums', albumId, album);
-    }
     if (!Array.isArray(mediaIds) || !mediaIds.length) return;
     let added = 0;
     for (const mediaId of mediaIds) {
@@ -169,6 +187,6 @@ function createAlbums(ctx, media) {
       return { id: photo._id, deleted: true };
     });
   }
-  return { list, create, photos, add, remove, comments, addComment, captureEntryImages, releaseEntryImages };
+  return { list, create, photos, add, remove, comments, addComment, ensureDailyAlbum, captureEntryImages, releaseEntryImages };
 }
 module.exports = { createAlbums };
