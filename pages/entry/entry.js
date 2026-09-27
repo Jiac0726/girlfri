@@ -81,10 +81,10 @@ Page({
     if (!this._ready || this.data.saving || this.data.uncertain || this.data.images.length >= 9) return;
     this.setData({ saving: true });
     try {
-      const result = await view.wxCall('chooseMedia', { count: 9 - this.data.images.length, mediaType: ['image'], sizeType: ['compressed'], sourceType: ['album', 'camera'] });
+      const result = await view.wxCall('chooseMedia', { count: 9 - this.data.images.length, mediaType: ['image'], sizeType: ['original', 'compressed'], sourceType: ['album', 'camera'] });
       const selected = [];
       for (const file of result.tempFiles) {
-        if (file.size > 5 * 1024 * 1024) throw new Error('请选择每张不超过 5 MB 的图片');
+        if (file.size > 20 * 1024 * 1024) throw new Error('请选择每张不超过 20 MB 的图片');
         selected.push({ localPath: file.tempFilePath, url: file.tempFilePath, size: file.size, uploadRequestId: api.newRequestId() });
       }
       this._dirty = true; this.setData({ images: this.data.images.concat(selected) }); this.persist();
