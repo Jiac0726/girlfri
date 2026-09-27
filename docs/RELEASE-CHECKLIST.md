@@ -1,164 +1,153 @@
 # 热念 · 提审前检查清单
 
-> 适用：`gf-rating` / `热念` / 微信小程序 + 云开发
-> 依据：`wechat-miniprogram-cloudbase-{deploy,scaffold}` 的真实环境踩坑记录 + 本仓库实际状态核查
-> 勾完再点「提交审核」。
+> 适用：当前 V2 架构的微信小程序 + CloudBase。
+> 目标：提审前同时验证前端、云函数、数据库、媒体和双人绑定主链路。
+> 本清单只描述当前仓库的 V2 实际结构；旧版迁移数据另见 `V2-DEPLOY.md` 与 `v2-migrate-legacy.ps1`。
 
----
+## P0 · 核心流程
 
-## 🔴 P0 · 不做完必被驳回 / 功能等于没有
+### 1. 双人绑定主链路
+- [ ] 账号 A 可生成 8 位邀请码。
+- [ ] 账号 B 可通过邀请码加入。
+- [ ] 绑定成功后，双方的 `coupleId` 与成员关系一致。
+- [ ] A/B 都能进入「今天 / 日常 / 回顾 / 我们」。
+- [ ] 错误邀请码、过期邀请码、自邀、重复绑定均有明确错误状态。
+- [ ] 审核测试说明明确写出“需要两个微信账号完成绑定”。
 
-### 1. 主导航与回顾页完整性
-当前正式信息架构只有两个主 Tab：`今天` / `回顾`。
+### 2. 日常与回顾
+- [ ] 首页可选择评分并进入新建记录页；评分入口只预填，不直接提交。
+- [ ] 新建、编辑、删除日常均正常。
+- [ ] 同一天允许多条记录。
+- [ ] 「回顾」月份切换、上/下月、按日期筛选和分页正常。
+- [ ] 月份/日期请求失败时，不会继续展示上一筛选条件的旧记录。
+- [ ] 双方记录与单方历史记录的可见性符合当前业务规则。
 
-原 `history`、`monthly`、`stats` 的核心能力已经合并进 `pages/review/review`，旧页面不应再作为独立入口保留。
+### 3. 共同约定与心意券
+- [ ] 约定发起、接受、拒绝、撤回、结束均可用。
+- [ ] 心意券赠送、申请、同意/拒绝、撤销/撤回、历史记录均可用。
+- [ ] 网络不稳定时重试使用同一个 requestId，不重复创建业务数据。
+- [ ] “写入成功、列表刷新失败”后，页面仍保留原操作上下文，可继续确认。
 
-- [ ] 「今天」可完成双向每日评价
-- [ ] 「回顾」可查看累计统计、本月统计、双向日历、高光/小摩擦、历史记录
-- [ ] 「回顾」可展开完整历史并生成回顾卡片
-- [ ] 冷启动后两次点击内可到达绑定页和回顾页
+### 4. 私密备忘录与媒体
+- [ ] 私密备忘录只对本人可见。
+- [ ] 图片上传、确认、编辑、删除正常。
+- [ ] 图片临时 URL 获取失败时，不会把已经提交成功的备忘录表现成“写入失败”。
+- [ ] 单张私密图片异常不会阻断整个「我们」页面其它数据加载。
+- [ ] 上传中断、过期、未确认文件可由清理任务回收。
+- [ ] `media.prepare` 并发调用最终只产生稳定的 stagingFileID。
 
-### 2. 双人绑定 → 审核员单账号无法走通核心链路（**最高危驳回风险**）
-核心功能是「两人用 8 位绑定码绑定后互评」。审核员通常只有**一个微信号**，无法完成绑定 → 核心功能全程不可体验。
+## P1 · CloudBase V2
 
-- [ ] 提审备注里写明：「本小程序需两个微信账号互相绑定后使用」
-- [ ] **强烈建议加一个「演示模式」**：未绑定时可查看只读示例数据（好评/差评/回顾页示例数据），让审核员能看全界面
-- [ ] 或提供两个测试微信号 + 一对现成邀请码，写在「测试帐号」栏
-- [ ] 版本描述里附 3 步上手指引（生成绑定码 → 另一号绑定 → 互评）
+### 5. V2 集合
+当前业务集合由 `config/database.v2.json` 定义：
+- [ ] `v2_users`
+- [ ] `v2_couples`
+- [ ] `v2_invites`
+- [ ] `v2_entries`
+- [ ] `v2_agreements`
+- [ ] `v2_coupons`
+- [ ] `v2_coupon_requests`
+- [ ] `v2_media`
+- [ ] `v2_operations`
 
-### 3. AppID / 云环境还是占位符
-- [ ] `project.config.json` → `appid: "wxYOUR_APPID"` 换成真实 AppID
-- [ ] `project.private.config.example.json` → 同上（复制成 `project.private.config.json`）
-- [ ] 建 `config/env.local.js`（照 `config/env.local.example.js`），填 `cloudEnv`
-- [ ] 跑 `setup-local.ps1` / `setup-local.cmd` 生成本机配置
-- [ ] 确认 `config/env.js` 的 `configured === true`（否则前端不发请求）
+所有集合由云函数服务端访问，前端不直接读写这些集合。
 
-### 4. ICP 备案（硬前置，周期长，**现在就启动**）
-2023 年 9 月起小程序必须完成 ICP 备案才可上架。
-- [ ] mp 后台 → 设置 → 基本设置 → ICP 备案 → 按指引提交
-- [ ] 个人主体需实名 + 人脸核验；审核约 1~20 个工作日
-- [ ] **备案没下来之前，后面所有步骤做了也发布不了**，请并行推进
+### 6. 数据库索引
+- [ ] 按 `config/database.v2.json` 创建全部 V2 索引。
+- [ ] `v2_operations` 包含按 `createdAt ASC + _id ASC` 的清理索引。
+- [ ] 生产环境核对索引实际状态，不只检查代码配置文件。
 
----
+### 7. 云函数部署
+部署以下函数，并确保依赖已安装：
+- [ ] `renianApi`
+- [ ] `mediaCleanup`
+- [ ] `dailyReminder`
+- [ ] `legacyV2Migration`（仅在需要迁移旧数据时执行）
 
-## 🟠 P1 · 云开发侧（漏一个就「网络异常」）
+部署后使用微信开发者工具/体验版真机验证，不把单纯的 CLI invoke 结果当成完整验收。
 
-### 5. 集合必须控制台手工建（CLI 建不了，坑 #1）
-`tcb db create` 子命令已移除、通用 API 已离线、`db.add()` 不会隐式建集合且被静默吞掉。
+### 8. 环境配置
+- [ ] 本地 `config/env.local.js` 已配置实际 CloudBase 环境。
+- [ ] 本地 `project.private.config.json` 使用真实 AppID。
+- [ ] Git 忽略文件中保存 AppID/云环境等本地配置。
+- [ ] 不把密钥、上传私钥或真实用户数据提交到仓库。
 
-- [ ] CloudBase 控制台 → 数据库 → 新建集合：
-  - `couples`
-  - `couple_users`（**注意不是 `users`**，`COLLECTIONS.users = 'couple_users'`）
-  - `ratings`
+## P1 · 安全与数据一致性
 
-### 6. 数据预检 + 索引
-不要直接手工改历史数据后就建索引。先运行只读预检：
+### 9. 身份与授权
+- [ ] 服务端身份只取 `cloud.getWXContext().OPENID`。
+- [ ] 所有双人数据访问均经过 membership / ownership 校验。
+- [ ] entry / memo / media 均不能通过修改请求参数访问其它用户数据。
+- [ ] private memo media 不可被伴侣账号直接签名访问。
+
+### 10. 幂等与版本控制
+- [ ] 创建类 mutation 使用 requestId 幂等。
+- [ ] 编辑/状态变更使用 expectedVersion。
+- [ ] 重试时 payload 不得偷偷改变。
+- [ ] 前端 mutation 成功后刷新失败，必须继续保留原 requestId 与原 payload。
+
+## P2 · 自动化检查
+
+提交前至少执行：
 
 ```text
-database-preflight.cmd
+node scripts/check-source.js
+node --test tests/renian-api/*.test.js tests/frontend/*.test.js
 ```
 
-只有报告出现 `SAFE TO MIGRATE: True` 才运行：
+当前源码检查还会验证：
+- 页面 JS/WXML 的事件处理函数是否可解析到；
+- `services/cloud.js` 与 `renianApi/v2.js` 的 action 是否一一对应；
+- 页面资源、Tab 路由和 JS/JSON 语法。
 
-```text
-database-migrate.cmd
-```
+### 11. Windows 更新脚本
+- [ ] `update-main.cmd` / `update-main-force.cmd` 在目标机器可正常执行。
+- [ ] 本地 Git ignored 配置不会被更新脚本覆盖。
+- [ ] 强制更新只在明确需要丢弃本地 tracked 修改时使用。
 
-迁移脚本会再次做全量备份，并要求输入 `MIGRATE` 才写库。
+## P2 · 旧数据迁移
 
-最终索引：
-- [ ] `couples.idx_inviteCode_unique` → **唯一索引**：`inviteCode ASC`
-- [ ] `ratings.idx_couple_date_ratedBy` → 普通复合索引：`coupleId ASC + date DESC + ratedBy ASC`
-- [ ] 保留迁移前后的 `PRECHECK.txt` 和备份目录，确认双账号链路正常后再清理
+仅迁移旧版数据时执行：
 
-### 7. 云函数部署前必须装齐 `node_modules`（坑 #7）
-`tcb fn deploy` 上传的是**本地目录**，Tencent SCF 不会云端自动装依赖。
-- [ ] `cd cloudfunctions/renianApi && npm install`（装 `wx-server-sdk@4.0.2`，已锁版本 ✅）
-- [ ] 确认 `node_modules/wx-server-sdk/` 真实存在后再 deploy
+1. 先运行 `v2-migrate-legacy.ps1 prepare` / `plan` 对集合、源数据和 blocker 做检查。
+2. 处理全部 blocker 后，再执行 apply。
+3. active 关系必须满足：
+   - creatorOpenid 存在；
+   - partnerOpenid 非空；
+   - partnerOpenid 与 creatorOpenid 不同；
+   - partnerOpenid 属于 memberOpenids；
+   - 两个用户的 coupleId 与关系一致。
+4. 迁移过程不能继续写入旧源数据。
+5. 完成后保留旧集合作为回退依据，并核对 receipt / source fingerprint / target verification。
 
-### 8. 相对 `require` 路径（坑 #6）
-本仓库是单文件 `index.js`、无子目录 ✅ 当前无此风险。
-- [ ] **但若以后拆 `services/` 子目录**：子文件里要用 `../db`、`./x`，不是 `./db`、`./services/x`
-- [ ] 记住：`node --check` **只验语法不解析依赖**，路径错误查不出来，必须真机验
+## P3 · 提审材料
 
-### 9. 部署后验证方式（坑 #2）
-`tcb fn invoke` 报 `GetFunction Namespace取值与规范不符` 是**工具的 backend namespace bug**，不代表函数坏；反之它成功也不代表函数好 —— 它**没有真实 OPENID**。
-- [ ] **端到端验证只认微信开发者工具 / 体验版真机**
-- [ ] 体验版扫码 → 生成绑定码 → 第二个号绑定 → 双向互评 → 打开「回顾」检查月历、统计、历史和回顾卡片
+- [ ] 提供双账号使用说明。
+- [ ] 版本描述写清：生成邀请码 → 第二个账号加入 → 双方记录 → 回顾。
+- [ ] 隐私保护指引只勾选实际使用的能力和数据类型。
+- [ ] 分享路径只携带必要的邀请码信息，不携带 openid。
+- [ ] 测试账号、体验版入口和已知限制写在提审备注中。
 
----
+## 提审后
 
-## 🟡 P2 · 上传与打包
+- [ ] 体验版真机完成双账号绑定和完整主流程。
+- [ ] 检查 CloudBase 云函数日志中无持续性 unexpected/internal 错误。
+- [ ] 确认媒体清理、提醒任务正常运行。
+- [ ] 新版本发布前确认数据库 schema/index 与当前代码一致。
 
-### 10. `cloudfunctionRoot` 会让 CLI 顺带推云函数
-`project.config.json` 现有 `cloudfunctionRoot: "cloudfunctions/"`。
-- [ ] 若已用 `tcb` 部署好云函数，**上传纯前端时临时注释掉这一行**，避免重复推送覆盖
-- [ ] 若用微信开发者工具上传，可保留
+## 附：当前安全基线
 
-### 11. 上传 IP 白名单只收 IPv4（坑 #3）
-IPv6 出口必被拒（`errCode: -10008 invalid ip: 2408:...`），且**白名单 UI 无法添加 IPv6**。
-- [ ] 走 IPv6/代理出口时：**关掉 IP 白名单总开关**（一劳永逸，安全性由上传私钥兜底）
-- [ ] 或切 IPv4 出口后 `curl -s https://ifconfig.me` 取 IP 加白名单（换网络要重加）
-- [ ] 上传私钥 `.key` **只传文件路径、绝不把内容贴进对话/日志**
-- [ ] 确认打包 `ignores` 含 `*.key`、`cloudfunctions/**`、`node_modules/**`（密钥与后端不进包）
-
-### 12. 上传成功 ≠ 上线
-- [ ] 明确：上传只产生**体验版**，真用户看不到
-- [ ] 审核 + 发布是**纯人工步骤**，在 mp 后台操作
-
----
-
-## 🟢 P3 · 提审材料
-
-### 13. 类目（**千万别选「社交」**）
-个人主体一级类目通常只有「生活服务 / 工具 / 体育」。「社交」要额外资质、审核严、**分享能力反而受限**。
-
-- [ ] 首选：**生活服务 > 生活助手**
-- [ ] 备选：**工具 > 记事本** / **工具 > 效率**
-- [ ] 产品定位描述按「个人生活记录工具」写，**不要强调陌生人交友/社交**
-
-### 14. 用户隐私保护指引
-本仓库实测 **0 个隐私接口**（无 `getPhoneNumber` / `getUserInfo` / `getLocation` / `chooseImage` 等）。
-
-- [ ] 未上线只能走**提审页面底部**的「用户隐私保护指引设置」（后台直填那个入口只对已发布生效）
-- [ ] 勾最小项：**微信登录（openid）**（云函数 `getWXContext().OPENID` 用到）
-- [ ] ⚠️ **勾少了接口失效、勾多了被驳回**，别顺手多勾
-- [ ] 若审核要求补勾，按驳回意见逐项加，不要一次全上
-
-### 15. 分享
-- [ ] 分享给好友/群是**内置能力，无需申请** —— `pages/bind/bind.js` 已写 `onShareAppMessage` ✅
-- [ ] 分享链接 `/pages/bind/bind?inviteCode=xxx&source=wechat_invite` ✅ 只带邀请码，不带 openid/pairId
-- [ ] 若右上角 `···` 转发按钮灰掉：原因是**没做 ICP 备案 + 认证**，不是「没申请分享权限」
-- [ ] 分享到朋友圈是另一回事（要 `onShareTimeline` + 受类目限制），**本项目不需要，别加**
-
-### 16. 版本描述与测试说明
-- [ ] 版本描述写清「双人绑定互评」的使用路径
-- [ ] 测试帐号栏填两个测试微信号（或写明需要审核员自备两个号）
-- [ ] 附一句：「未绑定时点击『生成绑定码』→ 另一微信扫码/输入绑定码 → 双方互评」
-
----
-
-## ✅ 提审后
-
-- [ ] 驳回时**按驳回意见逐条改**，别一次大改（大改要重新排队）
-- [ ] 常见驳回：类目不符 / 隐私指引缺项 / **核心功能不可体验（见 P0-2）** / 主流程不可达
-- [ ] 通过后在 mp 后台点「发布」，全量可见
-- [ ] 发布后去 CloudBase 看云函数调用日志，确认 `UNEXPECTED` 级别错误为 0（业务 `warn` 是正常的）
-
----
-
-## 附：本仓库特有的安全基线（已完成，勿回退）
-
-| 项 | 状态 |
+| 项目 | 状态 |
 |---|---|
-| 身份来源 `cloud.getWXContext().OPENID`，不信任 `event` | ✅ |
-| `requireActive()` 授权门禁 | ✅ |
-| `cleanRating()` 输出脱敏，不泄露 `ratedBy`/`targetOpenid` | ✅ |
-| P1/P2 TOCTOU（状态校验在事务内重读） | ✅ |
-| P3B 邀请码用后写 `USED_<pairId>` | ✅ |
-| P4 `listRatings` 稳定排序 | ✅ |
-| P5 `safeGet` 只吞「文档不存在」 | ✅ |
-| P6 `pair.join` 限流（内存桶，冷启动重置） | ✅ |
-| 日志分级（预期业务错误走 warn） | ✅ |
-| 依赖锁版本 `wx-server-sdk: 4.0.2` | ✅ |
-| 回归测试 `node tests/renian-api/race.test.js` → 23/23 | ✅ |
+| OPENID 服务端身份 | ✅ |
+| membership / ownership 授权 | ✅ |
+| Entry expectedVersion | ✅ |
+| Mutation requestId 幂等 | ✅ |
+| 私密备忘录 owner-only | ✅ |
+| Media 文件身份与内容校验 | ✅ |
+| Media staging / published 隔离 | ✅ |
+| legacy migration source fingerprint | ✅ |
+| Active partner identity validation | ✅ |
+| v2_operations 90 天保留策略 | ✅ |
+| WXML handler source check | ✅ |
+| Client/server API action contract check | ✅ |
