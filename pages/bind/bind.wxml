@@ -1,4 +1,8 @@
 <view class="love-page">
+  <block wx:if="{{bindingStatus === 'unbound' && !openedFromInvite}}">
+    <image class="welcome-photo" src="../../assets/bind-couple-portrait.jpg" mode="aspectFill" />
+    <view class="story-fade"></view>
+  </block>
   <view class="bind-nav" style="padding-top:{{statusBarHeight}}px">
     <button class="back-link" bindtap="backHome" aria-label="返回首页">‹</button>
     <text>{{bindingStatus === 'active' ? '绑定成功' : bindingStatus === 'waiting' ? '邀请 TA' : openedFromInvite ? '接受邀请' : '热念'}}</text>
@@ -6,8 +10,6 @@
   <view wx:if="{{bindingStatus === 'unbound' && !openedFromInvite}}" class="welcome-stage">
     <view class="brand-block"><view class="brand-heart">♡<text>✧</text></view><view class="brand-name">热 念</view><view class="brand-sub">两个人的相处记录</view></view>
     <view class="story-zone">
-      <image class="welcome-photo" src="../../assets/bind-couple.jpg" mode="aspectFill" />
-      <view class="story-fade"></view>
       <view class="hand-note story-note"><view>平凡的日子</view><view>因为有你</view><view>而闪闪发光 ♡</view></view>
     </view>
     <view class="welcome-actions">
