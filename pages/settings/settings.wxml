@@ -1,0 +1,45 @@
+<view class="container settings-page">
+  <view class="settings-header">
+    <button class="settings-back" bindtap="goBack" aria-label="返回">‹</button>
+    <view>
+      <view class="settings-eyebrow">热念 · 个人</view>
+      <view class="settings-title">个人设置</view>
+      <view class="settings-sub">管理你的微信权限与使用说明</view>
+    </view>
+  </view>
+
+  <view class="settings-card">
+    <view class="settings-section-title">微信权限</view>
+    <view class="settings-row" bindtap="openWechatSettings">
+      <view class="settings-row-icon">⌁</view>
+      <view class="settings-row-copy">
+        <view class="settings-row-title">通知与授权</view>
+        <view class="settings-row-sub">查看并管理热念已经申请过的微信权限</view>
+      </view>
+      <view class="settings-row-arrow">›</view>
+    </view>
+  </view>
+
+  <view class="settings-card">
+    <view class="settings-section-title">关于</view>
+    <view class="settings-row" bindtap="showPrivacy">
+      <view class="settings-row-icon">♡</view>
+      <view class="settings-row-copy">
+        <view class="settings-row-title">隐私说明</view>
+        <view class="settings-row-sub">了解双人空间与私密备忘录的数据范围</view>
+      </view>
+      <view class="settings-row-arrow">›</view>
+    </view>
+
+    <view class="settings-row" bindtap="showAbout">
+      <view class="settings-row-icon">✦</view>
+      <view class="settings-row-copy">
+        <view class="settings-row-title">关于热念</view>
+        <view class="settings-row-sub">两个人的相处记录</view>
+      </view>
+      <view class="settings-row-arrow">›</view>
+    </view>
+  </view>
+
+  <view class="settings-footer">热念 · {{version}}</view>
+</view>

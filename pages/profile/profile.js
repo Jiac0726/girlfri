@@ -135,6 +135,7 @@ Page({
       if (!this._disposed) this.setData({ missNotifySaving: false });
     }
   },
+  goSettings() { wx.navigateTo({ url: '/pages/settings/settings' }); },
   goBind() { wx.navigateTo({ url: '/pages/bind/bind' }); },
   goAlbums() { wx.navigateTo({ url: '/pages/albums/albums' }); },
   goAgreements() { wx.navigateTo({ url: '/pages/permissions/permissions' }); },

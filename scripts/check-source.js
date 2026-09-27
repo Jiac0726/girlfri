@@ -66,7 +66,8 @@ function collectWxmlClosure(entryFile) {
 
 function declaredHandlers(jsSource) {
   const names = new Set();
-  const method = /(?:^|[,{;\n])\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*(?:\([^)]*\)|:\s*(?:async\s+)?function\s*\()/g;
+  // Do not consume Page({ ... firstHandler() as if it were a method declaration.
+  const method = /(?:^|[,{;\n])\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*(?:\([^(){}]*\)|:\s*(?:async\s+)?function\s*\()/g;
   let match;
   while ((match = method.exec(jsSource))) names.add(match[1]);
   return names;
