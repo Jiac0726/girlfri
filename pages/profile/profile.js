@@ -136,34 +136,37 @@ Page({
     for (let i = 0; i < this.data.memoImages.length; i++) {
       const item = Object.assign({}, this.data.memoImages[i]);
       if (item.id && !item.localPath) continue;
-      if (!item.prepared) {
+      for (let attempt = 0; attempt < 2; attempt++) {
         try {
-          item.prepared = await api.prepareMedia({ requestId: item.uploadRequestId, name: 'private-memo', size: item.size });
+          if (!item.prepared) {
+            item.prepared = await api.prepareMedia({ requestId: item.uploadRequestId, name: 'private-memo', size: item.size });
+            this.replaceMemoImage(i, item);
+          }
+          if (!item.stagingFileID) {
+            const uploaded = await wx.cloud.uploadFile({ cloudPath: item.prepared.cloudPath, filePath: item.localPath });
+            item.stagingFileID = uploaded.fileID;
+            this.replaceMemoImage(i, item);
+          }
+          const confirmed = await api.confirmMedia({ id: item.prepared.id, fileID: item.stagingFileID });
+          this.replaceMemoImage(i, confirmed);
+          break;
         } catch (error) {
-          throw memoMediaError('准备上传', error);
+          const staleUpload = ['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE'].includes(error.code);
+          if (staleUpload) {
+            delete item.prepared;
+            delete item.stagingFileID;
+            item.uploadRequestId = api.newRequestId();
+            this.replaceMemoImage(i, item);
+            if (attempt === 0) continue;
+          }
+          if (['INVALID_MEDIA_TYPE', 'INVALID_MEDIA_SIZE'].includes(error.code)) {
+            delete item.prepared;
+            delete item.stagingFileID;
+            item.uploadRequestId = api.newRequestId();
+            this.replaceMemoImage(i, item);
+          }
+          throw memoMediaError(error.code && error.code.startsWith('MEDIA_') ? '服务端校验' : '上传图片', error);
         }
-      }
-      this.replaceMemoImage(i, item);
-      if (!item.stagingFileID) {
-        try {
-          const uploaded = await wx.cloud.uploadFile({ cloudPath: item.prepared.cloudPath, filePath: item.localPath });
-          item.stagingFileID = uploaded.fileID;
-          this.replaceMemoImage(i, item);
-        } catch (error) {
-          throw memoMediaError('写入云存储', error);
-        }
-      }
-      try {
-        const confirmed = await api.confirmMedia({ id: item.prepared.id, fileID: item.stagingFileID });
-        this.replaceMemoImage(i, confirmed);
-      } catch (error) {
-        if (['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'INVALID_MEDIA_TYPE', 'INVALID_MEDIA_SIZE'].includes(error.code)) {
-          delete item.prepared;
-          delete item.stagingFileID;
-          item.uploadRequestId = api.newRequestId();
-          this.replaceMemoImage(i, item);
-        }
-        throw memoMediaError('服务端校验', error);
       }
     }
   },
