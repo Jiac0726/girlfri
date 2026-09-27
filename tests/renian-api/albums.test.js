@@ -162,3 +162,15 @@ test('photo comments are relationship scoped and reject deleted photos or empty 
   await call('album.deletePhoto', 'A', { id: photoId, expectedVersion: 1 });
   await assert.rejects(call('album.commentList', 'B', { photoId }), e => e.code === 'PHOTO_DELETED');
 });
+
+
+test('text-only first daily entry still creates the daily system album', async () => {
+  await pair();
+  await call('entry.create', 'A', { text: '只有文字', images: [] });
+  const albums = await call('album.list', 'B');
+  const daily = albums.items.find(item => item.title === '日常照片');
+  assert.ok(daily);
+  assert.equal(daily.photoCount, 0);
+  const photos = await call('album.photos', 'B', { albumId: daily.id });
+  assert.equal(photos.items.length, 0);
+});
