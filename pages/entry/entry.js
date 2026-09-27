@@ -99,7 +99,7 @@ Page({
     for (let i = 0; i < this.data.images.length; i++) {
       const item = Object.assign({}, this.data.images[i]);
       if (item.id && !item.localPath) continue;
-      for (let attempt = 0; attempt < 2; attempt++) {
+      for (let attempt = 0; attempt < 3; attempt++) {
         try {
           if (!item.prepared) {
             item.prepared = await api.prepareMedia({ requestId: item.uploadRequestId, name: 'photo', size: item.size });
@@ -115,11 +115,23 @@ Page({
           break;
         } catch (error) {
           const staleUpload = ['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE'].includes(error.code);
-          if (staleUpload) {
+          if (staleUpload && !item.staleRetried) {
+            item.staleRetried = true;
             delete item.prepared; delete item.stagingFileID; item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
-            if (attempt === 0) continue;
+            continue;
           }
-          if (['INVALID_MEDIA_TYPE', 'INVALID_MEDIA_SIZE'].includes(error.code)) {
+          if (error.code === 'INVALID_MEDIA_TYPE' && !item.compatConverted && item.localPath) {
+            try {
+              item.localPath = await view.makeCompatibleImage(item.localPath);
+              item.url = item.localPath;
+              item.compatConverted = true;
+              delete item.prepared; delete item.stagingFileID; item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
+              continue;
+            } catch (convertError) {
+              throw mediaError('兼容原图格式', convertError);
+            }
+          }
+          if (error.code === 'INVALID_MEDIA_SIZE') {
             delete item.prepared; delete item.stagingFileID; item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
           }
           throw mediaError(error.code && error.code.startsWith('MEDIA_') ? '服务端校验' : '上传图片', error);
