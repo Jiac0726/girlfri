@@ -14,6 +14,46 @@
 
   <view class="settings-card">
     <view class="settings-section-title">提醒设置</view>
+    <view class="daily-reminder-setting" wx:if="{{bindingStatus === 'active'}}">
+      <view class="daily-reminder-head">
+        <view>
+          <view class="settings-row-title">每日分享提醒</view>
+          <view class="settings-row-sub">当天还没有分享时，在设定时间用微信服务通知提醒你。</view>
+        </view>
+        <switch
+          color="#ff6b81"
+          checked="{{reminderEnabled}}"
+          disabled="{{reminderSaving || loading || !reminderReady}}"
+          bindchange="onReminderToggle"
+        />
+      </view>
+
+      <view class="daily-reminder-time-row">
+        <view>
+          <view class="settings-row-title">提醒时间</view>
+          <view class="settings-row-sub">仅在当天还没有分享时提醒</view>
+        </view>
+        <picker
+          mode="selector"
+          range="{{reminderTimeOptions}}"
+          value="{{reminderTimeIndex}}"
+          disabled="{{reminderSaving || loading || !reminderReady}}"
+          bindchange="onReminderTimeChange"
+        >
+          <view class="daily-reminder-time">{{reminderTime}} ›</view>
+        </picker>
+      </view>
+
+      <view class="daily-reminder-status {{reminderEnabled ? 'active' : ''}}">
+        <text class="daily-reminder-dot"></text>
+        <text>{{reminderStatusText}}</text>
+      </view>
+
+      <view class="daily-reminder-note">
+        每日分享提醒使用一次性订阅。成功发送一次后，需要再次开启，微信才会允许下一次提醒。
+      </view>
+    </view>
+
     <view class="miss-setting">
       <view class="miss-setting-head">
         <view>
