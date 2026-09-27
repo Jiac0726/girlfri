@@ -7,7 +7,9 @@
     "pages/permissions/permissions",
     "pages/privileges/privileges",
     "pages/profile/profile",
-    "pages/entry/entry"
+    "pages/settings/settings",
+    "pages/entry/entry",
+    "pages/albums/albums"
   ],
   "window": {
     "navigationBarBackgroundColor": "#fff2f1",

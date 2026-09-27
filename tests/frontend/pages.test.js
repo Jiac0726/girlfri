@@ -26,6 +26,60 @@ function loadPage(name, api = {}, customWx = {}) {
   return {page,events,wx,read};
 }
 const session={bindingStatus:'active',coupleId:'pair',serverDate:'2026-09-26'};
+test('album create keeps request identity through a committed write and failed refresh', async () => {
+  const writes = []; let failRefresh = false;
+  const { page } = loadPage('albums', {
+    getSession: async () => session,
+    listAlbums: async () => { if (failRefresh) throw Error('refresh failed'); return { items: [] }; },
+    createAlbum: async data => { writes.push(JSON.parse(JSON.stringify(data))); failRefresh = writes.length === 1; },
+  }, { getStorageSync: () => null, setStorageSync() {} });
+  page.onLoad({}); await page.refresh(); page.onTitle({ detail: { value: '一起旅行' } });
+  await page.createAlbum(); assert.equal(page.data.pending, true);
+  failRefresh = false;
+  await page.runPending();
+  assert.deepEqual(writes[0], writes[1]); assert.equal(writes.length, 2);
+  assert.equal(page.data.pending, false);
+});
+test('album upload resumes confirmation without uploading the same file twice', async () => {
+  let uploads = 0, confirms = 0; const batches = [];
+  const { page } = loadPage('albums', {
+    getSession: async () => session,
+    listAlbumPhotos: async () => ({ album: { id: 'album', title: '我们', photoCount: 0 }, items: [] }),
+    prepareMedia: async () => ({ id: 'media', cloudPath: 'staging/path' }),
+    confirmMedia: async () => { if (++confirms === 1) throw Object.assign(Error('network'), { code: 'CLOUD_INVOKE_FAILED' }); return { id: 'media' }; },
+    addAlbumPhotos: async data => batches.push(data),
+  }, { getStorageSync: () => null, setStorageSync() {}, cloud: { uploadFile: async () => { uploads++; return { fileID: 'staged' }; } } });
+  page.onLoad({ albumId: 'album' }); await page.refresh();
+  page.setData({ images: [{ localPath: 'tmp.jpg', url: 'tmp.jpg', size: 20, requestId: 'upload_once' }] });
+  await page.uploadPhotos(); assert.equal(page.data.images[0].fileID, 'staged');
+  await page.uploadPhotos(); assert.equal(uploads, 1); assert.equal(confirms, 2); assert.equal(batches.length, 1);
+  assert.equal(page.data.images.length, 0); assert.equal(page.data.pending, false);
+});
+test('album pending mutation survives page recreation and confirms without duplicate identity', async () => {
+  const storage = {}, writes = []; let reject = true;
+  const remote = {
+    getSession: async () => session, listAlbums: async () => ({ items: [] }),
+    createAlbum: async data => { writes.push(JSON.parse(JSON.stringify(data))); if (reject) throw Object.assign(Error('lost response'), { code: 'CLOUD_INVOKE_FAILED' }); },
+  };
+  const local = { getStorageSync: key => storage[key], setStorageSync: (key, value) => { storage[key] = JSON.parse(JSON.stringify(value)); } };
+  const first = loadPage('albums', remote, local).page; first.onLoad({}); await first.refresh();
+  first.onTitle({ detail: { value: '我们的相册' } }); await first.createAlbum(); first.onUnload();
+  reject = false;
+  const next = loadPage('albums', remote, local).page; next.onLoad({}); await next.refresh();
+  assert.equal(next.data.pending, true); await next.runPending();
+  assert.deepEqual(writes[0], writes[1]); assert.equal(next.data.pending, false);
+});
+test('album partner photo has no client delete path and relationship loss clears visible media', async () => {
+  let active = true, removed = 0;
+  const { page } = loadPage('albums', {
+    getSession: async () => active ? session : { bindingStatus: 'unbound' },
+    listAlbumPhotos: async () => ({ album: { id: 'album' }, items: [{ id: 'photo', fromMe: false, url: 'private-url' }] }),
+    deleteAlbumPhoto: async () => { removed++; },
+  }, { getStorageSync: () => null, setStorageSync() {} });
+  page.onLoad({ albumId: 'album' }); await page.refresh();
+  await page.deletePhoto({ currentTarget: { dataset: { id: 'photo' } } }); assert.equal(removed, 0);
+  active = false; await page.refresh(); assert.equal(page.data.items.length, 0); assert.equal(page.data.active, false);
+});
 const entry={id:'entry',text:'hello',mood:'',images:[],version:1,fromMe:true,createdAt:'2026-09-26T01:00:00Z',dayKey:'2026-09-26'};
 test('older home summary response cannot restore a previous relation',async()=>{
   const old=deferred();let calls=0;
@@ -79,6 +133,26 @@ test('entry timeout freezes the submitted payload and retries with the same requ
   page.chooseRating({currentTarget:{dataset:{type:'bad'}}});await page.save();
   assert.equal(sent.length,2);assert.deepEqual(sent[0],sent[1]);assert.equal(sent[0].text,'最初的文字');assert.equal(sent[0].ratingType,'good');
 });
+test('opening an existing entry without editing does not create a draft', async () => {
+  const {page,read}=loadPage('entry',{getSession:async()=>session,getEntry:async()=>entry});
+  page._id=entry.id;
+  await page.load();
+  page.onUnload();
+  const drafts=read(path.join(root,'services/entry-drafts.js'));
+  assert.equal(drafts.read('pair',entry.id),null);
+});
+
+test('existing dirty draft cannot mask a newer server version', async () => {
+  const {page,read}=loadPage('entry',{getSession:async()=>session,getEntry:async()=>Object.assign({},entry,{version:2,text:'server newer'})});
+  page._id=entry.id;
+  const drafts=read(path.join(root,'services/entry-drafts.js'));
+  drafts.activate('pair');
+  drafts.write('pair',entry.id,{text:'stale local edit',mood:'',ratingType:'',images:[],version:1,dirty:true,pending:null});
+  await page.load();
+  assert.equal(page.data.text,'server newer');
+  assert.equal(page.data.ratingType,'');
+});
+
 test('entry upload failure retains local draft and retries uploaded file confirmation',async()=>{
   let uploads=0,confirms=0;
   const {page}=loadPage('entry',{
@@ -145,6 +219,61 @@ test('gift retries a timeout without duplicate request or changing content',asyn
   page.setData({title:'晚餐'});await page.gift();assert.equal(page.data.uncertain,true);
   page.onTitle({detail:{value:'新券'}});await page.gift();assert.deepEqual(writes[0],writes[1]);
 });
+test('gift keeps request and content when refresh fails after commit', async () => {
+  const writes=[]; let lists=0;
+  const {page}=loadPage('privileges',{
+    giftCoupon:async data=>{writes.push(JSON.parse(JSON.stringify(data)));},
+    listCoupons:async()=>{lists++; if(lists===1) throw new Error('offline'); return {items:[]};},
+  });
+  page.setData({title:'晚餐',note:'周末一起吃'});
+  await page.gift();
+  assert.equal(page.data.uncertain,true);
+  assert.equal(page.data.title,'晚餐');
+  assert.equal(writes.length,1);
+  await page.gift();
+  assert.equal(writes.length,2);
+  assert.deepEqual(writes[0],writes[1]);
+  assert.equal(page.data.title,'');
+  assert.equal(page.data.uncertain,false);
+});
+
+test('agreement keeps request and proposal when refresh fails after commit', async () => {
+  const writes=[]; let lists=0;
+  const {page}=loadPage('permissions',{
+    proposeAgreement:async data=>{writes.push(JSON.parse(JSON.stringify(data)));},
+    listAgreements:async()=>{lists++; if(lists===1) throw new Error('offline'); return {items:[]};},
+  });
+  page.setData({title:'散步',content:'周末'});
+  await page.submitAgreement();
+  assert.equal(page.data.uncertain,true);
+  assert.equal(page.data.title,'散步');
+  assert.equal(writes.length,1);
+  await page.submitAgreement();
+  assert.equal(writes.length,2);
+  assert.deepEqual(writes[0],writes[1]);
+  assert.equal(page.data.title,'');
+  assert.equal(page.data.uncertain,false);
+});
+
+test('memo keeps pending payload when list refresh fails after commit', async () => {
+  const writes=[]; let lists=0;
+  const saved={id:'memo1',title:'礼物',text:'下次准备花',images:[],version:1,updatedAt:'2026-09-26T06:00:00Z'};
+  const {page}=loadPage('profile',{
+    createPrivateMemo:async data=>{writes.push(JSON.parse(JSON.stringify(data)));return saved;},
+    listPrivateMemos:async()=>{lists++; if(lists===1) throw new Error('offline'); return {items:[saved]};},
+  });
+  page.setData({bindingStatus:'active',authLoading:false,memoTitle:'礼物',memoText:'下次准备花',memoImages:[]});
+  await page.saveMemo();
+  assert.equal(page.data.memoUncertain,true);
+  assert.equal(page.data.memoTitle,'礼物');
+  assert.equal(writes.length,1);
+  await page.saveMemo();
+  assert.equal(writes.length,2);
+  assert.deepEqual(writes[0],writes[1]);
+  assert.equal(page.data.memoTitle,'');
+  assert.equal(page.data.memoUncertain,false);
+});
+
 test('agreement timeout freezes proposal and reuses its request id',async()=>{
   const writes=[];let count=0;
   const {page}=loadPage('permissions',{proposeAgreement:async data=>{writes.push(JSON.parse(JSON.stringify(data)));if(++count===1)throw Object.assign(new Error('network'),{code:'CLOUD_INVOKE_FAILED'});},listAgreements:async()=>({items:[]})});
@@ -184,11 +313,11 @@ test('profile private memo creates an item with attached image ids',async()=>{
 test('miss notification authorization stores one accepted one-time quota',async()=>{
   const writes=[];
   const template='RWnfT0dJaUjWh6e1XsFpLzgeI6naPdDE6Yq1VSbHusw';
-  const {page,events}=loadPage('profile',{
+  const {page,events}=loadPage('settings',{
     authorizeMissNotify:async data=>{writes.push(data);return {templateId:template,quota:1,enabled:true};},
     getMissNotifySettings:async()=>({templateId:template,quota:0,enabled:false}),
   },{requestSubscribeMessage:options=>options.success({[template]:'accept'})});
-  page.setData({bindingStatus:'active',authLoading:false,missNotifyReady:true});
+  page.setData({bindingStatus:'active',loading:false,missNotifyReady:true});
   await page.authorizeMissNotify();
   assert.equal(writes.length,1);
   assert.match(writes[0].requestId,/^request_/);
@@ -199,14 +328,14 @@ test('miss notification authorization stores one accepted one-time quota',async(
 
 test('miss subscription uses the server template and displays native error details without granting quota',async()=>{
   let writes=0, requested, modal;
-  const {page}=loadPage('profile',{
+  const {page}=loadPage('settings',{
     authorizeMissNotify:async()=>{writes++;},
     getMissNotifySettings:async()=>({templateId:'current-template',quota:0}),
   },{
     requestSubscribeMessage:options=>{requested=options.tmplIds;options.fail({errCode:20001,errMsg:'requestSubscribeMessage:fail invalid template'});},
     showModal:options=>{modal=options;},
   });
-  page.setData({bindingStatus:'active',authLoading:false});
+  page.setData({bindingStatus:'active',loading:false});
   page.applyMissNotify({templateId:'current-template',quota:0});
   await page.authorizeMissNotify();
   assert.equal(requested[0],'current-template');
@@ -238,14 +367,14 @@ test('rating shortcut prefills new composer but preserves existing draft',async(
 
 test('miss authorization distinguishes a save failure after WeChat acceptance',async()=>{
   let modal;
-  const {page}=loadPage('profile',{
+  const {page}=loadPage('settings',{
     authorizeMissNotify:async()=>{throw Object.assign(new Error('network unavailable'),{code:'CLOUD_INVOKE_FAILED'});},
     getMissNotifySettings:async()=>({quota:1}),
   },{
     requestSubscribeMessage:options=>options.success({[options.tmplIds[0]]:'accept'}),
     showModal:options=>{modal=options;},
   });
-  page.setData({bindingStatus:'active',authLoading:false,missNotifyReady:true});
+  page.setData({bindingStatus:'active',loading:false,missNotifyReady:true});
   await page.authorizeMissNotify();
   assert.equal(modal.title,'保存提醒授权失败');
   assert.match(modal.content,/network unavailable/);
@@ -256,11 +385,11 @@ test('miss authorization distinguishes a save failure after WeChat acceptance',a
 test('miss template rejection or filtering never grants quota',async()=>{
   for (const status of ['reject','ban','filter',undefined]) {
     let writes=0, modal;
-    const {page}=loadPage('profile',{authorizeMissNotify:async()=>{writes++;}}, {
+    const {page}=loadPage('settings',{authorizeMissNotify:async()=>{writes++;}}, {
       requestSubscribeMessage:options=>options.success({[options.tmplIds[0]]:status}),
       showModal:options=>{modal=options;},
     });
-    page.setData({bindingStatus:'active',authLoading:false,missNotifyReady:true});
+    page.setData({bindingStatus:'active',loading:false,missNotifyReady:true});
     await page.authorizeMissNotify();
     assert.equal(writes,0);
     assert.equal(modal.title,'未获得订阅授权');
@@ -284,4 +413,33 @@ test('cloud service always sends API v2 and fixed action',async()=>{
   vm.runInNewContext(fs.readFileSync(path.join(root,'services/cloud.js'),'utf8'),{module,require:()=>({cloudEnv:'test'}),wx:{cloud:{callFunction:async data=>{sent=data;return {result:{ok:true,data:{}}};}}},console});
   await module.exports.createEntry({action:'pair.cancel',apiVersion:1});
   assert.equal(sent.data.action,'entry.create');assert.equal(sent.data.apiVersion,2);
+});
+
+
+test('album image picker exposes original and compressed choices', async () => {
+  let picked;
+  const { page } = loadPage('albums', {}, {
+    chooseMedia: options => { picked = options; options.success({ tempFiles: [] }); },
+    getStorageSync: () => null, setStorageSync() {},
+  });
+  page.setData({ active: true, loading: false, busy: false, pending: false, images: [] });
+  await page.chooseImages();
+  assert.deepEqual(Array.from(picked.sizeType), ['original', 'compressed']);
+  assert.deepEqual(Array.from(picked.mediaType), ['image']);
+});
+
+test('album photo save downloads a signed URL then writes the local file to system album', async () => {
+  let downloadedUrl = '', savedPath = '';
+  const { page, events } = loadPage('albums', {
+    getMediaUrls: async () => ({ items: [{ id: 'media1', url: 'https://example.test/photo.jpg' }] }),
+  }, {
+    downloadFile: options => { downloadedUrl = options.url; options.success({ statusCode: 200, tempFilePath: '/tmp/photo.jpg' }); },
+    saveImageToPhotosAlbum: options => { savedPath = options.filePath; options.success({}); },
+    openSetting: () => {},
+  });
+  page.setData({ active: true, loading: false, busy: false, items: [{ id: 'photo1', mediaId: 'media1', url: '' }] });
+  await page.savePhoto({ currentTarget: { dataset: { id: 'photo1' } } });
+  assert.equal(downloadedUrl, 'https://example.test/photo.jpg');
+  assert.equal(savedPath, '/tmp/photo.jpg');
+  assert.equal(events.find(x => x.method === 'showToast').value.title, '已保存到系统相册');
 });

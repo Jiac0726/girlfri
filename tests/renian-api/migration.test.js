@@ -96,3 +96,17 @@ test('one-sided legacy rating stays private to its author', () => {
   assert.equal(result.documents.v2_entries.length, 1);
   assert.equal(result.documents.v2_entries[0].legacyPrivate, true);
 });
+
+test('migration blocks active relationship with inconsistent partner identity', () => {
+  for (const mutate of [
+    pair => { pair.partnerOpenid = ''; },
+    pair => { pair.partnerOpenid = 'A'; },
+    pair => { pair.partnerOpenid = 'C'; },
+  ]) {
+    const input = sample();
+    mutate(input.couples[0]);
+    const result = transformLegacy(input);
+    assert.equal(result.ok, false);
+    assert.ok(result.blockers.some(x => x.code === 'PAIR_INVALID_PARTNER'));
+  }
+});

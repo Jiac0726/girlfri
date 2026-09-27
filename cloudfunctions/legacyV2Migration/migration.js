@@ -93,6 +93,13 @@ function transformLegacy(input, nowValue) {
       blockers.push({ code: 'PAIR_INVALID_MEMBERS', detail: id });
       continue;
     }
+    if (pair.status === 'active') {
+      const partnerOpenid = String(pair.partnerOpenid || '');
+      if (!partnerOpenid || partnerOpenid === String(pair.creatorOpenid || '') || !members.includes(partnerOpenid)) {
+        blockers.push({ code: 'PAIR_INVALID_PARTNER', detail: id });
+        continue;
+      }
+    }
     for (const openid of members) {
       const user = userMap.get(openid);
       if (!user || String(user.coupleId || '') !== id) {

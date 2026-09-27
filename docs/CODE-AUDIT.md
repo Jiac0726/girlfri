@@ -201,3 +201,24 @@ legacy migration 使用 source fingerprint、progress marker、目标集合非�
 - 每个问题尽量给出具体源码路径、触发顺序和复现条件。
 - 先完整审查，再集中修改；避免边审查边产生未经验证的代码改动。
 - 如果发现确定性 Bug，再单独提出最小修改方案。
+
+
+## 6. 2026-09-27 后续修复分支
+
+基于当前 `main` 提交 `88d8d763` 单独建立修复分支 `fix/audit-followups-2026-09-27`。本轮不修改、不合并 `main`。
+
+已处理：
+- F-001/F-002：entry 草稿增加 dirty/version 约束；已有记录优先核对服务器版本，未修改不会生成草稿。
+- F-004/F-005/F-006/F-007：心意券、共同约定、私密备忘在 mutation 成功后刷新失败时保留原 requestId/payload，并补充回归测试。
+- F-003：media staging 元数据申请增加事务租约，串行化同一媒体记录的并发 provisioning，并补并发测试。
+- F-008/F-009：私密备忘图片签名/媒体异常改为容错返回空 URL，不再把已提交 mutation 伪装成失败，也不因单张异常图片阻断备忘列表。
+- F-010：legacy active relationship 增加 partnerOpenid 非空、不同于 creator、属于 memberOpenids 的校验，并补迁移测试。
+- R-001：`v2_operations` 增加 90 天保留策略、清理任务和 `createdAt + _id` 索引，并补清理测试。
+- D-001：发布清单按当前 V2 集合、部署和提审流程重写。
+- D-002：源码检查增加 WXML handler 与 client/server API action contract 检查。
+- D-003：CloudBase Node SDK 版本统一到 3.18.1。
+- W-001：GitHub Actions checkout/setup-node 更新到当前 Node 24 runtime 对应的 action major 版本，测试安装的 Node 版本仍保持 22。
+
+### 当前状态
+
+上述修复已经落在本分支；功能基线 `ff72527` 的 GitHub Actions 已通过，本地 83 项测试及两项 PowerShell 5.1 兼容性检查通过。索引现为 16 个；上文 15 个是审查时的历史状态。`main` 未合并；真实环境尚未验收，不能标记为发布就绪。收尾提交 CI 和待办见 [发布验收记录](RELEASE-VALIDATION-2026-09-27.md)。

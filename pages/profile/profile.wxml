@@ -13,6 +13,7 @@
         绑定后，你们可以互相看到彼此现在的心情。
       </view>
     </view>
+    <button class="profile-settings-btn" bindtap="goSettings" aria-label="个人设置">⚙</button>
   </view>
 
   <view
@@ -34,6 +35,7 @@
 
   <view class="card" wx:if="{{error}}">{{error}}<button bindtap="loadProfile">重新加载</button></view>
   <view class="our-links" wx:if="{{bindingStatus === 'active'}}">
+    <view class="our-link agreements-link" bindtap="goAlbums"><view>我们的相册</view><text>一起收藏照片与回忆</text><text class="our-link-icon">▧</text></view>
     <view class="our-link agreements-link" bindtap="goAgreements"><view>共同约定</view><text>{{pendingAgreementCount ? pendingAgreementCount + ' 份提议等你回应' : '一起商量的小安排'}}</text><text class="our-link-icon">♡</text></view>
     <view class="our-link coupons-link" bindtap="goCoupons"><view>心意券</view><text>{{pendingCouponCount ? pendingCouponCount + ' 份申请等你确认' : '给彼此一点小偏爱'}}</text><text class="our-link-icon">✉</text></view>
   </view>
@@ -187,34 +189,6 @@
     </button>
   </view>
 
-
-  <view class="card miss-notify-card" wx:if="{{bindingStatus === 'active'}}">
-    <view class="miss-notify-head">
-      <view>
-        <view class="card-title">想念提醒</view>
-        <view class="miss-notify-sub">TA 点“想念”时，可以用微信服务通知提醒你。</view>
-      </view>
-      <view class="miss-notify-badge">{{missNotifyQuota ? missNotifyQuota + ' 次' : '未授权'}}</view>
-    </view>
-
-    <view class="miss-notify-status">
-      <text class="reminder-dot {{missNotifyQuota ? 'active' : ''}}"></text>
-      <text>{{missNotifyStatusText}}</text>
-    </view>
-
-    <button
-      class="miss-notify-button"
-      bindtap="authorizeMissNotify"
-      loading="{{missNotifySaving}}"
-      disabled="{{missNotifySaving || authLoading || !missNotifyReady}}"
-    >
-      {{missNotifyQuota ? '再允许一次提醒' : '允许下一次想念提醒'}}
-    </button>
-
-    <view class="reminder-note">
-      这是一次性订阅：每允许 1 次，就能收到 1 次想念通知；用完后可再次允许。
-    </view>
-  </view>
 
   <view class="card reminder-card" wx:if="{{bindingStatus === 'active'}}">
     <view class="reminder-head">

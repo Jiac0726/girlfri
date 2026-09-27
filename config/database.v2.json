@@ -1,5 +1,5 @@
 {
-  "description": "V2 database schema source of truth. v2-migrate-legacy.ps1 automatically creates missing collections through the migration cloud function and creates these indexes through CloudBase CLI.",
+  "description": "V2 database schema source of truth. v2-migrate-legacy.ps1 automatically creates missing collections through the migration cloud function and creates these indexes through CloudBase CLI. v2_operations records are retained for 90 days for requestId idempotency.",
   "collections": [
     {
       "name": "v2_users",
@@ -371,6 +371,21 @@
         },
         {
           "field": "fileID",
+          "direction": "asc"
+        },
+        {
+          "field": "_id",
+          "direction": "asc"
+        }
+      ]
+    },
+    {
+      "name": "v2_query_16",
+      "collection": "v2_operations",
+      "unique": false,
+      "fields": [
+        {
+          "field": "createdAt",
           "direction": "asc"
         },
         {

@@ -38,11 +38,13 @@ Page({
       this.setData({ items, pendingItems: items.filter(x => x.status === 'pending'), activeItems: items.filter(x => x.status === 'active'),
         historyItems: items.filter(x => x.status !== 'pending' && x.status !== 'active'), nextCursor: result.nextCursor || '',
         ready: true, bindingRequired: false });
+      return true;
     } catch (error) {
       if (request !== this._listRequest) return;
       const bindingRequired = api.isBindingError(error);
       this.setData({ loadError: bindingRequired ? '绑定后才能和 TA 讨论共同约定。' : (error.message || '约定加载失败，请重试'), bindingRequired });
       if (bindingRequired) this.setData({ items: [], pendingItems: [], activeItems: [], historyItems: [], nextCursor: '', ready: false });
+      return false;
     } finally {
       if (request === this._listRequest) this.setData({ loading: false });
     }
@@ -77,17 +79,20 @@ Page({
     if (this._pendingProposal) payload = this._pendingProposal;
     const key = 'propose:' + JSON.stringify(payload);
     this.setData({ saving: true });
+    let mutationCommitted = false;
     try {
       if (!this._pendingProposal && !await helpers.confirmAction('发起这份共同约定？', '发起代表你已同意这些内容。TA 接受后才会共同生效。' + (payload.replacesId ? ' 等待期间，原约定继续有效。' : ''), '发起约定')) return;
       this._pendingProposal = payload;
       await api.proposeAgreement(Object.assign({ requestId: helpers.requestIdFor(this, key, api) }, payload));
+      mutationCommitted = true;
+      const refreshed = await this.loadAgreements();
+      if (!refreshed) throw Object.assign(new Error('共同约定已提交，但列表刷新失败，请重试确认'), { code: 'POST_MUTATION_REFRESH_FAILED' });
       helpers.clearRequestId(this, key);
       this._pendingProposal = null;
       this.setData({ title: '', content: '', replacesId: '', expectedVersion: null, editUnavailable: false, uncertain: false });
-      await this.loadAgreements();
       wx.showToast({ title: '已发起，等待 TA 回应', icon: 'none' });
     } catch (error) {
-      const uncertain = helpers.isUncertain(error);
+      const uncertain = mutationCommitted || helpers.isUncertain(error);
       if (!uncertain) this._pendingProposal = null;
       this.setData({ uncertain });
       await this.handleMutationError(error, payload.replacesId);

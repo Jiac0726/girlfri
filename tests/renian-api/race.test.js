@@ -211,6 +211,53 @@ test('reminders default off and settings reject stale updates', async () => {
   assert.equal(on.version,1);
   await failure(call('reminder.update','A',{enabled:false,time:'21:30',expectedVersion:0}),'VERSION_CONFLICT');
 });
+test('parallel media prepare provisions staging metadata once', async () => {
+  await pair();
+  let calls = 0, release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const concurrent = createV2Api(cloud, {
+    database: cloud.__nodeDatabase(),
+    getUploadMetadata: async ({cloudPath}) => {
+      calls++;
+      await gate;
+      return {data:{fileId: 'cloud://mock-env.bucket/' + cloudPath}};
+    },
+  });
+  const event = {action:'media.prepare', requestId:'parallel_media_prepare', name:'x', size:20};
+  const first = concurrent(event, 'A');
+  for (let i = 0; i < 20 && calls < 1; i++) await new Promise(resolve => setImmediate(resolve));
+  const second = concurrent(event, 'A');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(calls, 1);
+  release();
+  const results = await Promise.all([first, second]);
+  assert.equal(results[0].id, results[1].id);
+  assert.equal(cloud.__colStore('v2_media').get(results[0].id).stagingFileID, 'cloud://mock-env.bucket/' + results[0].cloudPath);
+});
+test('private memo survives unavailable image signing without masking the mutation', async () => {
+  await pair();
+  const prepared = await call('media.prepare','A',{name:'memo-photo',size:35});
+  const fileID='cloud://mock-env.bucket/'+prepared.cloudPath;
+  const png=Buffer.alloc(35);
+  Buffer.from([137,80,78,71,13,10,26,10]).copy(png);
+  png.writeUInt32BE(13,8); png.write('IHDR',12); png.writeUInt32BE(1,16); png.writeUInt32BE(1,20);
+  cloud.__files.set(fileID,png);
+  const ready = await call('media.confirm','A',{id:prepared.id,fileID});
+  const original = cloud.getTempFileURL;
+  cloud.getTempFileURL = async () => { throw new Error('signing temporarily unavailable'); };
+  try {
+    const memo = await call('memo.create','A',{title:'备忘',text:'保留',images:[ready.id]});
+    assert.equal(memo.id.startsWith('memo_'),true);
+    assert.equal(memo.images.length,1);
+    assert.equal(memo.images[0].url,'');
+    const listed = await call('memo.list','A');
+    assert.equal(listed.items.length,1);
+    assert.equal(listed.items[0].images[0].url,'');
+  } finally {
+    cloud.getTempFileURL = original;
+  }
+});
+
 test('media prepare registers abandoned file, validates owner and file signature, publishes private immutable copy', async () => {
   await pair();
   const m=await call('media.prepare','A',{name:'x',size:35});
@@ -228,8 +275,11 @@ test('media prepare registers abandoned file, validates owner and file signature
   assert.equal((await call('media.urls','B',{ids:[m.id]})).items.length,1);
   await failure(call('entry.create','A',{images:[m.id]}),'MEDIA_UNAVAILABLE');
   await call('entry.delete','A',{id:entry.id,expectedVersion:1});
-  assert.equal(cloud.__colStore('v2_media').get(m.id).status,'cleanup_pending');
-  await failure(call('media.urls','B',{ids:[m.id]}),'FORBIDDEN');
+  const retained=cloud.__colStore('v2_media').get(m.id);
+  assert.equal(retained.status,'attached');
+  assert.equal(retained.attachmentType,'album_photo');
+  assert.equal(retained.refCount,1);
+  assert.equal((await call('media.urls','B',{ids:[m.id]})).items.length,1);
 });
 test('invalid image is never exposed',async()=>{
   await pair(); const m=await call('media.prepare','A',{name:'x',size:20});

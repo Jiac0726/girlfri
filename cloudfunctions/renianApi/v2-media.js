@@ -2,9 +2,10 @@
 
 const { assert, fail, hash, randomId, text } = require('./v2-core');
 const { entryVisibleTo } = require('./v2-visibility');
-const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_BYTES = 20 * 1024 * 1024;
 const TTL = 24 * 3600000;
 const LEASE = 5 * 60000;
+const PROVISION_LEASE = 30 * 1000;
 
 function imageExtension(buffer) {
   if (!Buffer.isBuffer(buffer) || buffer.length < 12) return '';
@@ -41,7 +42,7 @@ function createMedia(ctx, options = {}) {
   }
   async function prepare(event, openid) {
     const name = text(event.name, 200, '图片名称', true);
-    assert(Number.isInteger(event.size) && event.size > 0 && event.size <= MAX_BYTES, 'INVALID_MEDIA_SIZE', '每张图片不能超过 5 MB');
+    assert(Number.isInteger(event.size) && event.size > 0 && event.size <= MAX_BYTES, 'INVALID_MEDIA_SIZE', '每张图片不能超过 20 MB');
     const doc = await mutate('media.prepare', event, openid, async (tx, member, op) => {
       const id = 'media_' + hash(op).slice(0, 40);
       const now = new Date();
@@ -57,16 +58,58 @@ function createMedia(ctx, options = {}) {
     if (current.status !== 'attached') assert(new Date(current.expiresAt).getTime() > Date.now(), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
     if (!current.stagingFileID) {
       assert(typeof options.getUploadMetadata === 'function', 'MEDIA_ENV_UNAVAILABLE', '图片服务暂时不可用');
-      // Reuse the database's initialized Node SDK. Register identity before the
-      // client can upload so an interrupted upload remains discoverable by cleanup.
-      const metadata = await options.getUploadMetadata({ cloudPath: doc.cloudPath });
-      const fileID = metadata && metadata.data && metadata.data.fileId;
-      parsedFile(fileID, doc.cloudPath);
-      await transaction(async tx => {
-        const latest = await get(tx, 'media', doc._id);
-        assert(latest && latest.status === 'prepared' && new Date(latest.expiresAt).getTime() > Date.now(), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
-        await put(tx, 'media', doc._id, Object.assign({}, latest, { stagingFileID: fileID }));
-      });
+      let latest = current;
+      for (let attempt = 0; attempt < 3 && !latest.stagingFileID; attempt++) {
+        const provisionToken = randomId('provision');
+        const claimed = await transaction(async tx => {
+          const row = await get(tx, 'media', doc._id);
+          assert(row && ['prepared', 'confirming', 'ready', 'attached'].includes(row.status), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
+          if (row.stagingFileID) return row;
+          assert(new Date(row.expiresAt).getTime() > Date.now(), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
+          const leaseUntil = row.stagingProvisionLeaseUntil && new Date(row.stagingProvisionLeaseUntil).getTime() > Date.now();
+          if (leaseUntil) return row;
+          const claimed = Object.assign({}, row, { stagingProvisionToken: provisionToken, stagingProvisionLeaseUntil: new Date(Date.now() + PROVISION_LEASE), updatedAt: new Date() });
+          await put(tx, 'media', doc._id, claimed);
+          return claimed;
+        });
+        if (claimed.stagingFileID) {
+          latest = claimed;
+          break;
+        }
+        if (claimed.stagingProvisionToken !== provisionToken) {
+          for (let poll = 0; poll < 15; poll++) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+            latest = await get(db, 'media', doc._id);
+            if (!latest) fail('MEDIA_EXPIRED', '上传已过期，请重新选择图片');
+            if (latest.stagingFileID || !(latest.stagingProvisionLeaseUntil && new Date(latest.stagingProvisionLeaseUntil).getTime() > Date.now())) break;
+          }
+          continue;
+        }
+        try {
+          // Reuse the database's initialized Node SDK. Register identity before the
+          // client can upload so an interrupted upload remains discoverable by cleanup.
+          const metadata = await options.getUploadMetadata({ cloudPath: doc.cloudPath });
+          const fileID = metadata && metadata.data && metadata.data.fileId;
+          parsedFile(fileID, doc.cloudPath);
+          latest = await transaction(async tx => {
+            const row = await get(tx, 'media', doc._id);
+            assert(row && row.stagingProvisionToken === provisionToken && row.status === 'prepared' &&
+              new Date(row.expiresAt).getTime() > Date.now(), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
+            const completed = Object.assign({}, row, { stagingFileID: fileID, stagingProvisionToken: '', stagingProvisionLeaseUntil: null, updatedAt: new Date() });
+            await put(tx, 'media', doc._id, completed);
+            return completed;
+          });
+        } catch (error) {
+          await transaction(async tx => {
+            const row = await get(tx, 'media', doc._id);
+            if (row && row.stagingProvisionToken === provisionToken) {
+              await put(tx, 'media', doc._id, Object.assign({}, row, { stagingProvisionToken: '', stagingProvisionLeaseUntil: null, updatedAt: new Date() }));
+            }
+          }).catch(() => null);
+          throw error;
+        }
+      }
+      assert(latest.stagingFileID, 'MEDIA_PROVISION_BUSY', '图片上传准备仍在进行，请稍后重试');
     }
     return { id: doc._id, cloudPath: doc.cloudPath };
   }
@@ -107,7 +150,7 @@ function createMedia(ctx, options = {}) {
     try {
       const download = await cloud.downloadFile({ fileID: event.fileID });
       const buffer = Buffer.isBuffer(download.fileContent) ? download.fileContent : Buffer.from(download.fileContent || []);
-      assert(buffer.length > 0 && buffer.length <= MAX_BYTES, 'INVALID_MEDIA_SIZE', '每张图片不能超过 5 MB');
+      assert(buffer.length > 0 && buffer.length <= MAX_BYTES, 'INVALID_MEDIA_SIZE', '每张图片不能超过 20 MB');
       const extension = imageExtension(buffer);
       assert(extension, 'INVALID_MEDIA_TYPE', '请选择有效的 JPG、PNG、GIF 或 WebP 图片');
       const publishedCloudPath = 'v2-published/' + reserved._id + '.' + extension;
@@ -167,6 +210,10 @@ function createMedia(ctx, options = {}) {
           const legacyMemoId = 'memo_legacy_' + hash(openid).slice(0, 24);
           const legacyMatch = !member.user.privateMemoMigrated && member.user.privateMemo && doc.entryId === legacyMemoId;
           assert((memo && (memo.images || []).includes(id)) || legacyMatch, 'MEDIA_UNAVAILABLE', '图片已不可用');
+        } else if (doc.attachmentType === 'album_photo') {
+          const photo = await ownedDocument(db, 'photos', doc.entryId, member.pair._id);
+          await ownedDocument(db, 'albums', photo.albumId, member.pair._id);
+          assert(!photo.deleted && photo.mediaId === id && photo.authorOpenid === doc.ownerOpenid, 'MEDIA_UNAVAILABLE', '照片已不可用');
         } else {
           const entry = await ownedDocument(db, 'entries', doc.entryId, member.pair._id);
           assert(entryVisibleTo(entry, openid), 'NOT_FOUND', '图片不存在或无权访问');
@@ -194,7 +241,12 @@ function createMedia(ctx, options = {}) {
     for (const id of before.filter(id => !after.includes(id))) {
       const doc = await ownedDocument(tx, 'media', id, member.pair._id);
       assert(doc.entryId === entryId && doc.status === 'attached' && (!doc.attachmentType || doc.attachmentType === 'entry'), 'MEDIA_UNAVAILABLE', '图片状态已改变');
-      await put(tx, 'media', id, Object.assign({}, doc, { status: 'cleanup_pending', refCount: 0, cleanupAfter: new Date(), updatedAt: new Date() }));
+      const refs = Math.max(1, Number(doc.refCount) || 1);
+      if (refs > 1) {
+        await put(tx, 'media', id, Object.assign({}, doc, { refCount: refs - 1, updatedAt: new Date() }));
+      } else {
+        await put(tx, 'media', id, Object.assign({}, doc, { status: 'cleanup_pending', refCount: 0, cleanupAfter: new Date(), updatedAt: new Date() }));
+      }
     }
   }
 
@@ -228,16 +280,21 @@ function createMedia(ctx, options = {}) {
     }
   }
 
-  async function privateMemoImages(item, openid, coupleId) {
+  async function privateMemoImages(item, openid, coupleId, tolerant = false) {
     if (!(item.images || []).length) return [];
     const docs = [];
     for (const id of item.images) {
       const doc = await get(db, 'media', id);
-      assert(doc && doc.coupleId === coupleId && doc.ownerOpenid === openid && doc.entryId === item.id &&
-        doc.attachmentType === 'private_memo' && doc.status === 'attached', 'MEDIA_UNAVAILABLE', '备忘录图片状态已改变，请刷新');
+      const valid = doc && doc.coupleId === coupleId && doc.ownerOpenid === openid && doc.entryId === item.id &&
+        doc.attachmentType === 'private_memo' && doc.status === 'attached';
+      if (!valid) {
+        if (!tolerant) fail('MEDIA_UNAVAILABLE', '备忘录图片状态已改变，请刷新');
+        docs.push({ _id: id, fileID: '' });
+        continue;
+      }
       docs.push(doc);
     }
-    return signed(docs);
+    return signed(docs, tolerant);
   }
 
   async function entryImages(entry, tolerant = false) {
@@ -256,7 +313,20 @@ function createMedia(ctx, options = {}) {
     return signed(docs, tolerant);
   }
 
-  return { prepare, confirm, urls, sync, syncPrivateMemo, privateMemoImages, entryImages };
+  async function albumImages(photos) {
+    const docs = [];
+    for (const photo of photos) {
+      const doc = await get(db, 'media', photo.mediaId);
+      const common = doc && !photo.deleted && doc.coupleId === photo.coupleId && doc.ownerOpenid === photo.authorOpenid &&
+        doc.status === 'attached';
+      const directAlbum = common && doc.attachmentType === 'album_photo' && doc.entryId === photo._id;
+      const entryBacked = common && !!photo.sourceEntryId && (!doc.attachmentType || doc.attachmentType === 'entry') &&
+        doc.entryId === photo.sourceEntryId && (Number(doc.refCount) || 0) >= 2;
+      docs.push(directAlbum || entryBacked ? doc : { _id: photo.mediaId, fileID: '' });
+    }
+    return signed(docs, true);
+  }
+  return { prepare, confirm, urls, sync, syncPrivateMemo, privateMemoImages, entryImages, albumImages };
 }
 
 module.exports = { createMedia, imageExtension, MAX_BYTES };

@@ -62,6 +62,21 @@ function media(id,status,extra={}) {
   cloud.__colStore('v2_media').set(id,Object.assign({status,stagingFileID,fileID,expiresAt:new Date(0),cleanupAfter:new Date(0),stagingCleanupPending:true},extra));
   return {stagingFileID,fileID};
 }
+test('operation cleanup removes records older than retention but keeps recent and migration marker', async () => {
+  const operations=cloud.__colStore('v2_operations');
+  const old = new Date(now.getTime() - 91 * 24 * 3600000);
+  const recent = new Date(now.getTime() - 2 * 24 * 3600000);
+  operations.set('old-op',{createdAt:old,action:'entry.create'});
+  operations.set('recent-op',{createdAt:recent,action:'entry.create'});
+  operations.set('legacy_v1_to_v2',{createdAt:old,status:'completed'});
+  const result=await createMediaCleanup(cloud,clock).run();
+  assert.equal(result.operationsRemoved,1);
+  assert.equal(result.operationsFailed,0);
+  assert.equal(operations.has('old-op'),false);
+  assert.equal(operations.has('recent-op'),true);
+  assert.equal(operations.has('legacy_v1_to_v2'),true);
+});
+
 test('cleanup deletes abandoned and detached files but protects attached published media',async()=>{
   const abandoned=media('abandoned','prepared'), attached=media('attached','attached'), removed=media('removed','cleanup_pending');
   const result=await createMediaCleanup(cloud,clock).run();

@@ -1,0 +1,24 @@
+<view class="album-page">
+  <view class="album-heading"><text class="eyebrow">OUR LITTLE MOMENTS</text><view>{{albumId ? (album.title || '我们的照片') : '我们的相册'}}</view><text>{{albumId ? '把喜欢的瞬间，留在这里' : '两个人，一起收藏平凡日子的闪光'}}</text></view>
+  <view class="album-state" wx:if="{{loading}}">正在翻开回忆…</view>
+  <view class="album-state" wx:elif="{{!active}}">绑定后，和 TA 一起创建共享相册<button class="album-primary" bindtap="goBind">去绑定 TA</button></view>
+  <block wx:else>
+    <view class="album-error" wx:if="{{error}}">{{error}}<button class="album-link" bindtap="refresh" disabled="{{busy}}">刷新页面</button></view>
+    <button wx:if="{{pending}}" class="album-primary" bindtap="runPending" loading="{{busy}}" disabled="{{busy}}">重试确认上次操作</button>
+    <block wx:if="{{!albumId}}">
+      <view class="album-intro"><text>♡</text><view>只属于我们的照片集<text>你和 TA 都可以上传，照片随时一起看</text></view></view>
+      <button class="album-primary" bindtap="toggleCreate" disabled="{{busy || pending}}">＋ 新建相册</button>
+      <view class="album-editor" wx:if="{{creating}}"><input value="{{title}}" bindinput="onTitle" maxlength="40" placeholder="例如：我们的第一次旅行" disabled="{{busy || pending}}" /><text>最多 40 字 · 双方共享</text><button class="album-primary" bindtap="createAlbum" disabled="{{busy || pending}}" loading="{{busy}}">创建相册</button></view>
+      <view class="album-grid"><view class="album-cover" wx:for="{{items}}" wx:key="id" data-id="{{item.id}}" bindtap="openAlbum"><view class="cover-art"><text>♡</text><view>我们的故事</view></view><view class="cover-title">{{item.title}}</view><text class="cover-count">{{item.photoCount}} 张照片</text></view></view>
+      <view class="album-state" wx:if="{{!items.length && !error}}">还没有相册，创建第一本共同回忆吧</view>
+    </block>
+    <block wx:else>
+      <view class="album-toolbar"><text>{{album.photoCount || 0}} 张共同回忆</text><button class="album-primary" bindtap="chooseImages" disabled="{{busy || pending || images.length >= 9 || !album}}">＋ 选照片</button></view>
+      <view class="album-editor" wx:if="{{images.length}}"><view class="selected-grid"><view wx:for="{{images}}" wx:key="requestId"><image src="{{item.url}}" mode="aspectFill" /><button data-index="{{index}}" bindtap="removeSelected" disabled="{{busy || pending}}" aria-label="移除待上传照片">×</button></view></view><text>每次最多 9 张，每张不超过 20 MB · 可选原图 · 动态照片按静态图保存</text><button class="album-primary" bindtap="uploadPhotos" loading="{{busy}}" disabled="{{busy || pending}}">{{progress || '上传到相册'}}</button></view>
+      <view class="photo-grid"><view class="photo-tile" wx:for="{{items}}" wx:key="id"><image wx:if="{{item.url}}" src="{{item.url}}" mode="aspectFill" data-id="{{item.id}}" bindtap="previewPhoto" binderror="imageFailed" /><view wx:else class="photo-placeholder" data-id="{{item.id}}" bindtap="previewPhoto">♡<text>点击重新加载</text></view><view class="photo-footer"><text>{{item.fromMe ? '我上传的' : 'TA 上传的'}}</text><view class="photo-actions"><button data-id="{{item.id}}" bindtap="savePhoto" disabled="{{busy || pending}}">保存</button><button wx:if="{{item.fromMe}}" data-id="{{item.id}}" bindtap="deletePhoto" disabled="{{busy || pending}}">删除</button></view></view></view></view>
+      <view class="album-state" wx:if="{{!items.length && !error}}">这里还没有照片<text>把今天喜欢的瞬间，拍给 TA 看</text></view>
+    </block>
+    <view class="album-error" wx:if="{{moreError}}">{{moreError}}</view>
+    <button class="album-link" wx:if="{{nextCursor}}" bindtap="loadMore" disabled="{{busy}}">{{busy ? '加载中…' : '加载更多'}}</button>
+  </block>
+</view>

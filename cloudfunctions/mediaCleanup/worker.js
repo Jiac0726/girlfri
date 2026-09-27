@@ -1,6 +1,8 @@
 function createMediaCleanup(cloud, clock = () => new Date(), options = {}) {
   const db = cloud.database();
   const media = () => db.collection('v2_media');
+  const operations = () => db.collection('v2_operations');
+  const OPERATION_RETENTION_MS = 90 * 24 * 3600000;
   const atOrBefore = (value, now) => value && new Date(value).getTime() <= now.getTime();
 
   async function get(ref) {
@@ -90,6 +92,24 @@ function createMediaCleanup(cloud, clock = () => new Date(), options = {}) {
     return true;
   }
 
+  async function cleanupOperations() {
+    const cutoff = new Date(clock().getTime() - OPERATION_RETENTION_MS);
+    const rows = (await operations().where({ createdAt: db.command.lte(cutoff) })
+      .orderBy('createdAt', 'asc').orderBy('_id', 'asc').limit(100).get()).data || [];
+    let removed = 0, failed = 0;
+    for (const row of rows) {
+      if (row._id === 'legacy_v1_to_v2') continue;
+      try {
+        await operations().doc(row._id).remove();
+        removed++;
+      } catch (error) {
+        failed++;
+        console.error('[mediaCleanup:operations]', error.code || error.message || 'UNKNOWN');
+      }
+    }
+    return { removed, failed };
+  }
+
   async function run() {
     const now = clock();
     const conditions = [
@@ -115,7 +135,14 @@ function createMediaCleanup(cloud, clock = () => new Date(), options = {}) {
         }
       }
     }
-    return { ok: true, removed, failed };
+    const operationResult = await cleanupOperations();
+    return {
+      ok: true,
+      removed,
+      failed,
+      operationsRemoved: operationResult.removed,
+      operationsFailed: operationResult.failed,
+    };
   }
   return { run };
 }

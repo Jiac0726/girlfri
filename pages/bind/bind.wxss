@@ -12,8 +12,8 @@ button.back-link{position:absolute;left:24rpx;bottom:0;margin:0;padding:0;width:
 .brand-name{font-family:"KaiTi","STKaiti","Kaiti SC",serif;font-size:86rpx;line-height:1.3;color:#c86b75;letter-spacing:6rpx;margin-top:12rpx}
 .brand-sub{font-family:"KaiTi","STKaiti",serif;letter-spacing:6rpx;font-size:28rpx;color:#9d777f;margin-top:14rpx}
 .story-zone{position:relative;flex:1;min-height:490rpx;margin-top:24rpx}
-.welcome-photo{position:absolute;bottom:0;width:100%;height:440rpx}
-.story-fade{position:absolute;inset:0;background:linear-gradient(180deg,#fff5f2 0%,#fff5f2bb 12%,transparent 48%,#fce5e640 78%,#fce5e6 100%)}
+.welcome-photo{position:absolute;inset:0;width:100%;height:100%}
+.story-fade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,#fff5f2b3 0%,#fff5f266 30%,transparent 52%,transparent 78%,#fce5e6d9 100%)}
 .hand-note{font-family:"KaiTi","STKaiti","Kaiti SC",serif;color:#a66e79;font-size:27rpx;letter-spacing:3rpx;line-height:1.9}
 .story-note{position:absolute;top:10rpx;right:42rpx;transform:rotate(-9deg)}
 .welcome-actions{position:relative;margin-top:-32rpx;z-index:2;width:100%;padding:0 42rpx;box-sizing:border-box}

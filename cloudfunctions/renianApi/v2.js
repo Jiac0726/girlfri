@@ -3,6 +3,7 @@
 const { createContext, assert, fail, hash, text, version, utcDay, iso } = require('./v2-core');
 const { createPairs } = require('./v2-pairs');
 const { createMedia } = require('./v2-media');
+const { createAlbums } = require('./v2-albums');
 const { entryVisibleTo } = require('./v2-visibility');
 
 const REMINDER_TEMPLATE_ID = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
@@ -40,6 +41,7 @@ function createV2Api(cloud, options = {}) {
   const ctx = createContext(cloud, options.database);
   const pairs = createPairs(ctx);
   const media = createMedia(ctx, options);
+  const albums = createAlbums(ctx, media);
   const { db, transaction, get, put, membership, partner, session, ownedDocument, mutate, page, count } = ctx;
 
   let missTemplateFields = null;
@@ -116,6 +118,7 @@ function createV2Api(cloud, options = {}) {
       const doc = Object.assign({ _id: id, coupleId: member.pair._id, authorOpenid: openid, createdAt: now, updatedAt: now,
         dayKey: utcDay(now), monthKey: utcDay(now).slice(0, 7), version: 1, edited: false, deleted: false }, input);
       await put(tx, 'entries', id, doc);
+      await albums.captureEntryImages(tx, member, openid, id, input.images);
       await put(tx, 'users', openid, Object.assign({}, member.user, { lastSharedDate: doc.dayKey, lastSharedAt: now, updatedAt: now }));
       return doc;
     });
@@ -128,7 +131,10 @@ function createV2Api(cloud, options = {}) {
       assert(doc.authorOpenid === openid, 'FORBIDDEN', '只能修改或删除自己的分享');
       version(doc, event.expectedVersion);
       assert(!doc.deleted, 'ENTRY_DELETED', '这条分享已删除');
-      await media.sync(tx, member, openid, doc._id, doc.images, input ? input.images : []);
+      const afterImages = input ? input.images : [];
+      await media.sync(tx, member, openid, doc._id, doc.images, afterImages);
+      await albums.captureEntryImages(tx, member, openid, doc._id, afterImages);
+      await albums.releaseEntryImages(tx, member, doc._id, doc.images.filter(id => !afterImages.includes(id)));
       const changed = Object.assign({}, doc, input || { text: '', mood: '', images: [], deleted: true, deletedAt: new Date() }, { version: doc.version + 1, updatedAt: new Date(), edited: input ? true : doc.edited });
       await put(tx, 'entries', doc._id, changed);
       return changed;
@@ -328,8 +334,8 @@ function createV2Api(cloud, options = {}) {
     return { title, text: content, images };
   }
 
-  async function memoView(item, openid, coupleId) {
-    const images = await media.privateMemoImages(item, openid, coupleId);
+  async function memoView(item, openid, coupleId, tolerant = false) {
+    const images = await media.privateMemoImages(item, openid, coupleId, tolerant);
     return {
       id: item.id,
       title: item.title || '',
@@ -345,7 +351,7 @@ function createV2Api(cloud, options = {}) {
     const member = await membership(db, openid);
     const items = memoItems(member.user, openid);
     return {
-      items: await Promise.all(items.map(item => memoView(item, openid, member.pair._id))),
+      items: await Promise.all(items.map(item => memoView(item, openid, member.pair._id, true))),
       limit: 100,
     };
   }
@@ -368,7 +374,7 @@ function createV2Api(cloud, options = {}) {
       return item;
     });
     const member = await membership(db, openid);
-    return memoView(result, openid, member.pair._id);
+    return memoView(result, openid, member.pair._id, true);
   }
 
   async function memoUpdate(event, openid) {
@@ -571,6 +577,11 @@ function createV2Api(cloud, options = {}) {
       case 'pair.refresh': return pairs.issue(openid, true);
       case 'pair.cancel': return pairs.cancel(openid);
       case 'pair.join': return pairs.join(openid, event.inviteCode);
+      case 'album.list': return albums.list(event, openid);
+      case 'album.create': return albums.create(event, openid);
+      case 'album.photos': return albums.photos(event, openid);
+      case 'album.addPhotos': return albums.add(event, openid);
+      case 'album.deletePhoto': return albums.remove(event, openid);
       case 'entry.list': return entryList(event, openid);
       case 'entry.get': {
         const member = await membership(db, openid);

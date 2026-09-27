@@ -16,10 +16,12 @@ Page({
       const result = await api.listCoupons({ cursor: append ? this.data.nextCursor : undefined, limit: 20 });
       if (token !== this._token) return;
       this.setData({ items: append ? h.mergeItems(this.data.items, result.items.map(present)) : result.items.map(present), nextCursor: result.nextCursor || '', bindingRequired: false });
+      return true;
     } catch (error) {
       if (token !== this._token) return;
       this.setData({ error: error.message || '加载失败，请重试', bindingRequired: api.isBindingError(error) });
       if (api.isBindingError(error)) this.setData({ items: [], nextCursor: '' });
+      return false;
     } finally { if (token === this._token) this.setData({ loading: false }); }
   },
   loadMore() { return this.load(true); },
@@ -28,18 +30,23 @@ Page({
   onNote(e) { if (!this.data.saving && !this.data.uncertain) this.setData({ note: e.detail.value }); },
   async gift() {
     if (this.data.saving || this.data.busyId || this.data.bindingRequired) return;
-    if (!this._gift && !this.data.title.trim()) return wx.showToast({ title: '给这张券起个名字', icon: 'none' });
+    if (!this._gift && !this.data.title.trim()) return wx.showToast({ title: '给这张心意券起个名字', icon: 'none' });
     this.setData({ saving: true });
+    let mutationCommitted = false;
     try {
       if (!this._gift) {
         if (!await h.confirmAction('把这张心意券送给 TA？', 'TA 申请兑现后，还需要你确认。', '赠送')) return;
         this._gift = { requestId: api.newRequestId(), title: this.data.title.trim(), note: this.data.note.trim() };
       }
-      await api.giftCoupon(this._gift); this._gift = null;
-      this.setData({ title: '', note: '', uncertain: false }); await this.load();
+      await api.giftCoupon(this._gift);
+      mutationCommitted = true;
+      const refreshed = await this.load();
+      if (!refreshed) throw Object.assign(new Error('心意券已提交，但列表刷新失败，请重试确认'), { code: 'POST_MUTATION_REFRESH_FAILED' });
+      this._gift = null;
+      this.setData({ title: '', note: '', uncertain: false });
       wx.showToast({ title: '已送给 TA', icon: 'none' });
     } catch (error) {
-      const uncertain = h.isUncertain(error);
+      const uncertain = mutationCommitted || h.isUncertain(error);
       if (!uncertain) this._gift = null;
       this.setData({ uncertain, error: uncertain ? '赠送结果待确认，请重试确认，避免重复赠送。' : error.message });
     } finally { if (!this._disposed) this.setData({ saving: false }); }

@@ -17,8 +17,8 @@ button.calendar-day.selected .day-marker{color:#fff}
 .calendar-legend{display:flex;justify-content:center;flex-wrap:wrap;gap:24rpx;margin-top:22rpx;font-size:20rpx;color:#95848b}
 .legend-heart{color:#f86880}.legend-dot{color:#c0a6a6;font-size:16rpx}
 .month-story{position:relative;overflow:hidden;min-height:310rpx;margin:28rpx 0 32rpx;background:#f7d9da;border-radius:32rpx}
-.month-story-image{position:absolute;width:100%;height:100%;opacity:.75}
-.month-story-shade{position:absolute;inset:0;background:linear-gradient(180deg,#f7e1e21a 0%,#ffe6e780 45%,#fff6f4 100%)}
+.month-story-image{position:absolute;width:100%;height:100%}
+.month-story-shade{position:absolute;inset:0;background:linear-gradient(180deg,#fff6f440 0%,transparent 35%,#fff6f426 55%,#fff6f4f2 100%)}
 .month-story-title{position:relative;padding:24rpx 28rpx 10rpx;text-align:right;color:#553746}
 .month-story-title>text{position:absolute;left:28rpx;top:14rpx;font-family:Georgia,serif;font-size:56rpx;color:#fffbf3c9;letter-spacing:4rpx}
 .month-story-title>view{position:relative;margin-top:44rpx;font-size:36rpx;font-family:"KaiTi","STKaiti",serif}
