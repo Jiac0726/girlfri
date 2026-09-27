@@ -66,7 +66,7 @@ function collectWxmlClosure(entryFile) {
 
 function declaredHandlers(jsSource) {
   const names = new Set();
-  const method = /(?:^|[,{;\n])\s*([A-Za-z_$][\w$]*)\s*(?:\([^)]*\)|:\s*(?:async\s+)?function\s*\()/g;
+  const method = /(?:^|[,{;\n])\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*(?:\([^)]*\)|:\s*(?:async\s+)?function\s*\()/g;
   let match;
   while ((match = method.exec(jsSource))) names.add(match[1]);
   return names;
