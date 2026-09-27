@@ -1,5 +1,5 @@
 const api = require('../../services/cloud');
-const { wxCall, isUncertain, makeCompatibleImage } = require('../../services/entry-view');
+const { wxCall, isUncertain, makeCompatibleImage, normalizeLocalImage } = require('../../services/entry-view');
 
 Page({
   data: { loading: true, busy: false, active: false, error: '', moreError: '', title: '', album: null,
@@ -98,6 +98,17 @@ Page({
         const item = Object.assign({}, this.data.images[i]);
         if (item.id) continue;
         this.setData({ progress: '正在上传 ' + (i + 1) + ' / ' + this.data.images.length });
+        if (!item.preflightChecked && !item.prepared && !item.fileID && item.localPath) {
+          const normalized = await normalizeLocalImage(item.localPath);
+          item.preflightChecked = true;
+          if (normalized.converted) {
+            item.localPath = normalized.path;
+            item.url = normalized.path;
+            item.compatConverted = true;
+            item.requestId = api.newRequestId();
+          }
+          this.updateImage(i, item);
+        }
         for (let attempt = 0; attempt < 3 && !item.id; attempt++) {
           try {
             if (!item.prepared) { item.prepared = await api.prepareMedia({ requestId: item.requestId, name: 'album-photo', size: item.size }); this.updateImage(i, item); }
