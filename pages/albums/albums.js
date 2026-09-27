@@ -74,9 +74,9 @@ Page({
     if (this.data.loading || this.data.busy || this.data.pending || !this.data.active || this.data.images.length >= 9) return;
     this.setData({ busy: true });
     try {
-      const result = await wxCall('chooseMedia', { count: 9 - this.data.images.length, mediaType: ['image'], sizeType: ['compressed'], sourceType: ['album', 'camera'] });
+      const result = await wxCall('chooseMedia', { count: 9 - this.data.images.length, mediaType: ['image'], sizeType: ['original', 'compressed'], sourceType: ['album', 'camera'] });
       const selected = result.tempFiles.map(file => {
-        if (!file.size || file.size > 5 * 1024 * 1024) throw new Error('每张照片不能超过 5 MB');
+        if (!file.size || file.size > 20 * 1024 * 1024) throw new Error('每张照片不能超过 20 MB');
         return { localPath: file.tempFilePath, url: file.tempFilePath, size: file.size, requestId: api.newRequestId() };
       });
       this.setData({ images: this.data.images.concat(selected), error: '' }); this.persist();
@@ -115,6 +115,39 @@ Page({
     finally { this.setData({ busy: false, progress: '' }); }
     if (this._pending && !this._disposed) return this.runPending();
   },
+  async savePhoto(e) {
+    if (this.data.loading || this.data.busy || !this.data.active) return;
+    const photo = this.data.items.find(item => item.id === e.currentTarget.dataset.id);
+    if (!photo) return;
+    this.setData({ busy: true });
+    try {
+      let url = photo.url || '';
+      if (!url) {
+        const result = await api.getMediaUrls([photo.mediaId]);
+        url = result.items[0] && result.items[0].url || '';
+      }
+      if (!url) throw new Error('照片暂时无法下载，请重试');
+      const downloaded = await wxCall('downloadFile', { url });
+      if (!downloaded || downloaded.statusCode !== 200 || !downloaded.tempFilePath) throw new Error('照片下载失败，请重试');
+      await wxCall('saveImageToPhotosAlbum', { filePath: downloaded.tempFilePath });
+      wx.showToast({ title: '已保存到系统相册', icon: 'success' });
+    } catch (error) {
+      const raw = String((error && (error.errMsg || error.message)) || '');
+      if (/auth deny|authorize|permission|scope\.writePhotosAlbum/i.test(raw)) {
+        const guide = await wxCall('showModal', {
+          title: '需要相册权限',
+          content: '请允许“保存到相册”，授权后再点一次保存。',
+          confirmText: '去设置',
+        }).catch(() => null);
+        if (guide && guide.confirm) wx.openSetting({});
+      } else {
+        wx.showToast({ title: error.message || '保存失败，请重试', icon: 'none' });
+      }
+    } finally {
+      if (!this._disposed) this.setData({ busy: false });
+    }
+  },
+
   async deletePhoto(e) {
     if (this.data.busy || this.data.loading || this.data.pending) return;
     const photo = this.data.items.find(item => item.id === e.currentTarget.dataset.id);
