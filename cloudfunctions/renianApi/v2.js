@@ -39,9 +39,11 @@ function validateDay(value) {
 
 function createV2Api(cloud, options = {}) {
   const ctx = createContext(cloud, options.database);
-  const pairs = createPairs(ctx);
   const media = createMedia(ctx, options);
   const albums = createAlbums(ctx, media);
+  const pairs = createPairs(ctx, {
+    onActivated: (tx, member) => albums.ensureDailyAlbumForMember(tx, member),
+  });
   const { db, transaction, get, put, membership, partner, session, ownedDocument, mutate, page, count } = ctx;
 
   let missTemplateFields = null;
@@ -580,11 +582,7 @@ function createV2Api(cloud, options = {}) {
       case 'pair.create': return pairs.issue(openid, false);
       case 'pair.refresh': return pairs.issue(openid, true);
       case 'pair.cancel': return pairs.cancel(openid);
-      case 'pair.join': {
-        const result = await pairs.join(openid, event.inviteCode);
-        if (result.bindingStatus === 'active') await albums.ensureDailyAlbum(openid);
-        return result;
-      }
+      case 'pair.join': return pairs.join(openid, event.inviteCode);
       case 'album.list': return albums.list(event, openid);
       case 'album.create': return albums.create(event, openid);
       case 'album.photos': return albums.photos(event, openid);
