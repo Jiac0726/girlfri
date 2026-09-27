@@ -16,7 +16,6 @@ function createAlbums(ctx, media) {
     return { items: result.items.map(albumView), nextCursor: result.nextCursor };
   }
   async function captureEntryImages(tx, member, openid, entryId, mediaIds) {
-    if (!Array.isArray(mediaIds) || !mediaIds.length) return;
     const albumId = dailyAlbumId(member.pair._id);
     const now = new Date();
     let album = await get(tx, 'albums', albumId);
@@ -25,6 +24,7 @@ function createAlbums(ctx, media) {
         photoCount: 0, system: true, kind: 'daily', createdAt: now, updatedAt: now };
       await put(tx, 'albums', albumId, album);
     }
+    if (!Array.isArray(mediaIds) || !mediaIds.length) return;
     let added = 0;
     for (const mediaId of mediaIds) {
       const photoId = dailyPhotoId(entryId, mediaId);
