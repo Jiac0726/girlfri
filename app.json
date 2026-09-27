@@ -10,29 +10,35 @@
     "pages/entry/entry"
   ],
   "window": {
-    "navigationBarBackgroundColor": "#fff7f8",
+    "navigationBarBackgroundColor": "#fff2f1",
     "navigationBarTitleText": "热念",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#fff5f6",
+    "backgroundColor": "#fff2f1",
     "backgroundTextStyle": "dark"
   },
   "tabBar": {
-    "color": "#8e8f95",
-    "selectedColor": "#ef4b65",
-    "backgroundColor": "#fffafb",
+    "color": "#95848d",
+    "selectedColor": "#f15e79",
+    "backgroundColor": "#fff7f5",
     "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "日常"
+        "text": "日常",
+        "iconPath": "assets/tab-heart.png",
+        "selectedIconPath": "assets/tab-heart-active.png"
       },
       {
         "pagePath": "pages/review/review",
-        "text": "回顾"
+        "text": "回顾",
+        "iconPath": "assets/tab-review.png",
+        "selectedIconPath": "assets/tab-review-active.png"
       },
       {
         "pagePath": "pages/profile/profile",
-        "text": "我们"
+        "text": "我们",
+        "iconPath": "assets/tab-us.png",
+        "selectedIconPath": "assets/tab-us-active.png"
       }
     ]
   },

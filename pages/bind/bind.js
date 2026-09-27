@@ -12,8 +12,9 @@ function formatExpire(value) {
 }
 
 Page({
-  data: { loading: true, bindingStatus: 'loading', errorMessage: '', inviteCode: '', inviteExpiresText: '', joinCode: '', isCreator: false, openedFromInvite: false, manualJoin: false },
+  data: { statusBarHeight: 24, loading: true, bindingStatus: 'loading', errorMessage: '', inviteCode: '', inviteExpiresText: '', joinCode: '', isCreator: false, openedFromInvite: false, manualJoin: false },
   onLoad(options) {
+    if (typeof wx.getWindowInfo === 'function') this.setData({ statusBarHeight: wx.getWindowInfo().statusBarHeight || 24 });
     const code = normalizeInviteCode(options && options.inviteCode);
     if (code.length === 8) this.setData({ joinCode: code, openedFromInvite: true });
   },

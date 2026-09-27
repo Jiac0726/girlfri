@@ -1,84 +1,50 @@
-<view class="journal-page">
+<import src="../../assets/faces.wxml" />
+<view class="journal-page home-page">
   <view class="journal-head">
-    <view>
-      <view class="eyebrow">热念 · 两个人的日常</view>
-      <view class="page-title">把这一刻，留给我们</view>
-      <view class="page-sub">{{dateLabel}} · 想说的时候，就记下来。</view>
-    </view>
+    <view><view class="eyebrow">今天</view><view class="home-date">{{dateLabel}}<text wx:if="{{weekday}}"> · {{weekday}}</text></view></view>
     <button class="profile-link" bindtap="goProfile" aria-label="打开我们">♡</button>
   </view>
-
   <view class="state-panel" wx:if="{{authLoading}}">
-    <view class="state-symbol">♡</view>
-    <view>正在翻开我们的日常…</view>
+    <view class="state-symbol">♡</view><view>正在翻开我们的日常…</view>
   </view>
-
-  <view class="state-panel" wx:elif="{{bindingStatus !== 'active' && !error}}">
-    <view class="state-symbol">♡</view>
-    <view class="state-title">{{bindingStatus === 'waiting' ? '等 TA 一起加入' : '先和 TA 建立双人关系'}}</view>
+  <view class="state-panel welcome-card" wx:elif="{{bindingStatus !== 'active' && !error}}">
+    <image class="welcome-art" src="../../assets/bind-couple.jpg" mode="aspectFill" />
+    <view class="state-title">{{bindingStatus === 'waiting' ? '等 TA 一起加入' : '平凡的日子，因为有你'}}</view>
     <view class="state-copy">把照片、心情和小事，留在两个人的空间里。</view>
     <button class="primary-button" bindtap="goBind">{{bindingStatus === 'waiting' ? '查看邀请' : '和 TA 绑定'}}</button>
   </view>
-
   <block wx:else>
     <view class="error-panel" wx:if="{{error}}">
-      <text>{{error}}</text>
-      <button class="text-button" bindtap="retry" disabled="{{loading}}">重新加载</button>
+      <text>{{error}}</text><button class="text-button" bindtap="retry" disabled="{{loading}}">重新加载</button>
     </view>
-
     <block wx:if="{{bindingStatus === 'active'}}">
-      <view class="quick-actions">
-        <button class="miss-prompt" bindtap="sendMiss" disabled="{{loading || missSending}}">
-          <view class="miss-heart">♡</view>
-          <view class="miss-title">想念</view>
-          <view wx:if="{{missCount}}" class="miss-received">TA想你了 ×{{missCount}}</view>
-          <view wx:else class="miss-hint">{{missSending ? '正在送达…' : '点一下告诉 TA'}}</view>
-        </button>
-
-        <button class="compose-prompt" bindtap="writeEntry" disabled="{{loading}}">
-          <view class="compose-plus">＋</view>
-          <view class="compose-copy">
-            <view>记下一刻</view>
-            <text>评价、心情、文字或照片，都可以留下</text>
-          </view>
-          <text class="compose-arrow">›</text>
-        </button>
-      </view>
-
-      <view class="feed-heading">
-        <text>我们的日常</text>
-        <text class="feed-note">先看概览，点进去再展开</text>
-      </view>
-
-      <view class="daily-overview" bindtap="goDailyFeed" aria-role="button">
-        <view class="overview-top">
-          <view>
-            <view class="overview-kicker">{{monthLabel}}概览</view>
-            <view class="overview-title">{{todayEntries ? '今天已经留下 ' + todayEntries + ' 条' : '今天还没有记录'}}</view>
-          </view>
-          <view class="overview-arrow">›</view>
+      <view class="home-question">今天，你觉得我们相处得怎么样？</view>
+      <view class="today-card">
+        <view class="today-title">今天的我们</view>
+        <view class="home-ratings">
+          <button wx:for="{{ratings}}" wx:key="type" class="home-rating" data-type="{{item.type}}" bindtap="startRating" disabled="{{loading}}">
+            <template is="rating-face" data="{{type:item.type}}" /><text>{{item.label}}</text>
+          </button>
         </view>
-
+        <view class="today-note">{{todayEntries ? '今天已经留下 ' + todayEntries + ' 条日常' : '一句想说的话，一个想留住的瞬间。'}}<text>分享后，TA 就能看到 ♡</text></view>
+        <button class="primary-button" bindtap="writeEntry" disabled="{{loading}}">{{todayEntries ? '再记下一刻' : '记下今天'}}</button>
+      </view>
+      <button class="miss-prompt" bindtap="sendMiss" disabled="{{loading || missSending}}">
+        <view class="miss-heart">♥</view>
+        <view class="miss-copy"><view class="miss-title">有点想你了</view><view class="miss-hint">{{missCount ? 'TA 想你了 ×' + missCount : '点一下，把想念送给 TA'}}</view></view>
+        <text class="miss-action">{{missSending ? '送达中…' : '想念 TA'}}</text>
+      </button>
+      <view class="daily-overview">
+        <view class="overview-top"><view class="overview-title">本月相处</view><text class="overview-kicker">{{monthLabel}}</text></view>
         <view class="overview-stats">
-          <view class="overview-stat">
-            <text>{{totalEntries}}</text>
-            <view>本月日常</view>
-          </view>
-          <view class="overview-stat">
-            <text>{{recordDays}}</text>
-            <view>记录天数</view>
-          </view>
-          <view class="overview-stat">
-            <text>{{sharedDays}}</text>
-            <view>双方分享</view>
-          </view>
+          <view class="overview-stat"><text>{{totalEntries}}</text><view>日常记录</view></view>
+          <view class="overview-stat"><text>{{recordDays}}</text><view>记录天数</view></view>
+          <view class="overview-stat"><text>{{sharedDays}}</text><view>双方分享天数</view></view>
         </view>
-
-        <view class="overview-foot">
-          <text>{{totalEntries ? '打开查看全部日常' : '从第一条日常开始'}}</text>
-          <text>查看 ›</text>
-        </view>
+        <view class="week-hearts"><view wx:for="{{recentDays}}" wx:key="date" class="week-day"><text class="{{item.recorded ? 'recorded' : ''}}">{{item.recorded ? '♥' : '♡'}}</text><view>{{item.label}}</view></view></view>
+        <button class="overview-foot" bindtap="goDailyFeed" disabled="{{loading}}"><text>把我们的日常，慢慢攒起来</text><text>查看记录 →</text></button>
       </view>
+      <view class="page-signature">平凡的一天，也值得被记住 ♡</view>
     </block>
   </block>
 </view>

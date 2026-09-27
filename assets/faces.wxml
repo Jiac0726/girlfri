@@ -1,0 +1,7 @@
+<template name="rating-face">
+  <view class="rating-face {{type}}" aria-hidden="true">
+    <view class="face-eye eye-left"></view><view class="face-eye eye-right"></view>
+    <view class="face-cheek cheek-left"></view><view class="face-cheek cheek-right"></view>
+    <view class="face-mouth"></view>
+  </view>
+</template>

@@ -187,6 +187,25 @@ test('miss subscription uses the server template and displays native error detai
   assert.equal(page.data.missNotifySaving,false);
 });
 
+test('home rating shortcut opens composer without submitting a record',async()=>{
+  const {page,events}=loadPage('index');
+  const tap={currentTarget:{dataset:{type:'good'}}};
+  page.startRating(tap); assert.equal(events.length,0);
+  page._scope='pair';page.setData({bindingStatus:'active',authLoading:false,loading:false});
+  page.startRating(tap);
+  assert.equal(events[0].value.url,'/pages/entry/entry?rating=good');
+});
+
+test('rating shortcut prefills new composer but preserves existing draft',async()=>{
+  const {page,read}=loadPage('entry',{getSession:async()=>session});
+  page._id='';page._initialRating='good';await page.load();
+  assert.equal(page.data.ratingType,'good');
+  const drafts=read(path.join(root,'services/entry-drafts.js'));
+  drafts.write('pair','',{text:'保留我的草稿',mood:'',ratingType:'neutral',images:[]});
+  await page.load();
+  assert.equal(page.data.ratingType,'neutral');assert.equal(page.data.text,'保留我的草稿');
+});
+
 test('miss authorization distinguishes a save failure after WeChat acceptance',async()=>{
   let modal;
   const {page}=loadPage('profile',{

@@ -1,7 +1,7 @@
 @import "../index/index.wxss";
 
 .entry-page{padding-bottom:96rpx}
-.editor{width:100%;box-sizing:border-box;margin-top:30rpx;background:#fffbfc;border:1rpx solid #f1dfe4;border-radius:var(--card-radius);padding:0 var(--card-pad);overflow:hidden}
+.editor{width:100%;box-sizing:border-box;margin-top:30rpx;background:rgba(255,252,251,.88);border:1rpx solid #f5dfe0;border-radius:var(--card-radius);padding:0 var(--card-pad);overflow:hidden}
 .entry-section{padding:30rpx 0;border-bottom:1rpx solid #f2e5e9}
 .entry-section:last-of-type{border-bottom:0}
 .section-head{display:flex;align-items:baseline;justify-content:space-between;gap:16rpx;margin-bottom:18rpx}
@@ -9,11 +9,11 @@
 .section-hint{flex-shrink:0;font-size:21rpx;color:#aa8d98}
 
 .ratings{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12rpx}
-.rating{display:flex;align-items:center;justify-content:center;min-width:0;height:76rpx;box-sizing:border-box;border:1rpx solid #f0dfe4;border-radius:20rpx;background:#faf1f4;color:#7d6570;font-size:25rpx;font-weight:600}
-.rating.selected{border-color:#c85a7d;box-shadow:inset 0 0 0 1rpx #c85a7d}
-.rating.selected.good{background:#f9e2e7;color:#a8455e}
-.rating.selected.neutral{background:#f3eee9;color:#7f6d63}
-.rating.selected.bad{background:#eee9ed;color:#6f6069}
+.rating{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18rpx;min-width:0;min-height:190rpx;padding:20rpx 8rpx;box-sizing:border-box;border:1rpx solid transparent;border-radius:36rpx;background:transparent;color:#54454f;font-size:26rpx;font-weight:400}
+.rating.selected{border-color:#f7d4da;background:#ffe6e6;color:#c3506a}
+.rating-section .section-title{font-size:33rpx}
+.rating-section .section-head{justify-content:center;position:relative;margin-bottom:28rpx}
+.rating-section .section-hint{position:absolute;right:0;font-size:20rpx;color:#a9929a}
 
 .moods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12rpx}
 .mood{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;height:116rpx;box-sizing:border-box;padding:12rpx 6rpx;border:1rpx solid #f1e3e7;border-radius:20rpx;background:#fbf4f6}

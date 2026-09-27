@@ -10,6 +10,9 @@ Page({
     error: '',
     today: '',
     dateLabel: '',
+    weekday: '',
+    ratings: view.RATINGS,
+    recentDays: [],
     monthLabel: '',
     totalEntries: 0,
     recordDays: 0,
@@ -53,12 +56,13 @@ Page({
         bindingStatus: session.bindingStatus || 'unbound',
         today,
         dateLabel: Number(today.slice(5, 7)) + '月' + Number(today.slice(8)) + '日',
+        weekday: ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][new Date(today + 'T00:00:00Z').getUTCDay()],
         monthLabel: Number(today.slice(5, 7)) + '月',
         missCount: Math.max(0, Number(session.missCount || 0)),
       });
 
       if (!active) {
-        this.setData({ totalEntries: 0, recordDays: 0, sharedDays: 0, todayEntries: 0 });
+        this.setData({ totalEntries: 0, recordDays: 0, sharedDays: 0, todayEntries: 0, recentDays: [] });
         return;
       }
       if (!scope) throw new Error('关系资料未就绪，请重试');
@@ -66,7 +70,15 @@ Page({
       const stats = await api.getEntryMonth(month);
       if (token !== this._token || this._disposed) return;
       const todayStat = (stats.days || []).find(day => day.date === today);
+      // Only show dates in the month covered by this summary.
+      const recorded = new Set((stats.days || []).filter(day => day.count > 0).map(day => day.date));
+      const recentDays = [];
+      for (let day = Math.max(1, Number(today.slice(8)) - 6); day <= Number(today.slice(8)); day++) {
+        const date = month + '-' + String(day).padStart(2, '0');
+        recentDays.push({ date, label: day + '日', recorded: recorded.has(date) });
+      }
       this.setData({
+        recentDays,
         totalEntries: Number(stats.totalEntries || 0),
         recordDays: Number(stats.recordDays || 0),
         sharedDays: Number(stats.sharedDays || 0),
@@ -121,6 +133,12 @@ Page({
     if (!this.data.loading && !this.data.authLoading && this.data.bindingStatus === 'active' && this._scope) {
       wx.navigateTo({ url: '/pages/entry/entry' });
     }
+  },
+
+  startRating(e) {
+    const type = e.currentTarget.dataset.type;
+    if (!view.RATINGS.some(item => item.type === type) || this.data.loading || this.data.authLoading || this.data.bindingStatus !== 'active' || !this._scope) return;
+    wx.navigateTo({ url: '/pages/entry/entry?rating=' + type });
   },
 
   goDailyFeed() {

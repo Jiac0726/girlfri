@@ -1,6 +1,7 @@
+<import src="../../assets/faces.wxml" />
 <view class="journal-page entry-page">
   <view class="page-title">{{editing ? '编辑这段日常' : '记录今天'}}</view>
-  <view class="page-sub">先留下评价和心情，再写下想对 TA 说的话</view>
+  <view class="page-sub">今天，你觉得我们相处得怎么样？</view>
 
   <view wx:if="{{loading}}" class="state-panel">加载中…</view>
   <view wx:if="{{error}}" class="error-panel">
@@ -11,7 +12,7 @@
   <view wx:if="{{!loading}}" class="editor">
     <view class="entry-section rating-section">
       <view class="section-head">
-        <view class="section-title">今日评价</view>
+        <view class="section-title">今天的我们</view>
         <view class="section-hint">可不选</view>
       </view>
       <view class="ratings">
@@ -22,8 +23,11 @@
           data-type="{{item.type}}"
           bindtap="chooseRating"
           aria-role="button"
+          aria-label="{{item.label}}"
+          aria-pressed="{{ratingType === item.type}}"
         >
-          {{item.label}}
+          <template is="rating-face" data="{{type:item.type}}" />
+          <text>{{item.label}}</text>
         </view>
       </view>
     </view>
@@ -50,7 +54,7 @@
 
     <view class="entry-section">
       <view class="section-head">
-        <view class="section-title">评价内容</view>
+        <view class="section-title">想对 TA 说</view>
         <view class="section-hint">可不填</view>
       </view>
       <view class="text-box">

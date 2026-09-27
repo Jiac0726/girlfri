@@ -1,68 +1,45 @@
 <import src="../index/entry-card.wxml" />
 <view class="journal-page review-page">
-  <view class="review-head">
-    <view>
-      <view class="eyebrow">热念 · 回顾</view>
-      <view class="page-title">一起走过的日子</view>
-      <view class="page-sub">按月份翻看我们的记录</view>
-    </view>
-    <picker mode="date" fields="month" value="{{month}}" bindchange="changeMonth">
-      <view class="month-picker">{{monthLabel}}⌄</view>
-    </picker>
-  </view>
-
+  <view class="review-head"><view class="page-title">回顾</view><text class="review-kicker">把日子过成回忆 ♡</text></view>
   <view wx:if="{{bindingStatus === 'active'}}">
-    <view class="stats">
-      <view class="stat"><text>{{totalEntries}}</text><view>日常</view></view>
-      <view class="stat"><text>{{recordDays}}</text><view>记录天数</view></view>
-      <view class="stat"><text>{{sharedDays}}</text><view>双方分享</view></view>
-    </view>
-
-    <scroll-view class="days-scroll" scroll-x enable-flex wx:if="{{days.length}}">
-      <view class="days">
-        <button
-          wx:for="{{days}}"
-          wx:key="date"
-          class="day {{selectedDay === item.date ? 'selected' : ''}}"
-          data-day="{{item.date}}"
-          bindtap="chooseDay"
-        >
-          <text>{{item.dayLabel}}</text>
-          <view>{{item.count}}条</view>
-        </button>
+    <view class="calendar">
+      <view class="calendar-nav">
+        <button bindtap="previousMonth" disabled="{{loading}}" aria-label="上个月">‹</button>
+        <picker mode="date" fields="month" value="{{month}}" bindchange="changeMonth" disabled="{{loading}}"><view class="month-picker">{{calendarTitle}}<text>⌄</text></view></picker>
+        <button bindtap="nextMonth" disabled="{{loading}}" aria-label="下个月">›</button>
       </view>
-    </scroll-view>
-
+      <view class="calendar-week"><text wx:for="{{weekdays}}" wx:key="*this">{{item}}</text></view>
+      <view class="calendar-grid">
+        <view wx:for="{{calendarCells}}" wx:key="key" class="calendar-cell">
+          <button wx:if="{{item.date}}" class="calendar-day {{selectedDay === item.date ? 'selected' : ''}} {{today === item.date ? 'is-today' : ''}}" data-day="{{item.date}}" bindtap="chooseDay" disabled="{{loading}}" aria-label="{{item.date + (item.shared ? ' 双方已分享' : item.recorded ? ' 有记录' : ' 无记录')}}" aria-pressed="{{selectedDay === item.date}}">
+            <text>{{item.label}}</text><view class="day-marker {{item.shared ? 'shared' : item.recorded ? 'recorded' : ''}}">{{item.shared ? '♥' : item.recorded ? '•' : ''}}</view>
+          </button>
+        </view>
+      </view>
+      <view class="calendar-legend"><text><text class="legend-heart">♥</text> 双方分享</text><text><text class="legend-dot">●</text> 有记录</text><text>空白 · 无记录</text></view>
+    </view>
+    <view class="month-story">
+      <image class="month-story-image" src="../../assets/hero-sunset.jpg" mode="aspectFill" />
+      <view class="month-story-shade"></view>
+      <view class="month-story-title"><text>OUR DAYS</text><view>我们的{{monthLabel}}</view></view>
+      <view class="stats">
+        <view class="stat"><text>{{recordDays}}<text class="stat-unit"> 天</text></text><view>一起记录</view></view>
+        <view class="stat"><text>{{sharedDays}}<text class="stat-unit"> 天</text></text><view>双方分享</view></view>
+        <view class="stat"><text>{{totalEntries}}<text class="stat-unit"> 条</text></text><view>留下的日常</view></view>
+      </view>
+    </view>
     <view class="review-list-head">
-      <view>
-        <view class="review-list-title">{{selectedDayLabel || monthLabel + '日常'}}</view>
-        <view class="review-list-sub">{{selectedDay ? '再点一次日期回到整月' : totalEntries + ' 条记录'}}</view>
-      </view>
-      <button class="clear-day" wx:if="{{selectedDay}}" bindtap="clearDay">整月</button>
+      <view><view class="review-list-title">{{selectedDayLabel || monthLabel + '的故事'}}</view><view class="review-list-sub">{{selectedDay ? '这一天，我们留下的点滴' : '每一次分享，都在这里'}}</view></view>
+      <button class="clear-day" wx:if="{{selectedDay}}" bindtap="clearDay" disabled="{{loading}}">看整月</button>
     </view>
-
     <view class="state-panel compact" wx:if="{{loading && !entries.length}}">正在整理回忆…</view>
     <template wx:for="{{entries}}" wx:key="id" is="entry-card" data="{{entry:item,busyEntryId:busyEntryId,locked:loading}}" />
-
     <view class="state-panel review-empty" wx:if="{{!loading && !entries.length && !error}}">
-      这段日子还没有记录，慢慢来。
+      <image src="../../assets/waiting-envelope.jpg" mode="aspectFit" /><view>这段日子还没有记录</view><text>平凡的小事，也值得慢慢收藏 ♡</text>
     </view>
-
-    <view class="review-more" wx:if="{{hasMore}}">
-      <button class="text-button" bindtap="loadMore" disabled="{{loadingMore || loading}}">
-        {{loadingMore ? '加载中…' : '查看更多'}}
-      </button>
-    </view>
+    <view class="review-more" wx:if="{{hasMore}}"><button class="text-button" bindtap="loadMore" disabled="{{loadingMore || loading}}">{{loadingMore ? '加载中…' : '看看更多故事 ↓'}}</button></view>
   </view>
-
-  <view class="state-panel" wx:elif="{{!loading}}">
-    绑定后，回忆会在这里慢慢积攒。
-    <button class="primary-button" bindtap="goBind">去绑定</button>
-  </view>
-
+  <view class="state-panel" wx:elif="{{!loading}}">绑定后，回忆会在这里慢慢积攒。<button class="primary-button" bindtap="goBind">去绑定</button></view>
   <view class="state-panel" wx:if="{{loading && bindingStatus !== 'active'}}">加载中…</view>
-  <view class="error-panel" wx:if="{{error}}">
-    {{error}}
-    <button class="text-button" bindtap="refresh">重试</button>
-  </view>
+  <view class="error-panel" wx:if="{{error}}">{{error}}<button class="text-button" bindtap="refresh">重试</button></view>
 </view>

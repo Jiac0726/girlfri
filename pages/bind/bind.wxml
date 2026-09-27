@@ -1,117 +1,56 @@
 <view class="love-page">
-  <image class="paper-bg" src="../../assets/review-blush.png" mode="aspectFill"></image>
-
-  <block wx:if="{{bindingStatus === 'unbound' && !openedFromInvite}}">
-    <view class="welcome-stage target-welcome">
-      <view class="brand-block">
-        <view class="logo-heart-box">
-          <view class="heart-ray ray-a"></view>
-          <view class="heart-ray ray-b"></view>
-          <view class="heart-ray ray-c"></view>
-          <view class="brand-heart">♥</view>
-        </view>
-        <view class="brand-name">热念<text class="brand-dot">♥</text></view>
-        <view class="brand-sub">两个人的相处记录</view>
-      </view>
-
-      <view class="story-zone">
-        <image class="welcome-photo" src="../../assets/bind-couple.jpg" mode="aspectFill"></image>
-        <view class="story-fade"></view>
-        <view class="story-bottom-fade"></view>
-
-        <view class="hand-note note-left">平凡的日子\n因为有你\n而闪闪发光 ♡</view>
-        <view class="hand-note note-right">和你在一起\n就是最好的时光 ♡</view>
-        <view class="doodle-heart h1">♡</view>
-        <view class="doodle-heart h2">♡</view>
-      </view>
-
-      <view class="welcome-actions">
-        <button class="love-btn welcome-bind" bindtap="createInvite" loading="{{loading}}">和 TA 绑定</button>
-        <view class="text-link invite-received" bindtap="showManualJoin">我已经收到邀请 <text class="link-arrow">→</text></view>
-
-        <view class="manual-join" wx:if="{{manualJoin}}">
-          <view class="manual-title">输入 TA 发来的绑定码</view>
-          <input class="code-input" value="{{joinCode}}" bindinput="onJoinInput" maxlength="8" placeholder="8 位绑定码" />
-          <button class="outline-btn" bindtap="joinPair" disabled="{{joinCode.length !== 8 || loading}}">完成绑定</button>
-        </view>
+  <view class="bind-nav" style="padding-top:{{statusBarHeight}}px">
+    <button class="back-link" bindtap="backHome" aria-label="返回首页">‹</button>
+    <text>{{bindingStatus === 'active' ? '绑定成功' : bindingStatus === 'waiting' ? '邀请 TA' : openedFromInvite ? '接受邀请' : '热念'}}</text>
+  </view>
+  <view wx:if="{{bindingStatus === 'unbound' && !openedFromInvite}}" class="welcome-stage">
+    <view class="brand-block"><view class="brand-heart">♡<text>✧</text></view><view class="brand-name">热 念</view><view class="brand-sub">两个人的相处记录</view></view>
+    <view class="story-zone">
+      <image class="welcome-photo" src="../../assets/bind-couple.jpg" mode="aspectFill" />
+      <view class="story-fade"></view>
+      <view class="hand-note story-note">平凡的日子<br/>因为有你<br/>而闪闪发光 ♡</view>
+    </view>
+    <view class="welcome-actions">
+      <button class="love-btn" bindtap="createInvite" loading="{{loading}}" disabled="{{loading}}">和 TA 绑定</button>
+      <button class="text-link" bindtap="showManualJoin">我已经收到邀请 →</button>
+      <view class="manual-join" wx:if="{{manualJoin}}">
+        <view class="manual-title">输入 TA 发来的 8 位绑定码</view>
+        <input class="code-input" value="{{joinCode}}" bindinput="onJoinInput" maxlength="8" placeholder="8 位绑定码" />
+        <button class="outline-btn" bindtap="joinPair" disabled="{{joinCode.length !== 8 || loading}}">完成绑定</button>
       </view>
     </view>
-  </block>
-
-  <block wx:if="{{bindingStatus === 'unbound' && openedFromInvite}}">
-    <view class="flow-stage invite-target-stage received-target-stage">
-      <view class="target-page-title">接受 TA 的邀请</view>
-
-      <view class="target-invite-mark">
-        <view class="target-heart">♡</view>
-      </view>
-
-      <view class="target-invite-name">TA 邀请你加入热念</view>
-      <view class="target-invite-copy">和 TA 一起使用热念</view>
-      <view class="target-invite-sub">记录平凡日子里的特别时刻</view>
-
-      <view class="target-code-caption">邀请码</view>
-      <view class="invite-code target-code">{{joinCode}}</view>
-
-      <button class="love-btn target-primary-btn" bindtap="joinPair" loading="{{loading}}">
-        接受邀请并绑定
-      </button>
-      <view class="text-link target-secondary-link" bindtap="useOtherCode">使用其他绑定码 →</view>
+  </view>
+  <view wx:if="{{bindingStatus === 'waiting' || (bindingStatus === 'unbound' && openedFromInvite)}}" class="flow-stage">
+    <view class="invite-card">
+      <view class="invite-mark">♡</view>
+      <view class="invite-title">{{bindingStatus === 'waiting' ? '邀请你喜欢的那个人' : 'TA 邀请你'}}<br/>和 TA 一起使用热念</view>
+      <view class="invite-sub">记录平凡日子里的特别时刻<br/>让爱被看见 ♡</view>
+      <button wx:if="{{bindingStatus === 'waiting'}}" class="love-btn invite-send" open-type="share" disabled="{{loading || inviteExpired}}"><text>♡</text> 微信邀请</button>
+      <button wx:else class="love-btn invite-send" bindtap="joinPair" loading="{{loading}}" disabled="{{loading}}">接受邀请并绑定</button>
+      <view class="code-divider"><text></text><view>{{bindingStatus === 'waiting' ? '或使用邀请码' : '来自 TA 的邀请码'}}</view><text></text></view>
+      <button class="invite-code" bindtap="copyCode" disabled="{{bindingStatus !== 'waiting' || loading || inviteExpired}}" aria-label="复制邀请码"><text>{{bindingStatus === 'waiting' ? inviteCode : joinCode}}</text><text class="copy-mark" wx:if="{{bindingStatus === 'waiting'}}">▢</text></button>
+      <view wx:if="{{bindingStatus === 'waiting'}}" class="expire">{{inviteExpired ? '邀请已过期，请重新生成' : inviteExpiresText ? '有效至 ' + inviteExpiresText : '24 小时内有效'}}</view>
+      <view wx:if="{{bindingStatus === 'waiting'}}" class="mini-actions"><button bindtap="refreshInvite" disabled="{{loading}}">换一个邀请码</button><button bindtap="cancelInvite" disabled="{{loading}}">取消邀请</button></view>
     </view>
-  </block>
-
-  <block wx:if="{{bindingStatus === 'waiting'}}">
-    <view class="flow-stage invite-target-stage">
-      <view class="target-page-title">邀请 TA</view>
-
-      <view class="target-invite-mark">
-        <view class="target-heart">♡</view>
-      </view>
-
-      <view class="target-invite-name">邀请 TA 加入你的小世界</view>
-      <view class="target-invite-copy">和 TA 一起使用热念</view>
-
-      <button class="love-btn target-primary-btn" open-type="share" disabled="{{loading || inviteExpired}}">微信邀请</button>
-
-      <view class="target-code-caption">邀请码</view>
-      <view class="invite-code target-code" bindtap="copyCode">{{inviteCode}}</view>
-      <view class="expire target-expire">
-        {{inviteExpired ? '邀请已过期，请点“换一个”重新生成' : inviteExpiresText ? '有效至 ' + inviteExpiresText : '24 小时内有效'}}
-      </view>
-
-      <view class="mini-actions target-mini-actions">
-        <view bindtap="copyCode">复制</view>
-        <view bindtap="refreshInvite">换一个</view>
-        <view bindtap="cancelInvite">取消邀请</view>
-      </view>
-
-      <view class="text-link target-refresh-link" bindtap="retrySession">
-        TA 已加入？刷新状态 →
-      </view>
-      <view class="text-link" bindtap="showManualJoin">我也收到了 TA 的邀请 →</view>
-      <view class="manual-join" wx:if="{{manualJoin || openedFromInvite}}">
-        <input class="code-input" value="{{joinCode}}" bindinput="onJoinInput" maxlength="8" placeholder="输入 TA 的 8 位绑定码" />
-        <button class="outline-btn" bindtap="joinPair" disabled="{{joinCode.length !== 8 || loading}}">接受 TA 的邀请</button>
-      </view>
+    <button wx:if="{{bindingStatus === 'waiting'}}" class="text-link" bindtap="retrySession" disabled="{{loading}}">TA 已加入？刷新状态 →</button>
+    <button wx:if="{{bindingStatus === 'waiting'}}" class="text-link secondary-link" bindtap="showManualJoin">我也收到了 TA 的邀请</button>
+    <button wx:else class="text-link" bindtap="useOtherCode">使用其他绑定码 →</button>
+    <view class="manual-join" wx:if="{{bindingStatus === 'waiting' && (manualJoin || openedFromInvite)}}">
+      <input class="code-input" value="{{joinCode}}" bindinput="onJoinInput" maxlength="8" placeholder="输入 TA 的 8 位绑定码" />
+      <button class="outline-btn" bindtap="joinPair" disabled="{{joinCode.length !== 8 || loading}}">接受 TA 的邀请</button>
     </view>
-  </block>
-
-  <block wx:if="{{bindingStatus === 'active'}}">
-    <view class="success-stage">
-      <view class="flow-title">绑定成功</view>
-      <image class="success-pair-art" src="../../assets/success-pair.jpg" mode="aspectFit"></image>
-      <view class="success-title">连接成功</view>
-      <view class="invite-sub">从今天开始，<br/>留下一点属于你们的记录。</view>
-      <button class="love-btn" bindtap="backHome">开始记录</button>
-      <view class="hand-note success-note">好的关系<br/>是一起把平凡的日子<br/>过成特别的回忆 ♡</view>
-    </view>
-  </block>
-
-  <view class="loading-cover" wx:if="{{bindingStatus === 'loading'}}">正在准备你们的空间…</view>
-  <view class="flow-stage" wx:if="{{bindingStatus === 'error'}}">
-    <view class="flow-title">暂时连接不上</view>
-    <view class="invite-sub">{{errorMessage}}</view>
-    <button class="love-btn" bindtap="retrySession" loading="{{loading}}" disabled="{{loading}}">重新加载</button>
-    <view class="text-link" bindtap="backHome">返回首页</view>
+    <view class="flow-signature">想和你，收藏每一个普通日子。</view>
+  </view>
+  <view wx:if="{{bindingStatus === 'active'}}" class="success-stage">
+    <image class="success-pair-art" src="../../assets/success-pair.jpg" mode="aspectFit" />
+    <view class="success-title">连接成功</view>
+    <view class="invite-sub">从今天开始，<br/>留下一点属于你们的记录。</view>
+    <button class="love-btn" bindtap="backHome">开始记录</button>
+    <view class="success-landscape"><view>♡</view><text>♡</text></view>
+    <view class="hand-note success-note">好的关系<br/>是一起把平凡的日子<br/>过成特别的回忆 ♡</view>
+  </view>
+  <view wx:if="{{bindingStatus === 'loading'}}" class="loading-cover">正在准备你们的空间…</view>
+  <view wx:if="{{bindingStatus === 'error'}}" class="flow-stage">
+    <view class="invite-card"><view class="invite-mark">♡</view><view class="invite-title">暂时连接不上</view><view class="invite-sub">{{errorMessage}}</view><button class="love-btn invite-send" bindtap="retrySession" loading="{{loading}}" disabled="{{loading}}">重新加载</button></view>
   </view>
 </view>

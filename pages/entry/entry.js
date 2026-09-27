@@ -19,7 +19,11 @@ function mediaError(stage, error) {
 
 Page({
   data: { loading: true, saving: false, error: '', text: '', mood: '', ratingType: '', images: [], moods: view.MOODS, ratings: view.RATINGS, uncertain: false, editing: false },
-  onLoad(options) { this._id = options.id || ''; this.setData({ editing: !!this._id }); this.load(); },
+  onLoad(options) {
+    this._id = options.id || '';
+    this._initialRating = view.RATINGS.some(item => item.type === options.rating) ? options.rating : '';
+    this.setData({ editing: !!this._id }); this.load();
+  },
   onUnload() { this.persist(); this._disposed = true; },
   persist() {
     if (this._scope && !this._completed) drafts.write(this._scope, this._id, {
@@ -42,6 +46,8 @@ Page({
         if (!entry.fromMe) throw new Error('只能编辑自己的日常');
         this._version = entry.version;
         this.setData({ text: entry.text, mood: entry.mood, ratingType: entry.ratingType || '', images: entry.images });
+      } else if (this._initialRating) {
+        this.setData({ ratingType: this._initialRating });
       }
       this._ready = true;
     } catch (error) { this.setData({ error: error.message || '加载失败，请重试' }); }

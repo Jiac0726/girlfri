@@ -1,0 +1,9 @@
+.rating-face{position:relative;width:104rpx;height:104rpx;margin:0 auto;border-radius:50%;background:radial-gradient(circle at 33% 26%,#f7f4f4,#dcd7d9);box-shadow:inset 0 -5rpx 8rpx #87717b0c}
+.rating-face.good{background:radial-gradient(circle at 32% 25%,#ffe1df,#ffb3b9 70%,#ff9fac)}
+.face-eye{position:absolute;top:36rpx;width:8rpx;height:13rpx;border-radius:50%;background:#39313a}
+.eye-left{left:31rpx}.eye-right{right:31rpx}
+.face-mouth{position:absolute;left:38rpx;top:55rpx;width:24rpx;height:14rpx;border:4rpx solid #39313a;border-top:0;border-radius:0 0 22rpx 22rpx;box-sizing:border-box}
+.good .face-mouth{height:20rpx;background:#c0445b;border:0;border-radius:4rpx 4rpx 18rpx 18rpx}
+.bad .face-mouth{top:61rpx;border-top:4rpx solid #39313a;border-bottom:0;border-radius:22rpx 22rpx 0 0}
+.face-cheek{display:none;position:absolute;top:54rpx;width:18rpx;height:10rpx;border-radius:50%;background:#f58097aa}
+.good .face-cheek{display:block}.cheek-left{left:16rpx}.cheek-right{right:16rpx}

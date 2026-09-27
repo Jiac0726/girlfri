@@ -1,7 +1,8 @@
 const api = require('../../services/cloud');
 const view = require('../../services/entry-view');
+const { calendarMonth, shiftMonth } = require('../../helpers/calendar');
 Page(Object.assign({}, view.entryActions, {
-  data: { loading: true, loadingMore: false, bindingStatus: 'loading', month: '', monthLabel: '', today: '', selectedDay: '', selectedDayLabel: '', days: [], totalEntries: 0, recordDays: 0, sharedDays: 0, entries: [], nextCursor: null, hasMore: false, error: '', busyEntryId: '' },
+  data: { loading: true, loadingMore: false, bindingStatus: 'loading', month: '', monthLabel: '', calendarTitle: '', calendarCells: [], weekdays: ['一','二','三','四','五','六','日'], today: '', selectedDay: '', selectedDayLabel: '', days: [], totalEntries: 0, recordDays: 0, sharedDays: 0, entries: [], nextCursor: null, hasMore: false, error: '', busyEntryId: '' },
   onShow() { this._disposed = false; this.refresh(); },
   onUnload() { this._disposed = true; this._token = (this._token || 0) + 1; },
   async onPullDownRefresh() { try { await this.refresh(); } finally { wx.stopPullDownRefresh(); } },
@@ -10,8 +11,11 @@ Page(Object.assign({}, view.entryActions, {
     this.setData({ month: e.detail.value, selectedDay: '', selectedDayLabel: '' });
     this.refresh();
   },
+  previousMonth() { if (!this.data.loading) this.changeMonth({ detail: { value: shiftMonth(this.data.month, -1) } }); },
+  nextMonth() { if (!this.data.loading) this.changeMonth({ detail: { value: shiftMonth(this.data.month, 1) } }); },
   chooseDay(e) {
     const day = e.currentTarget.dataset.day;
+    if (!day || this.data.loading) return;
     const next = this.data.selectedDay === day ? '' : day;
     this.setData({ selectedDay: next, selectedDayLabel: next ? Number(next.slice(8)) + '日' : '' });
     this.refresh();
@@ -35,6 +39,8 @@ Page(Object.assign({}, view.entryActions, {
         today,
         month,
         monthLabel: Number(month.slice(5, 7)) + '月',
+        calendarTitle: month.slice(0, 4) + '年' + Number(month.slice(5, 7)) + '月',
+        calendarCells: calendarMonth(month),
         selectedDayLabel: this.data.selectedDay ? Number(this.data.selectedDay.slice(8)) + '日' : '',
       });
       if (session.bindingStatus !== 'active') { this.setData({ entries: [], days: [], hasMore: false, totalEntries: 0, recordDays: 0, sharedDays: 0 }); return; }
@@ -44,6 +50,7 @@ Page(Object.assign({}, view.entryActions, {
       const days = (stats.days || []).map(day => Object.assign({}, day, { dayLabel: Number(day.date.slice(8)) + '日' }));
       this.setData(Object.assign({}, stats, {
         days,
+        calendarCells: calendarMonth(month, days),
         entries: view.viewEntries(result.items, today),
         nextCursor: result.nextCursor,
         hasMore: !!result.nextCursor,

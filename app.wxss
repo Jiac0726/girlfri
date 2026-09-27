@@ -9,22 +9,22 @@
 /* ── 设计令牌 ─────────────────────────────────────────────── */
 page {
   /* 色板：3 级墨 + 3 级玫瑰 + 纸。冷灰蓝已剔除，中性色一律玫瑰调 */
-  --ink: #3e2b33;       /* 暖墨 · 主文字 */
-  --ink-2: #6b4f59;     /* 次级文字 */
-  --ink-3: #a8919a;     /* 弱化 · 玫瑰调中性（替冷灰蓝 #90a4ae） */
-  --rose: #e4536b;      /* 主玫瑰（替 #ff6b81，降饱和更耐看） */
+  --ink: #292b35;
+  --ink-2: #66616a;
+  --ink-3: #8e7e85;
+  --rose: #f45f78;
   --rose-deep: #be3850; /* 按压 / 强调 */
-  --berry: #8e3a4e;     /* 主操作底色：够沉能镇住，又不脱离暖调 */
+  --berry: #e95770;
   --blush: #f6dce1;     /* 选中底 */
-  --paper: #fdf7f8;     /* 暖纸（替纯白 #ffffff） */
-  --paper-2: #f7ecee;   /* 页面底 */
+  --paper: #fffafa;
+  --paper-2: #fff2f1;
   --rule: #ebd8dd;      /* 分隔线 */
   --gold: #b98a2e;      /* 特权卡点缀，全站仅此一处非玫瑰 */
 
   /* 页面与卡片统一规格 */
   --page-gutter: 32rpx;
-  --card-radius: 28rpx;
-  --card-pad: 28rpx;
+  --card-radius: 40rpx;
+  --card-pad: 32rpx;
 
   /* 间距阶：等比推进（×1.5 左右），禁止随手写值打断比例 */
   --s-1: 8rpx;
@@ -97,10 +97,10 @@ page {
 
 /* ── 全站基础 ─────────────────────────────────────────────── */
 page {
-  background: #fff0f3;
+  background: #fff2f1;
   font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica,
     "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  color: #4a3540;
+  color: var(--ink);
   font-size: 28rpx;
   line-height: 1.6;
 }
@@ -110,17 +110,20 @@ page {
 
 .container {
   padding: 30rpx var(--page-gutter) 60rpx;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at top right, #fbe0e0, transparent 55%), linear-gradient(165deg, #fff7f5, #fce9e9);
   box-sizing: border-box;
 }
 
 .card {
   width: 100%;
   box-sizing: border-box;
-  background: #ffffff;
+  background: rgba(255, 252, 251, .88);
+  border: 1rpx solid #f7e2e2;
   border-radius: var(--card-radius);
   padding: var(--card-pad);
   margin-bottom: 28rpx;
-  box-shadow: 0 6rpx 24rpx rgba(255, 107, 129, 0.1);
+  box-shadow: 0 8rpx 28rpx rgba(185, 107, 120, .035);
 }
 
 .card-title {
@@ -133,6 +136,7 @@ page {
 }
 
 .card-title::before {
+  display: none;
   content: "";
   width: 8rpx;
   height: 28rpx;

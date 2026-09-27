@@ -1,45 +1,34 @@
 @import "../index/index.wxss";
-
-.review-page{padding-top:36rpx}
-.review-head{display:flex;align-items:flex-start;justify-content:space-between;gap:22rpx;margin-bottom:24rpx}
-.review-head .page-title{font-size:36rpx;margin-top:10rpx}
-.review-head .page-sub{margin-top:8rpx;font-size:22rpx}
-
-.month-picker{display:flex;align-items:center;justify-content:center;min-width:150rpx;height:64rpx;box-sizing:border-box;padding:0 18rpx;border:1rpx solid #ead6dd;border-radius:999rpx;background:#fffafb;color:#8e5065;font-size:23rpx;font-weight:600}
-
-.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:18rpx 10rpx;border:1rpx solid #eadbe0;border-radius:22rpx;background:linear-gradient(120deg,#fcebf0,#f2edfb)}
-.stat{text-align:center;color:#8c707b;font-size:19rpx;line-height:1.35}
-.stat text{display:block;margin-bottom:2rpx;color:#643f50;font-size:34rpx;font-weight:700;line-height:1.25}
-
-.days-scroll{width:100%;margin-top:18rpx;white-space:nowrap}
-.days{display:inline-flex;gap:10rpx;padding:2rpx 2rpx 6rpx}
-.day{flex-shrink:0;width:104rpx;height:72rpx;margin:0;padding:8rpx 6rpx;border:1rpx solid #efdee4;border-radius:18rpx;background:#fff8fa;color:#927381;font-size:19rpx;line-height:1.2}
-.day text{display:block;color:#765564;font-size:22rpx;font-weight:600}
-.day view{margin-top:4rpx}
-.day.selected{border-color:#cf7d96;background:#f4d6e0;color:#8b4f63}
-.day.selected text{color:#743b51}
-.day::after{border:0}
-
-.review-list-head{display:flex;align-items:center;justify-content:space-between;gap:18rpx;margin:24rpx 2rpx 14rpx}
-.review-list-title{color:#513b45;font-size:27rpx;font-weight:700}
-.review-list-sub{margin-top:3rpx;color:#aa9099;font-size:19rpx}
-.clear-day{flex-shrink:0;margin:0;padding:8rpx 16rpx;border-radius:999rpx;background:#f8e9ee;color:#9e5269;font-size:20rpx;line-height:1.6}
-.clear-day::after{border:0}
-
-.review-page .entry-card{padding:22rpx;margin-bottom:14rpx;border-radius:22rpx}
-.review-page .entry-avatar{width:58rpx;height:58rpx;font-size:21rpx}
-.review-page .entry-top{gap:14rpx}
-.review-page .entry-author{font-size:24rpx}
-.review-page .entry-time{font-size:19rpx}
-.review-page .entry-mood{font-size:34rpx}
-.review-page .entry-meta-row{margin-top:15rpx}
-.review-page .entry-text{margin-top:16rpx;font-size:26rpx;line-height:1.7}
-.review-page .entry-images{margin-top:16rpx;gap:6rpx}
-.review-page .entry-image-cell{height:150rpx}
-.review-page .single-image .entry-image-cell{height:330rpx}
-.review-page .entry-actions{margin-top:16rpx;padding-top:12rpx;gap:18rpx}
-.review-page .entry-actions .text-button{font-size:21rpx}
-
-.state-panel.review-empty{padding:42rpx 18rpx}
-.review-more{text-align:center;padding:10rpx 0 24rpx}
+.review-head{display:flex;align-items:center;justify-content:space-between;gap:16rpx;margin-bottom:26rpx}
+.review-head .page-title{margin:0}.review-kicker{font-size:22rpx;color:#a47a85}
+.calendar{padding:0 2rpx 16rpx}
+.calendar-nav{display:flex;align-items:center;justify-content:space-evenly;margin-bottom:24rpx}
+.calendar-nav button{margin:0;padding:0;width:80rpx;line-height:70rpx;background:transparent;color:#52414c;font-size:46rpx}
+.calendar-nav button[disabled]{opacity:.4}
+.month-picker{font-size:29rpx;font-weight:500;padding:14rpx 20rpx}
+.month-picker text{font-size:21rpx;margin-left:12rpx;color:#a5848d}
+.calendar-week,.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));text-align:center}
+.calendar-week{font-size:22rpx;color:#8e7b84;margin-bottom:12rpx}
+.calendar-cell{height:92rpx;display:flex;align-items:center;justify-content:center}
+.calendar-day{display:flex;flex-direction:column;align-items:center;justify-content:center;width:74rpx;height:80rpx;box-sizing:border-box;margin:0;padding:6rpx 0 0;border-radius:50%;background:transparent;color:#3c3341;font-size:26rpx;line-height:1.2}
+.day-marker{height:24rpx;font-size:24rpx;line-height:24rpx;color:#c6aaa9}.day-marker.shared{color:#fa6380;font-size:20rpx}.day-marker.recorded{font-size:30rpx}
+.calendar-day.is-today{border:1rpx solid #efbdc5}.calendar-day.selected{color:#fff;background:linear-gradient(140deg,#ff9caa,#f65976);box-shadow:0 6rpx 14rpx #ed6b832e;border-color:transparent}
+.calendar-day.selected .day-marker{color:#fff}
+.calendar-legend{display:flex;justify-content:center;flex-wrap:wrap;gap:24rpx;margin-top:22rpx;font-size:20rpx;color:#95848b}
+.legend-heart{color:#f86880}.legend-dot{color:#c0a6a6;font-size:16rpx}
+.month-story{position:relative;overflow:hidden;min-height:310rpx;margin:28rpx 0 32rpx;background:#f7d9da;border-radius:32rpx}
+.month-story-image{position:absolute;width:100%;height:100%;opacity:.75}
+.month-story-shade{position:absolute;inset:0;background:linear-gradient(180deg,#f7e1e21a 0%,#ffe6e780 45%,#fff6f4 100%)}
+.month-story-title{position:relative;padding:24rpx 28rpx 10rpx;text-align:right;color:#553746}
+.month-story-title>text{position:absolute;left:28rpx;top:14rpx;font-family:Georgia,serif;font-size:56rpx;color:#fffbf3c9;letter-spacing:4rpx}
+.month-story-title>view{position:relative;margin-top:44rpx;font-size:36rpx;font-family:"KaiTi","STKaiti",serif}
+.stats{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:52rpx;padding:22rpx 18rpx 26rpx}
+.stat{text-align:center;font-size:21rpx;color:#77616b}.stat>text{display:block;color:#4a3344;font-size:38rpx;font-weight:500}.stat-unit{font-size:20rpx;font-weight:400}
+.review-list-head{display:flex;align-items:center;justify-content:space-between;gap:18rpx;margin:26rpx 4rpx 22rpx}
+.review-list-title{font-size:31rpx;font-weight:600}.review-list-sub{margin-top:6rpx;color:#9e858f;font-size:21rpx}
+.clear-day{flex-shrink:0;margin:0;padding:10rpx 22rpx;border-radius:40rpx;background:#fff8f5;color:#c65e78;font-size:23rpx;line-height:1.6;border:1rpx solid #efd5dc}
+.review-page .entry-card{border-radius:32rpx}
+.review-empty{padding:32rpx;background:#fffbf9b3;border-radius:36rpx;color:#67515f}
+.review-empty image{display:block;width:180rpx;height:110rpx;mix-blend-mode:multiply;margin:8rpx auto 24rpx}
+.review-empty text{display:block;font-size:23rpx;color:#a18b94;margin-top:10rpx}
 .review-more .text-button{margin:0 auto}
