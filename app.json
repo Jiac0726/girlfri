@@ -7,6 +7,7 @@
     "pages/permissions/permissions",
     "pages/privileges/privileges",
     "pages/profile/profile",
+    "pages/settings/settings",
     "pages/entry/entry"
   ],
   "window": {
