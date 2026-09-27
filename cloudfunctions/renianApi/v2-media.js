@@ -95,7 +95,9 @@ function createMedia(ctx, options = {}) {
             const row = await get(tx, 'media', doc._id);
             assert(row && row.stagingProvisionToken === provisionToken && row.status === 'prepared' &&
               new Date(row.expiresAt).getTime() > Date.now(), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
-            return Object.assign({}, row, { stagingFileID: fileID, stagingProvisionToken: '', stagingProvisionLeaseUntil: null, updatedAt: new Date() });
+            const completed = Object.assign({}, row, { stagingFileID: fileID, stagingProvisionToken: '', stagingProvisionLeaseUntil: null, updatedAt: new Date() });
+            await put(tx, 'media', doc._id, completed);
+            return completed;
           });
         } catch (error) {
           await transaction(async tx => {
