@@ -124,3 +124,41 @@ test('media original upload limit is 20 MB', () => {
   const { MAX_BYTES } = require('../../cloudfunctions/renianApi/v2-media');
   assert.equal(MAX_BYTES, 20 * 1024 * 1024);
 });
+
+
+test('both partners can comment on every album photo with idempotent writes', async () => {
+  const p = await pair();
+  const album = await call('album.create', 'A', { title: '评论测试' });
+  ready(p.coupleId, 'comment-media');
+  const added = await call('album.addPhotos', 'A', { albumId: album.id, images: ['comment-media'] });
+  const photoId = added.ids[0];
+
+  const aPayload = { photoId, text: '我喜欢这张', requestId: 'comment_once_A' };
+  const first = await call('album.commentAdd', 'A', aPayload);
+  const retry = await call('album.commentAdd', 'A', aPayload);
+  assert.equal(first.id, retry.id);
+  await call('album.commentAdd', 'B', { photoId, text: '我也是', requestId: 'comment_once_B' });
+
+  const listed = await call('album.commentList', 'B', { photoId, limit: 50 });
+  assert.equal(listed.items.length, 2);
+  assert.equal(listed.items.find(item => item.text === '我也是').fromMe, true);
+  assert.equal(listed.items.find(item => item.text === '我喜欢这张').fromMe, false);
+  const photo = (await call('album.photos', 'A', { albumId: album.id })).items.find(item => item.id === photoId);
+  assert.equal(photo.commentCount, 2);
+});
+
+test('photo comments are relationship scoped and reject deleted photos or empty text', async () => {
+  const p = await pair();
+  const album = await call('album.create', 'A', { title: '评论权限' });
+  ready(p.coupleId, 'comment-secure');
+  const added = await call('album.addPhotos', 'A', { albumId: album.id, images: ['comment-secure'] });
+  const photoId = added.ids[0];
+  await assert.rejects(call('album.commentAdd', 'A', { photoId, text: '   ' }), e => e.code === 'INVALID_INPUT');
+
+  const invite = await call('pair.create', 'C');
+  await call('pair.join', 'D', { inviteCode: invite.inviteCode });
+  await assert.rejects(call('album.commentList', 'C', { photoId }), e => e.code === 'NOT_FOUND');
+
+  await call('album.deletePhoto', 'A', { id: photoId, expectedVersion: 1 });
+  await assert.rejects(call('album.commentList', 'B', { photoId }), e => e.code === 'PHOTO_DELETED');
+});
