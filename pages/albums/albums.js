@@ -98,16 +98,23 @@ Page({
         const item = Object.assign({}, this.data.images[i]);
         if (item.id) continue;
         this.setData({ progress: '正在上传 ' + (i + 1) + ' / ' + this.data.images.length });
-        try {
-          if (!item.prepared) { item.prepared = await api.prepareMedia({ requestId: item.requestId, name: 'album-photo', size: item.size }); this.updateImage(i, item); }
-          if (!item.fileID) { item.fileID = (await wx.cloud.uploadFile({ cloudPath: item.prepared.cloudPath, filePath: item.localPath })).fileID; this.updateImage(i, item); }
-          const ready = await api.confirmMedia({ id: item.prepared.id, fileID: item.fileID });
-          item.id = ready.id; this.updateImage(i, item);
-        } catch (error) {
-          if (['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'INVALID_MEDIA_TYPE', 'INVALID_MEDIA_SIZE'].includes(error.code)) {
-            delete item.prepared; delete item.fileID; item.requestId = api.newRequestId(); this.updateImage(i, item);
+        for (let attempt = 0; attempt < 2 && !item.id; attempt++) {
+          try {
+            if (!item.prepared) { item.prepared = await api.prepareMedia({ requestId: item.requestId, name: 'album-photo', size: item.size }); this.updateImage(i, item); }
+            if (!item.fileID) { item.fileID = (await wx.cloud.uploadFile({ cloudPath: item.prepared.cloudPath, filePath: item.localPath })).fileID; this.updateImage(i, item); }
+            const ready = await api.confirmMedia({ id: item.prepared.id, fileID: item.fileID });
+            item.id = ready.id; this.updateImage(i, item);
+          } catch (error) {
+            const staleUpload = ['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE'].includes(error.code);
+            if (staleUpload) {
+              delete item.prepared; delete item.fileID; item.requestId = api.newRequestId(); this.updateImage(i, item);
+              if (attempt === 0) continue;
+            }
+            if (['INVALID_MEDIA_TYPE', 'INVALID_MEDIA_SIZE'].includes(error.code)) {
+              delete item.prepared; delete item.fileID; item.requestId = api.newRequestId(); this.updateImage(i, item);
+            }
+            throw error;
           }
-          throw error;
         }
       }
       this._pending = { kind: 'add', payload: { requestId: api.newRequestId(), albumId: this._albumId, images: this.data.images.map(item => item.id) } };
