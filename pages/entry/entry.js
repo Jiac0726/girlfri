@@ -26,8 +26,9 @@ Page({
   },
   onUnload() { this.persist(); this._disposed = true; },
   persist() {
-    if (this._scope && !this._completed) drafts.write(this._scope, this._id, {
-      text: this.data.text, mood: this.data.mood, ratingType: this.data.ratingType, images: this.data.images, version: this._version, pending: this._pending || null,
+    if (this._scope && !this._completed && (this._dirty || this._pending)) drafts.write(this._scope, this._id, {
+      text: this.data.text, mood: this.data.mood, ratingType: this.data.ratingType, images: this.data.images,
+      version: this._version, dirty: !!this._dirty, pending: this._pending || null,
     });
   },
   async load() {
@@ -38,25 +39,38 @@ Page({
       if (session.bindingStatus !== 'active' || !session.coupleId) throw new Error('请先完成双人绑定');
       this._scope = session.coupleId; drafts.activate(this._scope);
       const cached = drafts.read(this._scope, this._id);
-      if (cached) {
-        this._version = cached.version; this._pending = cached.pending;
+      let serverEntry = null;
+      if (this._id) {
+        serverEntry = await api.getEntry(this._id);
+        if (!serverEntry.fromMe) throw new Error('只能编辑自己的日常');
+      }
+      const canRestoreDraft = !!cached && (!this._id || !!cached.pending || (cached.dirty && serverEntry && cached.version === serverEntry.version));
+      if (canRestoreDraft) {
+        this._version = cached.version;
+        this._pending = cached.pending || null;
+        this._dirty = !!cached.dirty && !this._pending;
         this.setData({ text: cached.text, mood: cached.mood, ratingType: cached.ratingType || '', images: cached.images, uncertain: !!cached.pending });
-      } else if (this._id) {
-        const entry = await api.getEntry(this._id);
-        if (!entry.fromMe) throw new Error('只能编辑自己的日常');
-        this._version = entry.version;
-        this.setData({ text: entry.text, mood: entry.mood, ratingType: entry.ratingType || '', images: entry.images });
+      } else if (serverEntry) {
+        this._version = serverEntry.version;
+        this._pending = null;
+        this._dirty = false;
+        this.setData({ text: serverEntry.text, mood: serverEntry.mood, ratingType: serverEntry.ratingType || '', images: serverEntry.images, uncertain: false });
       } else if (this._initialRating) {
+        this._pending = null;
+        this._dirty = false;
         this.setData({ ratingType: this._initialRating });
+      } else {
+        this._pending = null;
+        this._dirty = false;
       }
       this._ready = true;
     } catch (error) { this.setData({ error: error.message || '加载失败，请重试' }); }
     finally { if (!this._disposed) this.setData({ loading: false }); }
   },
-  onText(e) { if (!this.data.saving && !this.data.uncertain) { this.setData({ text: e.detail.value }); this.persist(); } },
+  onText(e) { if (!this.data.saving && !this.data.uncertain) { this._dirty = true; this.setData({ text: e.detail.value }); this.persist(); } },
   chooseMood(e) {
     if (this.data.saving || this.data.uncertain) return;
-    this.setData({ mood: this.data.mood === e.currentTarget.dataset.emoji ? '' : e.currentTarget.dataset.emoji }); this.persist();
+    this._dirty = true; this.setData({ mood: this.data.mood === e.currentTarget.dataset.emoji ? '' : e.currentTarget.dataset.emoji }); this.persist();
   },
   chooseRating(e) {
     if (this.data.saving || this.data.uncertain) return;
@@ -73,13 +87,13 @@ Page({
         if (file.size > 5 * 1024 * 1024) throw new Error('请选择每张不超过 5 MB 的图片');
         selected.push({ localPath: file.tempFilePath, url: file.tempFilePath, size: file.size, uploadRequestId: api.newRequestId() });
       }
-      this.setData({ images: this.data.images.concat(selected) }); this.persist();
+      this._dirty = true; this.setData({ images: this.data.images.concat(selected) }); this.persist();
     } catch (error) { if (!/cancel/.test(error.errMsg || '')) wx.showToast({ title: error.message || '选择图片失败', icon: 'none' }); }
     finally { if (!this._disposed) this.setData({ saving: false }); }
   },
   removeImage(e) {
     if (this.data.saving || this.data.uncertain) return;
-    this.setData({ images: this.data.images.filter((_, i) => i !== Number(e.currentTarget.dataset.index)) }); this.persist();
+    this._dirty = true; this.setData({ images: this.data.images.filter((_, i) => i !== Number(e.currentTarget.dataset.index)) }); this.persist();
   },
   async uploadImages() {
     for (let i = 0; i < this.data.images.length; i++) {
@@ -122,6 +136,7 @@ Page({
       if (!this._pending) {
         await this.uploadImages();
         this._pending = { requestId: api.newRequestId(), text: this.data.text.trim(), mood: this.data.mood, ratingType: this.data.ratingType, images: this.data.images.map(x => x.id) };
+        this._dirty = false;
         if (this._id) Object.assign(this._pending, { id: this._id, expectedVersion: this._version });
         this.persist();
       }
