@@ -13,6 +13,7 @@
         绑定后，你们可以互相看到彼此现在的心情。
       </view>
     </view>
+    <button class="profile-settings-btn" bindtap="goSettings" aria-label="个人设置">⚙</button>
   </view>
 
   <view
