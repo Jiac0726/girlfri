@@ -1,5 +1,5 @@
 const api = require('../../services/cloud');
-const { MOODS, wxCall, isUncertain } = require('../../services/entry-view');
+const { MOODS, wxCall, isUncertain, makeCompatibleImage, normalizeLocalImage } = require('../../services/entry-view');
 const { dateLabel } = require('../../helpers/interactions');
 const TEMPLATE = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
 const TIMES = ['20:00','20:30','21:00','21:30','22:00','22:30'];
@@ -102,12 +102,12 @@ Page({
       const result = await wxCall('chooseMedia', {
         count: 6 - this.data.memoImages.length,
         mediaType: ['image'],
-        sizeType: ['compressed'],
+        sizeType: ['original', 'compressed'],
         sourceType: ['album', 'camera'],
       });
       const selected = [];
       for (const file of result.tempFiles || []) {
-        if (file.size > 5 * 1024 * 1024) throw new Error('请选择每张不超过 5 MB 的图片');
+        if (file.size > 20 * 1024 * 1024) throw new Error('请选择每张不超过 20 MB 的图片');
         selected.push({
           localPath: file.tempFilePath,
           url: file.tempFilePath,
@@ -136,34 +136,67 @@ Page({
     for (let i = 0; i < this.data.memoImages.length; i++) {
       const item = Object.assign({}, this.data.memoImages[i]);
       if (item.id && !item.localPath) continue;
-      if (!item.prepared) {
+      if (!item.preflightChecked && !item.prepared && !item.stagingFileID && item.localPath) {
         try {
-          item.prepared = await api.prepareMedia({ requestId: item.uploadRequestId, name: 'private-memo', size: item.size });
-        } catch (error) {
-          throw memoMediaError('准备上传', error);
-        }
-      }
-      this.replaceMemoImage(i, item);
-      if (!item.stagingFileID) {
-        try {
-          const uploaded = await wx.cloud.uploadFile({ cloudPath: item.prepared.cloudPath, filePath: item.localPath });
-          item.stagingFileID = uploaded.fileID;
+          const normalized = await normalizeLocalImage(item.localPath);
+          item.preflightChecked = true;
+          if (normalized.converted) {
+            item.localPath = normalized.path;
+            item.url = normalized.path;
+            item.compatConverted = true;
+            item.uploadRequestId = api.newRequestId();
+          }
           this.replaceMemoImage(i, item);
         } catch (error) {
-          throw memoMediaError('写入云存储', error);
+          throw memoMediaError('兼容原图格式', error);
         }
       }
-      try {
-        const confirmed = await api.confirmMedia({ id: item.prepared.id, fileID: item.stagingFileID });
-        this.replaceMemoImage(i, confirmed);
-      } catch (error) {
-        if (['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'INVALID_MEDIA_TYPE', 'INVALID_MEDIA_SIZE'].includes(error.code)) {
-          delete item.prepared;
-          delete item.stagingFileID;
-          item.uploadRequestId = api.newRequestId();
-          this.replaceMemoImage(i, item);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          if (!item.prepared) {
+            item.prepared = await api.prepareMedia({ requestId: item.uploadRequestId, name: 'private-memo', size: item.size });
+            this.replaceMemoImage(i, item);
+          }
+          if (!item.stagingFileID) {
+            const uploaded = await wx.cloud.uploadFile({ cloudPath: item.prepared.cloudPath, filePath: item.localPath });
+            item.stagingFileID = uploaded.fileID;
+            this.replaceMemoImage(i, item);
+          }
+          const confirmed = await api.confirmMedia({ id: item.prepared.id, fileID: item.stagingFileID });
+          this.replaceMemoImage(i, confirmed);
+          break;
+        } catch (error) {
+          const staleUpload = ['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE'].includes(error.code);
+          if (staleUpload && !item.staleRetried) {
+            item.staleRetried = true;
+            delete item.prepared;
+            delete item.stagingFileID;
+            item.uploadRequestId = api.newRequestId();
+            this.replaceMemoImage(i, item);
+            continue;
+          }
+          if (error.code === 'INVALID_MEDIA_TYPE' && !item.compatConverted && item.localPath) {
+            try {
+              item.localPath = await makeCompatibleImage(item.localPath);
+              item.url = item.localPath;
+              item.compatConverted = true;
+              delete item.prepared;
+              delete item.stagingFileID;
+              item.uploadRequestId = api.newRequestId();
+              this.replaceMemoImage(i, item);
+              continue;
+            } catch (convertError) {
+              throw memoMediaError('兼容原图格式', convertError);
+            }
+          }
+          if (error.code === 'INVALID_MEDIA_SIZE') {
+            delete item.prepared;
+            delete item.stagingFileID;
+            item.uploadRequestId = api.newRequestId();
+            this.replaceMemoImage(i, item);
+          }
+          throw memoMediaError(error.code && error.code.startsWith('MEDIA_') ? '服务端校验' : '上传图片', error);
         }
-        throw memoMediaError('服务端校验', error);
       }
     }
   },

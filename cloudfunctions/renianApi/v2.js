@@ -39,9 +39,11 @@ function validateDay(value) {
 
 function createV2Api(cloud, options = {}) {
   const ctx = createContext(cloud, options.database);
-  const pairs = createPairs(ctx);
   const media = createMedia(ctx, options);
   const albums = createAlbums(ctx, media);
+  const pairs = createPairs(ctx, {
+    onActivated: (tx, member) => albums.ensureDailyAlbumForMember(tx, member),
+  });
   const { db, transaction, get, put, membership, partner, session, ownedDocument, mutate, page, count } = ctx;
 
   let missTemplateFields = null;
@@ -572,7 +574,11 @@ function createV2Api(cloud, options = {}) {
     assert(typeof openid === 'string' && openid.length > 0 && /^[A-Za-z0-9_-]+$/.test(openid), 'NO_IDENTITY', '无法获取微信身份');
     assert(event && typeof event === 'object', 'INVALID_INPUT', '请求不正确');
     switch (event.action) {
-      case 'session.get': return session(openid, await membership(db, openid, false));
+      case 'session.get': {
+        const member = await membership(db, openid, false);
+        if (member.pair && member.pair.status === 'active') await albums.ensureDailyAlbum(openid);
+        return session(openid, member);
+      }
       case 'pair.create': return pairs.issue(openid, false);
       case 'pair.refresh': return pairs.issue(openid, true);
       case 'pair.cancel': return pairs.cancel(openid);
@@ -582,6 +588,8 @@ function createV2Api(cloud, options = {}) {
       case 'album.photos': return albums.photos(event, openid);
       case 'album.addPhotos': return albums.add(event, openid);
       case 'album.deletePhoto': return albums.remove(event, openid);
+      case 'album.commentList': return albums.comments(event, openid);
+      case 'album.commentAdd': return albums.addComment(event, openid);
       case 'entry.list': return entryList(event, openid);
       case 'entry.get': {
         const member = await membership(db, openid);

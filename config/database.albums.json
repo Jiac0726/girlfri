@@ -1,21 +1,97 @@
 {
   "description": "Optional shared album feature. Create these collections and indexes before deploying album APIs; no legacy data migration is required.",
   "collections": [
-    { "name": "v2_albums", "permissions": { "read": false, "write": false } },
-    { "name": "v2_album_photos", "permissions": { "read": false, "write": false } }
+    {
+      "name": "v2_albums",
+      "permissions": {
+        "read": false,
+        "write": false
+      }
+    },
+    {
+      "name": "v2_album_photos",
+      "permissions": {
+        "read": false,
+        "write": false
+      }
+    },
+    {
+      "name": "v2_album_comments",
+      "permissions": {
+        "read": false,
+        "write": false
+      }
+    }
   ],
   "indexes": [
-    { "name": "album_list", "collection": "v2_albums", "unique": false, "fields": [
-      { "field": "coupleId", "direction": "asc" },
-      { "field": "createdAt", "direction": "desc" },
-      { "field": "_id", "direction": "desc" }
-    ] },
-    { "name": "album_photos", "collection": "v2_album_photos", "unique": false, "fields": [
-      { "field": "coupleId", "direction": "asc" },
-      { "field": "albumId", "direction": "asc" },
-      { "field": "deleted", "direction": "asc" },
-      { "field": "createdAt", "direction": "desc" },
-      { "field": "_id", "direction": "desc" }
-    ] }
+    {
+      "name": "album_list",
+      "collection": "v2_albums",
+      "unique": false,
+      "fields": [
+        {
+          "field": "coupleId",
+          "direction": "asc"
+        },
+        {
+          "field": "createdAt",
+          "direction": "desc"
+        },
+        {
+          "field": "_id",
+          "direction": "desc"
+        }
+      ]
+    },
+    {
+      "name": "album_photos",
+      "collection": "v2_album_photos",
+      "unique": false,
+      "fields": [
+        {
+          "field": "coupleId",
+          "direction": "asc"
+        },
+        {
+          "field": "albumId",
+          "direction": "asc"
+        },
+        {
+          "field": "deleted",
+          "direction": "asc"
+        },
+        {
+          "field": "createdAt",
+          "direction": "desc"
+        },
+        {
+          "field": "_id",
+          "direction": "desc"
+        }
+      ]
+    },
+    {
+      "name": "album_comments",
+      "collection": "v2_album_comments",
+      "unique": false,
+      "fields": [
+        {
+          "field": "coupleId",
+          "direction": "asc"
+        },
+        {
+          "field": "photoId",
+          "direction": "asc"
+        },
+        {
+          "field": "createdAt",
+          "direction": "desc"
+        },
+        {
+          "field": "_id",
+          "direction": "desc"
+        }
+      ]
+    }
   ]
 }

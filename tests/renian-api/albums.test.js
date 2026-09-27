@@ -18,7 +18,9 @@ test('shared albums: create/add retry once, partner view, author-only deletion a
   const input = { title: '我们的旅行', requestId: 'create_album_once' };
   const album = await call('album.create', 'A', input);
   assert.equal((await call('album.create', 'A', input)).id, album.id);
-  assert.equal((await call('album.list', 'B')).items.length, 1);
+  const initialAlbums = (await call('album.list', 'B')).items;
+  assert.ok(initialAlbums.some(item => item.title === '日常照片'));
+  assert.ok(initialAlbums.some(item => item.id === album.id));
   ready(p.coupleId, 'm1'); ready(p.coupleId, 'm2');
   const batch = { albumId: album.id, images: ['m1', 'm2'], requestId: 'upload_album_once' };
   const uploaded = await call('album.addPhotos', 'A', batch);
@@ -41,7 +43,9 @@ test('foreign pair cannot access album, photos or signed URLs; partner cannot at
   await assert.rejects(call('album.addPhotos', 'B', { albumId: album.id, images: ['m1'] }), e => e.code === 'FORBIDDEN');
   await call('album.addPhotos', 'A', { albumId: album.id, images: ['m1'] });
   const invite = await call('pair.create', 'C'); await call('pair.join', 'D', { inviteCode: invite.inviteCode });
-  assert.equal((await call('album.list', 'C')).items.length, 0);
+  const foreignAlbums = (await call('album.list', 'C')).items;
+  assert.ok(foreignAlbums.some(item => item.title === '日常照片'));
+  assert.ok(foreignAlbums.every(item => item.id !== album.id));
   await assert.rejects(call('album.photos', 'C', { albumId: album.id }), e => e.code === 'NOT_FOUND');
   await assert.rejects(call('media.urls', 'C', { ids: ['m1'] }), e => e.code === 'NOT_FOUND');
 });
@@ -123,4 +127,68 @@ test('deleting an auto-collected album photo does not remove the image from its 
 test('media original upload limit is 20 MB', () => {
   const { MAX_BYTES } = require('../../cloudfunctions/renianApi/v2-media');
   assert.equal(MAX_BYTES, 20 * 1024 * 1024);
+});
+
+
+test('both partners can comment on every album photo with idempotent writes', async () => {
+  const p = await pair();
+  const album = await call('album.create', 'A', { title: '评论测试' });
+  ready(p.coupleId, 'comment-media');
+  const added = await call('album.addPhotos', 'A', { albumId: album.id, images: ['comment-media'] });
+  const photoId = added.ids[0];
+
+  const aPayload = { photoId, text: '我喜欢这张', requestId: 'comment_once_A' };
+  const first = await call('album.commentAdd', 'A', aPayload);
+  const retry = await call('album.commentAdd', 'A', aPayload);
+  assert.equal(first.id, retry.id);
+  await call('album.commentAdd', 'B', { photoId, text: '我也是', requestId: 'comment_once_B' });
+
+  const listed = await call('album.commentList', 'B', { photoId, limit: 50 });
+  assert.equal(listed.items.length, 2);
+  assert.equal(listed.items.find(item => item.text === '我也是').fromMe, true);
+  assert.equal(listed.items.find(item => item.text === '我喜欢这张').fromMe, false);
+  const photo = (await call('album.photos', 'A', { albumId: album.id })).items.find(item => item.id === photoId);
+  assert.equal(photo.commentCount, 2);
+});
+
+test('photo comments are relationship scoped and reject deleted photos or empty text', async () => {
+  const p = await pair();
+  const album = await call('album.create', 'A', { title: '评论权限' });
+  ready(p.coupleId, 'comment-secure');
+  const added = await call('album.addPhotos', 'A', { albumId: album.id, images: ['comment-secure'] });
+  const photoId = added.ids[0];
+  await assert.rejects(call('album.commentAdd', 'A', { photoId, text: '   ' }), e => e.code === 'INVALID_INPUT');
+
+  const invite = await call('pair.create', 'C');
+  await call('pair.join', 'D', { inviteCode: invite.inviteCode });
+  await assert.rejects(call('album.commentList', 'C', { photoId }), e => e.code === 'NOT_FOUND');
+
+  await call('album.deletePhoto', 'A', { id: photoId, expectedVersion: 1 });
+  await assert.rejects(call('album.commentList', 'B', { photoId }), e => e.code === 'PHOTO_DELETED');
+});
+
+
+test('active relationship initializes the daily system album before any entry exists', async () => {
+  await pair();
+  const albums = await call('album.list', 'B');
+  const daily = albums.items.find(item => item.title === '日常照片');
+  assert.ok(daily);
+  assert.equal(daily.photoCount, 0);
+  const photos = await call('album.photos', 'B', { albumId: daily.id });
+  assert.equal(photos.items.length, 0);
+});
+
+test('session initialization backfills daily album for an existing active relationship', async () => {
+  await pair();
+  const store = cloud.__colStore('v2_albums');
+  const current = [...store.entries()].find(([, item]) => item.title === '日常照片');
+  assert.ok(current);
+  store.delete(current[0]);
+  assert.equal([...store.values()].some(item => item.title === '日常照片'), false);
+
+  await call('session.get', 'A');
+
+  const restored = [...store.values()].find(item => item.title === '日常照片');
+  assert.ok(restored);
+  assert.equal(restored.photoCount, 0);
 });

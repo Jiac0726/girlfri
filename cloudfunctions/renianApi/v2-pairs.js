@@ -6,7 +6,7 @@ const TTL = 24 * 60 * 60 * 1000;
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function inviteCode() { return Array.from(crypto.randomBytes(8), n => ALPHABET[n % ALPHABET.length]).join(''); }
 
-function createPairs(ctx) {
+function createPairs(ctx, lifecycle = {}) {
   const { transaction, get, put, remove, membership, session } = ctx;
   async function issue(openid, refresh) {
     for (let attempt = 0; attempt < 6; attempt++) {
@@ -84,6 +84,7 @@ function createPairs(ctx) {
       const user = Object.assign({}, member.user || {}, { coupleId: pair._id, status: 'active', createdAt: member.user && member.user.createdAt || now, updatedAt: now });
       await put(tx, 'users', openid, user);
       await put(tx, 'users', pair.creatorOpenid, Object.assign({}, creator, { status: 'active', updatedAt: now }));
+      if (typeof lifecycle.onActivated === 'function') await lifecycle.onActivated(tx, { user, pair }, openid);
       return session(openid, { user, pair });
     });
   }

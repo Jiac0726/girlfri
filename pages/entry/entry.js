@@ -99,31 +99,58 @@ Page({
     for (let i = 0; i < this.data.images.length; i++) {
       const item = Object.assign({}, this.data.images[i]);
       if (item.id && !item.localPath) continue;
-      if (!item.prepared) {
+      if (!item.preflightChecked && !item.prepared && !item.stagingFileID && item.localPath) {
         try {
-          item.prepared = await api.prepareMedia({ requestId: item.uploadRequestId, name: 'photo', size: item.size });
-        } catch (error) {
-          throw mediaError('准备上传', error);
-        }
-      }
-      this.replaceImage(i, item);
-      if (!item.stagingFileID) {
-        try {
-          const uploaded = await wx.cloud.uploadFile({ cloudPath: item.prepared.cloudPath, filePath: item.localPath });
-          item.stagingFileID = uploaded.fileID;
+          const normalized = await view.normalizeLocalImage(item.localPath);
+          item.preflightChecked = true;
+          if (normalized.converted) {
+            item.localPath = normalized.path;
+            item.url = normalized.path;
+            item.compatConverted = true;
+            item.uploadRequestId = api.newRequestId();
+          }
           this.replaceImage(i, item);
         } catch (error) {
-          throw mediaError('写入云存储', error);
+          throw mediaError('兼容原图格式', error);
         }
       }
-      try {
-        const confirmed = await api.confirmMedia({ id: item.prepared.id, fileID: item.stagingFileID });
-        this.replaceImage(i, confirmed);
-      } catch (error) {
-        if (['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'INVALID_MEDIA_TYPE', 'INVALID_MEDIA_SIZE'].includes(error.code)) {
-          delete item.prepared; delete item.stagingFileID; item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          if (!item.prepared) {
+            item.prepared = await api.prepareMedia({ requestId: item.uploadRequestId, name: 'photo', size: item.size });
+            this.replaceImage(i, item);
+          }
+          if (!item.stagingFileID) {
+            const uploaded = await wx.cloud.uploadFile({ cloudPath: item.prepared.cloudPath, filePath: item.localPath });
+            item.stagingFileID = uploaded.fileID;
+            this.replaceImage(i, item);
+          }
+          const confirmed = await api.confirmMedia({ id: item.prepared.id, fileID: item.stagingFileID });
+          this.replaceImage(i, confirmed);
+          break;
+        } catch (error) {
+          const staleUpload = ['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE'].includes(error.code);
+          if (staleUpload && !item.staleRetried) {
+            item.staleRetried = true;
+            delete item.prepared; delete item.stagingFileID; item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
+            continue;
+          }
+          if (error.code === 'INVALID_MEDIA_TYPE' && !item.compatConverted && item.localPath) {
+            try {
+              item.localPath = await view.makeCompatibleImage(item.localPath);
+              item.url = item.localPath;
+              item.compatConverted = true;
+              delete item.prepared; delete item.stagingFileID; item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
+              continue;
+            } catch (convertError) {
+              throw mediaError('兼容原图格式', convertError);
+            }
+          }
+          if (error.code === 'INVALID_MEDIA_SIZE') {
+            delete item.prepared; delete item.stagingFileID; item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
+          }
+          throw mediaError(error.code && error.code.startsWith('MEDIA_') ? '服务端校验' : '上传图片', error);
         }
-        throw mediaError('服务端校验', error);
       }
     }
   },
