@@ -99,31 +99,31 @@ Page({
     for (let i = 0; i < this.data.images.length; i++) {
       const item = Object.assign({}, this.data.images[i]);
       if (item.id && !item.localPath) continue;
-      if (!item.prepared) {
+      for (let attempt = 0; attempt < 2; attempt++) {
         try {
-          item.prepared = await api.prepareMedia({ requestId: item.uploadRequestId, name: 'photo', size: item.size });
+          if (!item.prepared) {
+            item.prepared = await api.prepareMedia({ requestId: item.uploadRequestId, name: 'photo', size: item.size });
+            this.replaceImage(i, item);
+          }
+          if (!item.stagingFileID) {
+            const uploaded = await wx.cloud.uploadFile({ cloudPath: item.prepared.cloudPath, filePath: item.localPath });
+            item.stagingFileID = uploaded.fileID;
+            this.replaceImage(i, item);
+          }
+          const confirmed = await api.confirmMedia({ id: item.prepared.id, fileID: item.stagingFileID });
+          this.replaceImage(i, confirmed);
+          break;
         } catch (error) {
-          throw mediaError('准备上传', error);
+          const staleUpload = ['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE'].includes(error.code);
+          if (staleUpload) {
+            delete item.prepared; delete item.stagingFileID; item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
+            if (attempt === 0) continue;
+          }
+          if (['INVALID_MEDIA_TYPE', 'INVALID_MEDIA_SIZE'].includes(error.code)) {
+            delete item.prepared; delete item.stagingFileID; item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
+          }
+          throw mediaError(error.code && error.code.startsWith('MEDIA_') ? '服务端校验' : '上传图片', error);
         }
-      }
-      this.replaceImage(i, item);
-      if (!item.stagingFileID) {
-        try {
-          const uploaded = await wx.cloud.uploadFile({ cloudPath: item.prepared.cloudPath, filePath: item.localPath });
-          item.stagingFileID = uploaded.fileID;
-          this.replaceImage(i, item);
-        } catch (error) {
-          throw mediaError('写入云存储', error);
-        }
-      }
-      try {
-        const confirmed = await api.confirmMedia({ id: item.prepared.id, fileID: item.stagingFileID });
-        this.replaceImage(i, confirmed);
-      } catch (error) {
-        if (['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'INVALID_MEDIA_TYPE', 'INVALID_MEDIA_SIZE'].includes(error.code)) {
-          delete item.prepared; delete item.stagingFileID; item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
-        }
-        throw mediaError('服务端校验', error);
       }
     }
   },
