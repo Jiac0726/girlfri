@@ -582,6 +582,8 @@ function createV2Api(cloud, options = {}) {
       case 'album.photos': return albums.photos(event, openid);
       case 'album.addPhotos': return albums.add(event, openid);
       case 'album.deletePhoto': return albums.remove(event, openid);
+      case 'album.commentList': return albums.comments(event, openid);
+      case 'album.commentAdd': return albums.addComment(event, openid);
       case 'entry.list': return entryList(event, openid);
       case 'entry.get': {
         const member = await membership(db, openid);
