@@ -223,3 +223,75 @@ button.miss-setting-button[disabled] {
   font-size: 20rpx;
   line-height: 1.65;
 }
+
+
+.daily-reminder-setting {
+  padding: 16rpx 28rpx 26rpx;
+  border-bottom: 1rpx solid #f4e8ec;
+}
+
+.daily-reminder-head,
+.daily-reminder-time-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.daily-reminder-head > view:first-child,
+.daily-reminder-time-row > view:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.daily-reminder-time-row {
+  margin-top: 24rpx;
+  padding-top: 22rpx;
+  border-top: 1rpx solid #f5eaed;
+}
+
+.daily-reminder-time {
+  min-width: 118rpx;
+  padding: 12rpx 0 12rpx 18rpx;
+  color: #a64d68;
+  font-size: 23rpx;
+  font-weight: 700;
+  text-align: right;
+}
+
+.daily-reminder-status {
+  display: flex;
+  align-items: center;
+  margin-top: 22rpx;
+  color: #9f828d;
+  font-size: 21rpx;
+  line-height: 1.5;
+}
+
+.daily-reminder-status.active {
+  color: #a64d68;
+}
+
+.daily-reminder-dot {
+  width: 14rpx;
+  height: 14rpx;
+  margin-right: 12rpx;
+  border-radius: 50%;
+  background: #d7c6cc;
+  flex-shrink: 0;
+}
+
+.daily-reminder-status.active .daily-reminder-dot {
+  background: #ff6b81;
+  box-shadow: 0 0 0 7rpx rgba(255, 107, 129, 0.12);
+}
+
+.daily-reminder-note {
+  margin-top: 18rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 18rpx;
+  background: #fff8fa;
+  color: #b0919c;
+  font-size: 20rpx;
+  line-height: 1.65;
+}
