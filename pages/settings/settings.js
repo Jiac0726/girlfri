@@ -1,6 +1,8 @@
 const api = require('../../services/cloud');
 const { wxCall } = require('../../services/entry-view');
 const MISS_TEMPLATE = 'RWnfT0dJaUjWh6e1XsFpLzgeI6naPdDE6Yq1VSbHusw';
+const DAILY_TEMPLATE = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
+const TIMES = ['20:00','20:30','21:00','21:30','22:00','22:30'];
 
 Page({
   data: {
@@ -11,6 +13,13 @@ Page({
     missNotifyReady: false,
     missNotifyQuota: 0,
     missNotifyStatusText: '正在读取提醒状态',
+    reminderSaving: false,
+    reminderReady: false,
+    reminderEnabled: false,
+    reminderTime: '21:30',
+    reminderTimeOptions: TIMES,
+    reminderTimeIndex: 3,
+    reminderStatusText: '正在读取每日分享提醒',
     error: '',
   },
 
@@ -19,7 +28,7 @@ Page({
   },
 
   loadSettings: async function () {
-    if (this.data.loading || this.data.missNotifySaving) return;
+    if (this.data.loading || this.data.missNotifySaving || this.data.reminderSaving) return;
     this.setData({ loading: true, error: '' });
     try {
       const session = await api.getSession();
@@ -30,24 +39,88 @@ Page({
           missNotifyReady: false,
           missNotifyQuota: 0,
           missNotifyStatusText: '完成双人绑定后可开启想念提醒',
+          reminderReady: false,
+          reminderEnabled: false,
+          reminderStatusText: '完成双人绑定后可设置每日分享提醒',
         });
         return;
       }
-      this.applyMissNotify(await api.getMissNotifySettings());
+      const [missNotify, reminder] = await Promise.all([
+        api.getMissNotifySettings(),
+        api.getReminderSettings(),
+      ]);
+      this.applyMissNotify(missNotify);
+      this.applyReminder(reminder);
     } catch (error) {
       this.setData({
         error: error.message || '设置加载失败，请重试',
         missNotifyReady: false,
+        reminderReady: false,
       });
       if (api.isBindingError && api.isBindingError(error)) {
         this.setData({
           bindingStatus: 'unbound',
           missNotifyQuota: 0,
           missNotifyStatusText: '完成双人绑定后可开启想念提醒',
+          reminderEnabled: false,
+          reminderStatusText: '完成双人绑定后可设置每日分享提醒',
         });
       }
     } finally {
       this.setData({ loading: false });
+    }
+  },
+
+  applyReminder: function (value) {
+    const index = TIMES.indexOf(value && value.time);
+    this._reminderVersion = Number(value && value.version) || 0;
+    this.setData({
+      reminderReady: true,
+      reminderEnabled: !!(value && value.enabled),
+      reminderTime: index >= 0 ? value.time : '21:30',
+      reminderTimeIndex: index >= 0 ? index : 3,
+      reminderStatusText: value && value.enabled
+        ? '已开启：当天未分享，将在 ' + value.time + ' 提醒'
+        : value && value.needsRenewal
+          ? '本次订阅已使用或失效，可再次开启'
+          : '未开启每日分享提醒',
+    });
+  },
+
+  onReminderToggle: async function (e) {
+    if (this.data.reminderSaving || this.data.loading || !this.data.reminderReady || this.data.bindingStatus !== 'active') return;
+    const enabled = !!e.detail.value;
+    this.setData({ reminderSaving: true });
+    try {
+      if (enabled) {
+        const result = await wxCall('requestSubscribeMessage', { tmplIds: [DAILY_TEMPLATE] });
+        if (result[DAILY_TEMPLATE] !== 'accept') {
+          this.setData({ reminderEnabled: false });
+          wx.showToast({ title: '允许订阅后才能开启提醒', icon: 'none' });
+          return;
+        }
+      }
+      this.applyReminder(await api.updateReminderSettings(enabled, this.data.reminderTime, this._reminderVersion));
+    } catch (error) {
+      this.setData({ reminderReady: false, error: error.message || '每日分享提醒设置未确认，请刷新重试' });
+      try { this.applyReminder(await api.getReminderSettings()); } catch (_) {}
+    } finally {
+      this.setData({ reminderSaving: false });
+    }
+  },
+
+  onReminderTimeChange: async function (e) {
+    if (this.data.reminderSaving || this.data.loading || !this.data.reminderReady || this.data.bindingStatus !== 'active') return;
+    const time = TIMES[Number(e.detail.value)];
+    if (!time) return;
+    this.setData({ reminderSaving: true });
+    try {
+      this.applyReminder(await api.updateReminderSettings(this.data.reminderEnabled, time, this._reminderVersion));
+    } catch (error) {
+      this.setData({ reminderReady: false, error: error.message || '提醒时间设置未确认，请刷新重试' });
+      try { this.applyReminder(await api.getReminderSettings()); } catch (_) {}
+    } finally {
+      this.setData({ reminderSaving: false });
     }
   },
 
