@@ -68,7 +68,9 @@ function createMedia(ctx, options = {}) {
           assert(new Date(row.expiresAt).getTime() > Date.now(), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
           const leaseUntil = row.stagingProvisionLeaseUntil && new Date(row.stagingProvisionLeaseUntil).getTime() > Date.now();
           if (leaseUntil) return row;
-          return Object.assign({}, row, { stagingProvisionToken: provisionToken, stagingProvisionLeaseUntil: new Date(Date.now() + PROVISION_LEASE), updatedAt: new Date() });
+          const claimed = Object.assign({}, row, { stagingProvisionToken: provisionToken, stagingProvisionLeaseUntil: new Date(Date.now() + PROVISION_LEASE), updatedAt: new Date() });
+          await put(tx, 'media', doc._id, claimed);
+          return claimed;
         });
         if (claimed.stagingFileID) {
           latest = claimed;
