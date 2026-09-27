@@ -3,6 +3,7 @@
 > 适用：当前 V2 架构的微信小程序 + CloudBase。
 > 目标：提审前同时验证前端、云函数、数据库、媒体和双人绑定主链路。
 > 本清单只描述当前仓库的 V2 实际结构；旧版迁移数据另见 `V2-DEPLOY.md` 与 `v2-migrate-legacy.ps1`。
+> 本次执行结果与待验收项见 [发布验收记录](RELEASE-VALIDATION-2026-09-27.md)。代码检查通过不代表线上已验收。
 
 ## P0 · 核心流程
 
@@ -53,7 +54,7 @@
 所有集合由云函数服务端访问，前端不直接读写这些集合。
 
 ### 6. 数据库索引
-- [ ] 按 `config/database.v2.json` 创建全部 V2 索引。
+- [ ] 按 `config/database.v2.json` 核对全部 16 个 V2 索引已就绪。
 - [ ] `v2_operations` 包含按 `createdAt ASC + _id ASC` 的清理索引。
 - [ ] 生产环境核对索引实际状态，不只检查代码配置文件。
 
@@ -109,8 +110,8 @@ node --test tests/renian-api/*.test.js tests/frontend/*.test.js
 
 仅迁移旧版数据时执行：
 
-1. 先运行 `v2-migrate-legacy.ps1 prepare` / `plan` 对集合、源数据和 blocker 做检查。
-2. 处理全部 blocker 后，再执行 apply。
+1. 按 `V2-DEPLOY.md` 备份并部署临时迁移函数，再运行 `v2-migrate-legacy.cmd`。脚本只支持 `-Yes` 开关，不支持 `prepare` / `plan` 位置参数；它内部依次调用这些云函数 action。
+2. 核对脚本打印的 plan 和全部 blocker；仅在确认迁移范围后输入 `MIGRATE_V2` 执行复制。本次收尾不自动运行该脚本，也不使用 `-Yes` 跳过确认。
 3. active 关系必须满足：
    - creatorOpenid 存在；
    - partnerOpenid 非空；
@@ -136,6 +137,8 @@ node --test tests/renian-api/*.test.js tests/frontend/*.test.js
 - [ ] 新版本发布前确认数据库 schema/index 与当前代码一致。
 
 ## 附：当前安全基线
+
+以下表示代码机制已实现并有自动化检查，不表示生产配置和真机验收已通过。
 
 | 项目 | 状态 |
 |---|---|

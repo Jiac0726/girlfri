@@ -221,4 +221,4 @@ legacy migration 使用 source fingerprint、progress marker、目标集合非�
 
 ### 当前状态
 
-上述修复已经落在本分支，但在 CI 对全部改动完成验证前，不把本分支状态标记为最终通过；`main` 仍保持不变。
+上述修复已经落在本分支；功能基线 `ff72527` 的 GitHub Actions 已通过，本地 83 项测试及两项 PowerShell 5.1 兼容性检查通过。索引现为 16 个；上文 15 个是审查时的历史状态。`main` 未合并；真实环境尚未验收，不能标记为发布就绪。收尾提交 CI 和待办见 [发布验收记录](RELEASE-VALIDATION-2026-09-27.md)。

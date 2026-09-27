@@ -5,6 +5,18 @@
   "appid": "wxYOUR_APPID",
   "projectname": "renian",
   "description": "热念 · 双人每日关系记录小程序",
+  "packOptions": {
+    "ignore": [
+      { "type": "folder", "value": "docs" },
+      { "type": "folder", "value": "tests" },
+      { "type": "folder", "value": "scripts" },
+      { "type": "folder", "value": ".github" },
+      { "type": "folder", "value": ".playwright-cli" },
+      { "type": "folder", "value": "output" },
+      { "type": "folder", "value": "backups" }
+    ],
+    "include": []
+  },
   "setting": {
     "es6": true,
     "enhance": true,

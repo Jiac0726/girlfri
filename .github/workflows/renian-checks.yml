@@ -26,7 +26,7 @@ jobs:
   powershell-parse:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Parse PowerShell scripts
         shell: pwsh
         run: |
