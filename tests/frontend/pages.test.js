@@ -313,11 +313,11 @@ test('profile private memo creates an item with attached image ids',async()=>{
 test('miss notification authorization stores one accepted one-time quota',async()=>{
   const writes=[];
   const template='RWnfT0dJaUjWh6e1XsFpLzgeI6naPdDE6Yq1VSbHusw';
-  const {page,events}=loadPage('profile',{
+  const {page,events}=loadPage('settings',{
     authorizeMissNotify:async data=>{writes.push(data);return {templateId:template,quota:1,enabled:true};},
     getMissNotifySettings:async()=>({templateId:template,quota:0,enabled:false}),
   },{requestSubscribeMessage:options=>options.success({[template]:'accept'})});
-  page.setData({bindingStatus:'active',authLoading:false,missNotifyReady:true});
+  page.setData({bindingStatus:'active',loading:false,missNotifyReady:true});
   await page.authorizeMissNotify();
   assert.equal(writes.length,1);
   assert.match(writes[0].requestId,/^request_/);
@@ -328,14 +328,14 @@ test('miss notification authorization stores one accepted one-time quota',async(
 
 test('miss subscription uses the server template and displays native error details without granting quota',async()=>{
   let writes=0, requested, modal;
-  const {page}=loadPage('profile',{
+  const {page}=loadPage('settings',{
     authorizeMissNotify:async()=>{writes++;},
     getMissNotifySettings:async()=>({templateId:'current-template',quota:0}),
   },{
     requestSubscribeMessage:options=>{requested=options.tmplIds;options.fail({errCode:20001,errMsg:'requestSubscribeMessage:fail invalid template'});},
     showModal:options=>{modal=options;},
   });
-  page.setData({bindingStatus:'active',authLoading:false});
+  page.setData({bindingStatus:'active',loading:false});
   page.applyMissNotify({templateId:'current-template',quota:0});
   await page.authorizeMissNotify();
   assert.equal(requested[0],'current-template');
@@ -367,14 +367,14 @@ test('rating shortcut prefills new composer but preserves existing draft',async(
 
 test('miss authorization distinguishes a save failure after WeChat acceptance',async()=>{
   let modal;
-  const {page}=loadPage('profile',{
+  const {page}=loadPage('settings',{
     authorizeMissNotify:async()=>{throw Object.assign(new Error('network unavailable'),{code:'CLOUD_INVOKE_FAILED'});},
     getMissNotifySettings:async()=>({quota:1}),
   },{
     requestSubscribeMessage:options=>options.success({[options.tmplIds[0]]:'accept'}),
     showModal:options=>{modal=options;},
   });
-  page.setData({bindingStatus:'active',authLoading:false,missNotifyReady:true});
+  page.setData({bindingStatus:'active',loading:false,missNotifyReady:true});
   await page.authorizeMissNotify();
   assert.equal(modal.title,'保存提醒授权失败');
   assert.match(modal.content,/network unavailable/);
@@ -385,11 +385,11 @@ test('miss authorization distinguishes a save failure after WeChat acceptance',a
 test('miss template rejection or filtering never grants quota',async()=>{
   for (const status of ['reject','ban','filter',undefined]) {
     let writes=0, modal;
-    const {page}=loadPage('profile',{authorizeMissNotify:async()=>{writes++;}}, {
+    const {page}=loadPage('settings',{authorizeMissNotify:async()=>{writes++;}}, {
       requestSubscribeMessage:options=>options.success({[options.tmplIds[0]]:status}),
       showModal:options=>{modal=options;},
     });
-    page.setData({bindingStatus:'active',authLoading:false,missNotifyReady:true});
+    page.setData({bindingStatus:'active',loading:false,missNotifyReady:true});
     await page.authorizeMissNotify();
     assert.equal(writes,0);
     assert.equal(modal.title,'未获得订阅授权');

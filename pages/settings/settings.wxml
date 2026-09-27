@@ -1,10 +1,46 @@
 <view class="container settings-page">
   <view class="settings-header">
     <button class="settings-back" bindtap="goBack" aria-label="返回">‹</button>
-    <view>
+    <view class="settings-header-copy">
       <view class="settings-eyebrow">热念 · 个人</view>
       <view class="settings-title">个人设置</view>
-      <view class="settings-sub">管理你的微信权限与使用说明</view>
+      <view class="settings-sub">管理提醒、微信权限与使用说明</view>
+    </view>
+  </view>
+
+  <view class="settings-error" wx:if="{{error}}" bindtap="loadSettings">
+    {{error}} · 点击重试
+  </view>
+
+  <view class="settings-card">
+    <view class="settings-section-title">提醒设置</view>
+    <view class="miss-setting">
+      <view class="miss-setting-head">
+        <view>
+          <view class="settings-row-title">想念提醒</view>
+          <view class="settings-row-sub">TA 点“想念”时，用微信服务通知提醒你。</view>
+        </view>
+        <view class="miss-setting-badge">{{missNotifyQuota ? missNotifyQuota + ' 次' : '未授权'}}</view>
+      </view>
+
+      <view class="miss-setting-status">
+        <text class="miss-setting-dot {{missNotifyQuota ? 'active' : ''}}"></text>
+        <text>{{missNotifyStatusText}}</text>
+      </view>
+
+      <button
+        wx:if="{{bindingStatus === 'active'}}"
+        class="miss-setting-button"
+        bindtap="authorizeMissNotify"
+        loading="{{missNotifySaving}}"
+        disabled="{{missNotifySaving || loading || !missNotifyReady}}"
+      >
+        {{missNotifyQuota ? '再允许一次提醒' : '允许下一次想念提醒'}}
+      </button>
+
+      <view class="miss-setting-note">
+        一次授权对应 1 次通知；收到一次想念提醒后，可回到这里再次允许。
+      </view>
     </view>
   </view>
 

@@ -2,7 +2,6 @@ const api = require('../../services/cloud');
 const { MOODS, wxCall, isUncertain } = require('../../services/entry-view');
 const { dateLabel } = require('../../helpers/interactions');
 const TEMPLATE = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
-const MISS_TEMPLATE = 'RWnfT0dJaUjWh6e1XsFpLzgeI6naPdDE6Yq1VSbHusw';
 const TIMES = ['20:00','20:30','21:00','21:30','22:00','22:30'];
 function profile(x) { return Object.assign({ moodEmoji: '', moodText: '', hasMood: false }, x || {}, { moodUpdatedLabel: dateLabel(x && x.moodUpdatedAt) }); }
 function memoMediaError(stage, error) {
@@ -22,13 +21,12 @@ function memoMediaError(stage, error) {
 Page({
   data: { moods: MOODS, authLoading: true, saving: false, bindingStatus: 'loading', moodEmoji: '', moodText: '', savedMoodEmoji: '', savedMoodText: '', myUpdatedLabel: '', partner: profile(), pendingAgreementCount: 0, pendingCouponCount: 0,
     memoSaving: false, memoItems: [], memoTitle: '', memoText: '', memoImages: [], memoEditingId: '', memoUncertain: false, memoDeletingId: '',
-    reminderSaving: false, reminderEnabled: false, reminderReady: false, reminderTime: '21:30', reminderTimeOptions: TIMES, reminderTimeIndex: 3, reminderStatusText: '未开启提醒',
-    missNotifySaving: false, missNotifyReady: false, missNotifyQuota: 0, missNotifyStatusText: '未允许想念提醒', error: '' },
+    reminderSaving: false, reminderEnabled: false, reminderReady: false, reminderTime: '21:30', reminderTimeOptions: TIMES, reminderTimeIndex: 3, reminderStatusText: '未开启提醒', error: '' },
   onShow() { this._disposed = false; this.loadProfile(); },
   onUnload() { this._disposed = true; this._loadToken = (this._loadToken || 0) + 1; },
   async onPullDownRefresh() { try { await this.loadProfile(); } finally { wx.stopPullDownRefresh(); } },
   async loadProfile() {
-    if (this.data.saving || this.data.memoSaving || this.data.reminderSaving || this.data.missNotifySaving) return;
+    if (this.data.saving || this.data.memoSaving || this.data.reminderSaving) return;
     const token = this._loadToken = (this._loadToken || 0) + 1, revision = this._draftRevision || 0;
     this.setData({ authLoading: true, error: '' });
     try {
@@ -43,19 +41,17 @@ Page({
           moodEmoji: '', moodText: '', savedMoodEmoji: '', savedMoodText: '',
           memoItems: [], memoTitle: '', memoText: '', memoImages: [], memoEditingId: '', memoUncertain: false, memoDeletingId: '',
           partner: profile(), pendingAgreementCount: 0, pendingCouponCount: 0, reminderReady: false,
-          missNotifyReady: false, missNotifyQuota: 0, missNotifyStatusText: '未允许想念提醒',
         });
       }
       this.setData({ bindingStatus: session.bindingStatus });
       if (session.bindingStatus !== 'active') {
-        this.setData({ reminderEnabled: false, reminderReady: false, missNotifyReady: false, missNotifyQuota: 0 });
+        this.setData({ reminderEnabled: false, reminderReady: false });
         return;
       }
-      const [data, reminder, memos, missNotify] = await Promise.all([
+      const [data, reminder, memos] = await Promise.all([
         api.getProfile(),
         api.getReminderSettings(),
         api.listPrivateMemos(),
-        api.getMissNotifySettings(),
       ]);
       if (token !== this._loadToken) return;
       const me = profile(data.me);
@@ -75,10 +71,9 @@ Page({
       if (!this._dirty && revision === (this._draftRevision || 0)) Object.assign(update, { moodEmoji: me.moodEmoji, moodText: me.moodText });
       this.setData(update);
       this.applyReminder(reminder);
-      this.applyMissNotify(missNotify);
     } catch (error) {
       if (token !== this._loadToken) return;
-      this.setData({ error: error.message || '加载失败，请重试', reminderReady: false, missNotifyReady: false });
+      this.setData({ error: error.message || '加载失败，请重试', reminderReady: false });
       if (api.isBindingError(error)) this.setData({ bindingStatus: 'unbound', partner: profile() });
     } finally { if (token === this._loadToken) this.setData({ authLoading: false }); }
   },
@@ -86,54 +81,6 @@ Page({
     this._reminderVersion = value.version;
     this.setData({ reminderReady: true, reminderEnabled: !!value.enabled, reminderTime: value.time, reminderTimeIndex: TIMES.indexOf(value.time),
       reminderStatusText: value.enabled ? '已授权：当天未分享，将在 ' + value.time + ' 提醒' : value.needsRenewal ? '本次授权已使用或失效，可再次开启' : '未开启提醒' });
-  },
-  applyMissNotify(value) {
-    this._missTemplateId = (value && value.templateId) || MISS_TEMPLATE;
-    const quota = Math.max(0, Number(value && value.quota) || 0);
-    this.setData({
-      missNotifyReady: true,
-      missNotifyQuota: quota,
-      missNotifyStatusText: quota ? '已允许 ' + quota + ' 次想念提醒' : '没有可用提醒次数',
-    });
-  },
-  async authorizeMissNotify() {
-    if (this.data.missNotifySaving || this.data.authLoading || !this.data.missNotifyReady || this.data.bindingStatus !== 'active') return;
-    this.setData({ missNotifySaving: true });
-    const templateId = this._missTemplateId || MISS_TEMPLATE;
-    let stage = '微信订阅授权';
-    try {
-      const result = await wxCall('requestSubscribeMessage', { tmplIds: [templateId] });
-      if (result[templateId] !== 'accept') {
-        const status = result[templateId];
-        wx.showModal({
-          title: '未获得订阅授权',
-          content: status === 'reject'
-            ? '你尚未允许这条订阅。请在小程序右上角菜单的设置中检查通知订阅设置，再点击允许提醒。'
-            : '微信返回订阅状态：' + String(status || '未返回模板状态') + '。请检查小程序后台的订阅模板是否可用。',
-          showCancel: false,
-        });
-        return;
-      }
-      stage = '保存提醒授权';
-      const value = await api.authorizeMissNotify({ requestId: api.newRequestId() });
-      this.applyMissNotify(value);
-      wx.showToast({ title: '下一次想念会提醒你 ♡', icon: 'none' });
-    } catch (error) {
-      const code = error && (error.errCode !== undefined ? error.errCode : error.code);
-      const detail = String((error && (error.errMsg || error.message)) || error || '未知错误');
-      console.error('[miss-notify-authorization]', { stage, templateId, code, detail });
-      wx.showModal({
-        title: stage + '失败',
-        content: (code !== undefined ? '错误码：' + code + '\n' : '') + detail +
-          (stage === '微信订阅授权'
-            ? '\n请核对当前小程序 AppID 下的订阅消息模板 ID：' + templateId
-            : '\n微信已允许订阅，但保存结果未确认，请刷新查看提醒次数。'),
-        showCancel: false,
-      });
-      try { this.applyMissNotify(await api.getMissNotifySettings()); } catch (_) {}
-    } finally {
-      if (!this._disposed) this.setData({ missNotifySaving: false });
-    }
   },
   goSettings() { wx.navigateTo({ url: '/pages/settings/settings' }); },
   goBind() { wx.navigateTo({ url: '/pages/bind/bind' }); },
