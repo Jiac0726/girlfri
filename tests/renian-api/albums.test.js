@@ -118,3 +118,9 @@ test('deleting an auto-collected album photo does not remove the image from its 
   assert.equal(media.attachmentType, 'entry');
   assert.equal(media.refCount, 1);
 });
+
+
+test('media original upload limit is 20 MB', () => {
+  const { MAX_BYTES } = require('../../cloudfunctions/renianApi/v2-media');
+  assert.equal(MAX_BYTES, 20 * 1024 * 1024);
+});
