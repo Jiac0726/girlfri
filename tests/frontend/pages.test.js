@@ -474,3 +474,38 @@ test('memo photo picker also accepts original photos above the old 5 MB limit', 
   assert.deepEqual(Array.from(options.sizeType), ['original', 'compressed']);
   assert.equal(page.data.memoImages.length, 1);
 });
+
+
+test('album stale media confirmation automatically reprovisions and retries once', async () => {
+  let prepareCount = 0, uploadCount = 0, confirmCount = 0;
+  const batches = [];
+  const { page } = loadPage('albums', {
+    getSession: async () => session,
+    listAlbumPhotos: async () => ({ album: { id: 'album', title: '我们', photoCount: 0 }, items: [] }),
+    prepareMedia: async data => ({ id: 'media-' + (++prepareCount), cloudPath: 'staging/' + prepareCount }),
+    confirmMedia: async data => {
+      confirmCount++;
+      if (confirmCount === 1) throw Object.assign(new Error('stale'), { code: 'MEDIA_UNAVAILABLE' });
+      return { id: data.id, url: 'signed' };
+    },
+    addAlbumPhotos: async data => batches.push(data),
+  }, {
+    getStorageSync: () => null,
+    setStorageSync() {},
+    cloud: { uploadFile: async options => ({ fileID: 'cloud://mock/' + (++uploadCount) }) },
+  });
+  page.onLoad({ albumId: 'album' });
+  await page.refresh();
+  page.setData({ images: [{
+    localPath: 'tmp.jpg', url: 'tmp.jpg', size: 1024,
+    requestId: 'old-request', prepared: { id: 'stale-media', cloudPath: 'stale/path' },
+    fileID: 'cloud://mock/stale'
+  }] });
+  await page.uploadPhotos();
+  assert.equal(prepareCount, 1);
+  assert.equal(uploadCount, 1);
+  assert.equal(confirmCount, 2);
+  assert.equal(batches.length, 1);
+  assert.match(batches[0].images[0], /^media-/);
+  assert.equal(page.data.images.length, 0);
+});
