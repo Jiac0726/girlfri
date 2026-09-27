@@ -26,8 +26,28 @@
 }
 
 .profile-hero-copy {
+  flex: 1;
   margin-left: 22rpx;
   min-width: 0;
+}
+
+.profile-settings-btn {
+  flex-shrink: 0;
+  width: 72rpx;
+  height: 72rpx;
+  margin: 0 0 0 16rpx;
+  padding: 0;
+  border-radius: 50%;
+  background: #fff7f8;
+  border: 2rpx solid #f2dce2;
+  color: #8f6a76;
+  font-size: 34rpx;
+  line-height: 68rpx;
+  text-align: center;
+}
+
+.profile-settings-btn::after {
+  border: 0;
 }
 
 .profile-eyebrow {
