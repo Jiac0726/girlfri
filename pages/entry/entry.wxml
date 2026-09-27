@@ -73,7 +73,7 @@
     <view class="entry-section photo-section">
       <view class="section-head">
         <view class="section-title">照片</view>
-        <view class="section-hint">{{images.length}} / 9</view>
+        <view class="section-hint">{{images.length}} / 9 · 可选原图</view>
       </view>
       <view class="photos" wx:if="{{images.length}}">
         <view wx:for="{{images}}" wx:key="url" class="photo">
@@ -83,7 +83,7 @@
       </view>
       <button class="add-photo-button" bindtap="chooseImages" disabled="{{saving || uncertain || images.length >= 9}}">
         <text class="add-photo-plus">＋</text>
-        <text>{{images.length >= 9 ? '照片已满' : '添加照片'}}</text>
+        <text>{{images.length >= 9 ? '照片已满' : '添加照片（原图可选）'}}</text>
       </button>
     </view>
 
