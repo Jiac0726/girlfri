@@ -1,5 +1,5 @@
 const api = require('../../services/cloud');
-const { MOODS, wxCall, isUncertain, makeCompatibleImage } = require('../../services/entry-view');
+const { MOODS, wxCall, isUncertain, makeCompatibleImage, normalizeLocalImage } = require('../../services/entry-view');
 const { dateLabel } = require('../../helpers/interactions');
 const TEMPLATE = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
 const TIMES = ['20:00','20:30','21:00','21:30','22:00','22:30'];
@@ -136,6 +136,21 @@ Page({
     for (let i = 0; i < this.data.memoImages.length; i++) {
       const item = Object.assign({}, this.data.memoImages[i]);
       if (item.id && !item.localPath) continue;
+      if (!item.preflightChecked && !item.prepared && !item.stagingFileID && item.localPath) {
+        try {
+          const normalized = await normalizeLocalImage(item.localPath);
+          item.preflightChecked = true;
+          if (normalized.converted) {
+            item.localPath = normalized.path;
+            item.url = normalized.path;
+            item.compatConverted = true;
+            item.uploadRequestId = api.newRequestId();
+          }
+          this.replaceMemoImage(i, item);
+        } catch (error) {
+          throw memoMediaError('兼容原图格式', error);
+        }
+      }
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
           if (!item.prepared) {
