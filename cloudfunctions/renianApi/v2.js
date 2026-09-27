@@ -328,8 +328,8 @@ function createV2Api(cloud, options = {}) {
     return { title, text: content, images };
   }
 
-  async function memoView(item, openid, coupleId) {
-    const images = await media.privateMemoImages(item, openid, coupleId);
+  async function memoView(item, openid, coupleId, tolerant = false) {
+    const images = await media.privateMemoImages(item, openid, coupleId, tolerant);
     return {
       id: item.id,
       title: item.title || '',
@@ -345,7 +345,7 @@ function createV2Api(cloud, options = {}) {
     const member = await membership(db, openid);
     const items = memoItems(member.user, openid);
     return {
-      items: await Promise.all(items.map(item => memoView(item, openid, member.pair._id))),
+      items: await Promise.all(items.map(item => memoView(item, openid, member.pair._id, true))),
       limit: 100,
     };
   }
@@ -368,7 +368,7 @@ function createV2Api(cloud, options = {}) {
       return item;
     });
     const member = await membership(db, openid);
-    return memoView(result, openid, member.pair._id);
+    return memoView(result, openid, member.pair._id, true);
   }
 
   async function memoUpdate(event, openid) {
