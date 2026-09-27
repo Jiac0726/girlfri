@@ -8,8 +8,12 @@ Page(Object.assign({}, view.entryActions, {
   async onPullDownRefresh() { try { await this.refresh(); } finally { wx.stopPullDownRefresh(); } },
   onReachBottom() { this.loadMore(); },
   changeMonth(e) {
-    this.setData({ month: e.detail.value, selectedDay: '', selectedDayLabel: '' });
-    this.refresh();
+    const month = e.detail.value;
+    if (month === this.data.month) return;
+    this.setData({ month, monthLabel: Number(month.slice(5, 7)) + '月', calendarTitle: month.slice(0, 4) + '年' + Number(month.slice(5, 7)) + '月',
+      selectedDay: '', selectedDayLabel: '', entries: [], nextCursor: null, hasMore: false,
+      days: [], calendarCells: calendarMonth(month), totalEntries: 0, recordDays: 0, sharedDays: 0 });
+    return this.refresh();
   },
   previousMonth() { if (!this.data.loading) this.changeMonth({ detail: { value: shiftMonth(this.data.month, -1) } }); },
   nextMonth() { if (!this.data.loading) this.changeMonth({ detail: { value: shiftMonth(this.data.month, 1) } }); },
@@ -17,13 +21,13 @@ Page(Object.assign({}, view.entryActions, {
     const day = e.currentTarget.dataset.day;
     if (!day || this.data.loading) return;
     const next = this.data.selectedDay === day ? '' : day;
-    this.setData({ selectedDay: next, selectedDayLabel: next ? Number(next.slice(8)) + '日' : '' });
-    this.refresh();
+    this.setData({ selectedDay: next, selectedDayLabel: next ? Number(next.slice(8)) + '日' : '', entries: [], nextCursor: null, hasMore: false });
+    return this.refresh();
   },
   clearDay() {
     if (!this.data.selectedDay) return;
-    this.setData({ selectedDay: '', selectedDayLabel: '' });
-    this.refresh();
+    this.setData({ selectedDay: '', selectedDayLabel: '', entries: [], nextCursor: null, hasMore: false });
+    return this.refresh();
   },
   async refresh() {
     const token = this._token = (this._token || 0) + 1;
@@ -40,7 +44,7 @@ Page(Object.assign({}, view.entryActions, {
         month,
         monthLabel: Number(month.slice(5, 7)) + '月',
         calendarTitle: month.slice(0, 4) + '年' + Number(month.slice(5, 7)) + '月',
-        calendarCells: calendarMonth(month),
+        calendarCells: calendarMonth(month, this.data.days),
         selectedDayLabel: this.data.selectedDay ? Number(this.data.selectedDay.slice(8)) + '日' : '',
       });
       if (session.bindingStatus !== 'active') { this.setData({ entries: [], days: [], hasMore: false, totalEntries: 0, recordDays: 0, sharedDays: 0 }); return; }

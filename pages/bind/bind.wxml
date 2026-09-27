@@ -8,7 +8,7 @@
     <view class="story-zone">
       <image class="welcome-photo" src="../../assets/bind-couple.jpg" mode="aspectFill" />
       <view class="story-fade"></view>
-      <view class="hand-note story-note">平凡的日子<br/>因为有你<br/>而闪闪发光 ♡</view>
+      <view class="hand-note story-note"><view>平凡的日子</view><view>因为有你</view><view>而闪闪发光 ♡</view></view>
     </view>
     <view class="welcome-actions">
       <button class="love-btn" bindtap="createInvite" loading="{{loading}}" disabled="{{loading}}">和 TA 绑定</button>
@@ -23,8 +23,8 @@
   <view wx:if="{{bindingStatus === 'waiting' || (bindingStatus === 'unbound' && openedFromInvite)}}" class="flow-stage">
     <view class="invite-card">
       <view class="invite-mark">♡</view>
-      <view class="invite-title">{{bindingStatus === 'waiting' ? '邀请你喜欢的那个人' : 'TA 邀请你'}}<br/>和 TA 一起使用热念</view>
-      <view class="invite-sub">记录平凡日子里的特别时刻<br/>让爱被看见 ♡</view>
+      <view class="invite-title"><view>{{bindingStatus === 'waiting' ? '邀请你喜欢的那个人' : 'TA 邀请你'}}</view><view>和 TA 一起使用热念</view></view>
+      <view class="invite-sub"><view>记录平凡日子里的特别时刻</view><view>让爱被看见 ♡</view></view>
       <button wx:if="{{bindingStatus === 'waiting'}}" class="love-btn invite-send" open-type="share" disabled="{{loading || inviteExpired}}"><text>♡</text> 微信邀请</button>
       <button wx:else class="love-btn invite-send" bindtap="joinPair" loading="{{loading}}" disabled="{{loading}}">接受邀请并绑定</button>
       <view class="code-divider"><text></text><view>{{bindingStatus === 'waiting' ? '或使用邀请码' : '来自 TA 的邀请码'}}</view><text></text></view>
@@ -44,10 +44,10 @@
   <view wx:if="{{bindingStatus === 'active'}}" class="success-stage">
     <image class="success-pair-art" src="../../assets/success-pair.jpg" mode="aspectFit" />
     <view class="success-title">连接成功</view>
-    <view class="invite-sub">从今天开始，<br/>留下一点属于你们的记录。</view>
+    <view class="invite-sub"><view>从今天开始，</view><view>留下一点属于你们的记录。</view></view>
     <button class="love-btn" bindtap="backHome">开始记录</button>
     <view class="success-landscape"><view>♡</view><text>♡</text></view>
-    <view class="hand-note success-note">好的关系<br/>是一起把平凡的日子<br/>过成特别的回忆 ♡</view>
+    <view class="hand-note success-note"><view>好的关系</view><view>是一起把平凡的日子</view><view>过成特别的回忆 ♡</view></view>
   </view>
   <view wx:if="{{bindingStatus === 'loading'}}" class="loading-cover">正在准备你们的空间…</view>
   <view wx:if="{{bindingStatus === 'error'}}" class="flow-stage">

@@ -10,10 +10,10 @@
 .calendar-week,.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));text-align:center}
 .calendar-week{font-size:22rpx;color:#8e7b84;margin-bottom:12rpx}
 .calendar-cell{height:92rpx;display:flex;align-items:center;justify-content:center}
-.calendar-day{display:flex;flex-direction:column;align-items:center;justify-content:center;width:74rpx;height:80rpx;box-sizing:border-box;margin:0;padding:6rpx 0 0;border-radius:50%;background:transparent;color:#3c3341;font-size:26rpx;line-height:1.2}
+button.calendar-day{display:flex;flex-direction:column;align-items:center;justify-content:center;width:74rpx;height:80rpx;box-sizing:border-box;margin:0;padding:6rpx 0 0;border-radius:50%;background:transparent;color:#3c3341;font-size:26rpx;line-height:1.2}
 .day-marker{height:24rpx;font-size:24rpx;line-height:24rpx;color:#c6aaa9}.day-marker.shared{color:#fa6380;font-size:20rpx}.day-marker.recorded{font-size:30rpx}
-.calendar-day.is-today{border:1rpx solid #efbdc5}.calendar-day.selected{color:#fff;background:linear-gradient(140deg,#ff9caa,#f65976);box-shadow:0 6rpx 14rpx #ed6b832e;border-color:transparent}
-.calendar-day.selected .day-marker{color:#fff}
+button.calendar-day.is-today{border:1rpx solid #efbdc5}button.calendar-day.selected{color:#fff;background:linear-gradient(140deg,#ff9caa,#f65976);box-shadow:0 6rpx 14rpx #ed6b832e;border-color:transparent}
+button.calendar-day.selected .day-marker{color:#fff}
 .calendar-legend{display:flex;justify-content:center;flex-wrap:wrap;gap:24rpx;margin-top:22rpx;font-size:20rpx;color:#95848b}
 .legend-heart{color:#f86880}.legend-dot{color:#c0a6a6;font-size:16rpx}
 .month-story{position:relative;overflow:hidden;min-height:310rpx;margin:28rpx 0 32rpx;background:#f7d9da;border-radius:32rpx}
@@ -26,7 +26,7 @@
 .stat{text-align:center;font-size:21rpx;color:#77616b}.stat>text{display:block;color:#4a3344;font-size:38rpx;font-weight:500}.stat-unit{font-size:20rpx;font-weight:400}
 .review-list-head{display:flex;align-items:center;justify-content:space-between;gap:18rpx;margin:26rpx 4rpx 22rpx}
 .review-list-title{font-size:31rpx;font-weight:600}.review-list-sub{margin-top:6rpx;color:#9e858f;font-size:21rpx}
-.clear-day{flex-shrink:0;margin:0;padding:10rpx 22rpx;border-radius:40rpx;background:#fff8f5;color:#c65e78;font-size:23rpx;line-height:1.6;border:1rpx solid #efd5dc}
+button.clear-day{width:auto;flex-shrink:0;margin:0;padding:10rpx 22rpx;border-radius:40rpx;background:#fff8f5;color:#c65e78;font-size:23rpx;line-height:1.6;border:1rpx solid #efd5dc}
 .review-page .entry-card{border-radius:32rpx}
 .review-empty{padding:32rpx;background:#fffbf9b3;border-radius:36rpx;color:#67515f}
 .review-empty image{display:block;width:180rpx;height:110rpx;mix-blend-mode:multiply;margin:8rpx auto 24rpx}

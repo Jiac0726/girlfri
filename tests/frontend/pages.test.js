@@ -109,6 +109,36 @@ test('review ignores an older month response and keeps compact day labels',async
   assert.equal(page.data.selectedDayLabel,'26日');
   page.clearDay();assert.equal(page.data.selectedDay,'');
 });
+test('failed month change clears old records and pagination before showing the new month',async()=>{
+  let offline=false,lists=0;
+  const {page}=loadPage('review',{
+    getSession:async()=>{if(offline)throw new Error('offline');return session;},
+    getEntryMonth:async()=>({totalEntries:2,recordDays:1,sharedDays:1,days:[{date:'2026-09-26',count:2}]}),
+    listEntries:async()=>{lists++;return {items:[entry],nextCursor:'old-month-cursor'};},
+  });
+  page.setData({month:'2026-09'});await page.refresh();
+  assert.equal(page.data.entries.length,1);
+  offline=true;await page.changeMonth({detail:{value:'2026-10'}});
+  assert.equal(page.data.calendarTitle,'2026年10月');
+  assert.equal(page.data.entries.length,0);assert.equal(page.data.days.length,0);
+  assert.equal(page.data.totalEntries,0);assert.equal(page.data.nextCursor,null);assert.equal(page.data.hasMore,false);
+  await page.loadMore();assert.equal(lists,1);
+});
+
+test('failed day filtering clears other days but keeps the loaded month markers',async()=>{
+  let offline=false;
+  const {page}=loadPage('review',{
+    getSession:async()=>session,
+    getEntryMonth:async()=>({totalEntries:2,recordDays:1,sharedDays:1,days:[{date:'2026-09-26',count:2}]}),
+    listEntries:async()=>{if(offline)throw new Error('offline');return {items:[entry],nextCursor:'old-filter-cursor'};},
+  });
+  page.setData({month:'2026-09'});await page.refresh();offline=true;
+  await page.chooseDay({currentTarget:{dataset:{day:'2026-09-25'}}});
+  assert.equal(page.data.entries.length,0);assert.equal(page.data.nextCursor,null);assert.equal(page.data.hasMore,false);
+  assert.equal(page.data.calendarCells.find(x=>x.date==='2026-09-26').recorded,true);
+  assert.equal(page.data.totalEntries,2);
+});
+
 test('gift retries a timeout without duplicate request or changing content',async()=>{
   const writes=[];let count=0;
   const {page}=loadPage('privileges',{giftCoupon:async data=>{writes.push(JSON.parse(JSON.stringify(data)));if(++count===1)throw Object.assign(new Error('network'),{code:'CLOUD_INVOKE_FAILED'});},listCoupons:async()=>({items:[]})});

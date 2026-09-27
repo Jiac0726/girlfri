@@ -1,9 +1,10 @@
 page{background:#fff2f1;color:#302d39}
+/* WeChat v2 defaults non-mini buttons to 184px; keep custom button widths explicit. */
 .love-page{min-height:100vh;position:relative;overflow:hidden;box-sizing:border-box;background:radial-gradient(ellipse at 20% 0%,#fffbfa,transparent 60%),linear-gradient(145deg,#fff7f4,#fce5e6)}
 button::after{border:0}
 .bind-nav{position:relative;display:flex;align-items:center;justify-content:center;height:44px;box-sizing:content-box}
 .bind-nav>text{font-size:29rpx;font-weight:600}
-.back-link{position:absolute;left:24rpx;bottom:0;margin:0;padding:0;width:76rpx;height:44px;line-height:40px;background:transparent;color:#3c3540;font-size:54rpx}
+button.back-link{position:absolute;left:24rpx;bottom:0;margin:0;padding:0;width:76rpx;height:44px;line-height:40px;background:transparent;color:#3c3540;font-size:54rpx}
 .welcome-stage{position:relative;min-height:calc(100vh - 88px);display:flex;flex-direction:column;padding-bottom:calc(22rpx + env(safe-area-inset-bottom));box-sizing:border-box}
 .brand-block{position:relative;z-index:2;text-align:center;padding-top:32rpx}
 .brand-heart{position:relative;width:120rpx;margin:auto;color:#ed657c;font-size:130rpx;font-weight:300;line-height:1.1;transform:rotate(-8deg)}
@@ -16,32 +17,32 @@ button::after{border:0}
 .hand-note{font-family:"KaiTi","STKaiti","Kaiti SC",serif;color:#a66e79;font-size:27rpx;letter-spacing:3rpx;line-height:1.9}
 .story-note{position:absolute;top:10rpx;right:42rpx;transform:rotate(-9deg)}
 .welcome-actions{position:relative;margin-top:-32rpx;z-index:2;width:100%;padding:0 42rpx;box-sizing:border-box}
-.love-btn{width:100%;box-sizing:border-box;margin:0;border:1rpx solid #fff8f7;border-radius:60rpx;background:linear-gradient(110deg,#ff8a94,#f45f79);color:#fff;font-size:30rpx;font-weight:500;line-height:100rpx;box-shadow:0 10rpx 24rpx #ee73851a}
-.love-btn[disabled]{background:#e9bfc5;color:#fff8fa}
-.text-link{margin:22rpx 0 0;padding:6rpx 0;font-size:24rpx;line-height:1.6;color:#87717d;text-align:center;background:transparent}
+button.love-btn{width:100%;box-sizing:border-box;margin:0;border:1rpx solid #fff8f7;border-radius:60rpx;background:linear-gradient(110deg,#ff8a94,#f45f79);color:#fff;font-size:30rpx;font-weight:500;line-height:100rpx;box-shadow:0 10rpx 24rpx #ee73851a}
+button.love-btn[disabled]{background:#e9bfc5;color:#fff8fa}
+button.text-link{width:100%;margin:22rpx 0 0;padding:6rpx 0;font-size:24rpx;line-height:1.6;color:#87717d;text-align:center;background:transparent}
 .flow-stage{padding:64rpx 42rpx calc(42rpx + env(safe-area-inset-bottom))}
 .invite-card{width:100%;padding:40rpx 34rpx 32rpx;box-sizing:border-box;border:1rpx solid #f8e1e3;border-radius:40rpx;background:rgba(255,251,250,.76);text-align:center}
 .invite-mark{font-size:100rpx;color:#fa7085;line-height:1.1}
 .invite-title{font-size:35rpx;font-weight:600;line-height:1.7;margin-top:20rpx;color:#393242}
 .invite-sub{font-size:27rpx;line-height:1.8;margin-top:32rpx;color:#90818a;text-align:center}
-.invite-send{margin-top:52rpx}.invite-send text{font-size:38rpx;vertical-align:middle;margin-right:8rpx}
+button.invite-send{margin-top:52rpx}.invite-send text{font-size:38rpx;vertical-align:middle;margin-right:8rpx}
 .code-divider{display:flex;align-items:center;gap:22rpx;margin:44rpx 0 22rpx;color:#a08891;font-size:22rpx}.code-divider>text{flex:1;height:1rpx;background:#f0e0e2}
-.invite-code{display:flex;align-items:center;justify-content:center;gap:14rpx;padding:14rpx 10rpx;margin:0;background:#fceced;color:#55414f;border-radius:28rpx;font-size:38rpx;line-height:1.4;letter-spacing:10rpx;font-weight:500}
-.invite-code[disabled]{color:#55414f;background:#fceced}.copy-mark{font-size:30rpx;letter-spacing:0}
+button.invite-code{width:100%;display:flex;align-items:center;justify-content:center;gap:14rpx;padding:14rpx 10rpx;margin:0;background:#fceced;color:#55414f;border-radius:28rpx;font-size:38rpx;line-height:1.4;letter-spacing:10rpx;font-weight:500}
+button.invite-code[disabled]{color:#55414f;background:#fceced}.copy-mark{font-size:30rpx;letter-spacing:0}
 .expire{font-size:21rpx;color:#9e8791;margin-top:18rpx}
 .mini-actions{display:flex;justify-content:center;gap:24rpx;margin-top:24rpx}
-.mini-actions button{padding:4rpx;margin:0;background:transparent;font-size:22rpx;line-height:1.6;color:#b36c7e}
-.secondary-link{margin-top:8rpx;color:#aa8a97;font-size:22rpx}
+.mini-actions button{width:auto;padding:4rpx;margin:0;background:transparent;font-size:22rpx;line-height:1.6;color:#b36c7e}
+button.secondary-link{margin-top:8rpx;color:#aa8a97;font-size:22rpx}
 .flow-signature{margin-top:44rpx;text-align:center;font-family:"KaiTi","STKaiti",serif;color:#b28b94;font-size:24rpx}
 .manual-join{width:100%;margin-top:24rpx;padding:26rpx;border-radius:30rpx;background:#fffaf9;box-sizing:border-box;border:1rpx solid #f3d9df}
 .manual-title{text-align:center;font-size:24rpx;color:#947784;margin-bottom:18rpx}
 .code-input{width:100%;height:90rpx;box-sizing:border-box;padding:0 16rpx;border:1rpx solid #eed5dc;border-radius:22rpx;background:#fff7f6;text-align:center;font-size:30rpx;letter-spacing:5rpx}
-.outline-btn{width:100%;margin-top:18rpx;line-height:84rpx;border-radius:44rpx;border:1rpx solid #f3b1bd;background:transparent;color:#d35f7b;font-size:27rpx}
+button.outline-btn{width:100%;margin-top:18rpx;line-height:84rpx;border-radius:44rpx;border:1rpx solid #f3b1bd;background:transparent;color:#d35f7b;font-size:27rpx}
 .success-stage{position:relative;min-height:calc(100vh - 88px);box-sizing:border-box;display:flex;flex-direction:column;align-items:center;padding:68rpx 58rpx calc(42rpx + env(safe-area-inset-bottom))}
 .success-pair-art{width:100%;height:280rpx;border-radius:36rpx;mix-blend-mode:multiply}
 .success-title{font-size:46rpx;font-weight:600;margin-top:50rpx}
 .success-stage .invite-sub{margin-top:20rpx}
-.success-stage .love-btn{margin-top:62rpx;position:relative;z-index:1}
+.success-stage button.love-btn{margin-top:62rpx;position:relative;z-index:1}
 .success-note{position:relative;align-self:flex-end;margin-top:90rpx;transform:rotate(-8deg)}
 .success-landscape{position:absolute;bottom:-100rpx;left:-70rpx;width:560rpx;height:300rpx;border-radius:50%;background:linear-gradient(160deg,#f9bdc7aa,#fad5d86b);transform:rotate(17deg);color:#ee9cae}
 .success-landscape view{position:absolute;top:-65rpx;left:100rpx;font-size:90rpx;transform:rotate(-28deg)}.success-landscape>text{position:absolute;top:-16rpx;left:60rpx;font-size:45rpx}

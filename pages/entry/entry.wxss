@@ -31,11 +31,11 @@
 .photo image{display:block;width:100%;height:100%}
 .photo button{position:absolute;top:8rpx;right:8rpx;width:46rpx;height:46rpx;margin:0;padding:0;border-radius:50%;background:rgba(62,43,51,.72);color:#fff;font-size:27rpx;line-height:46rpx}
 .photo button::after{border:0}
-.add-photo-button{display:flex;align-items:center;justify-content:center;width:100%;height:82rpx;margin:0;box-sizing:border-box;border:1rpx dashed #ddb8c4;border-radius:20rpx;background:#fff7f9;color:#ad4968;font-size:24rpx;line-height:82rpx}
-.add-photo-button::after{border:0}
-.add-photo-button[disabled]{background:#faf4f6;color:#c6adb5}
+button.add-photo-button{display:flex;align-items:center;justify-content:center;width:100%;height:82rpx;margin:0;box-sizing:border-box;border:1rpx dashed #ddb8c4;border-radius:20rpx;background:#fff7f9;color:#ad4968;font-size:24rpx;line-height:82rpx}
+button.add-photo-button::after{border:0}
+button.add-photo-button[disabled]{background:#faf4f6;color:#c6adb5}
 .add-photo-plus{margin-right:8rpx;font-size:30rpx}
 
-.share-button{width:100%;margin:30rpx 0 0}
+button.share-button{width:100%;margin:30rpx 0 0}
 .publish-note{padding:18rpx 0 28rpx;text-align:center;color:#ad929c;font-size:21rpx;line-height:1.6}
 .error-panel{margin-top:24rpx}
