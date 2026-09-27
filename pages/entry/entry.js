@@ -99,6 +99,21 @@ Page({
     for (let i = 0; i < this.data.images.length; i++) {
       const item = Object.assign({}, this.data.images[i]);
       if (item.id && !item.localPath) continue;
+      if (!item.preflightChecked && !item.prepared && !item.stagingFileID && item.localPath) {
+        try {
+          const normalized = await view.normalizeLocalImage(item.localPath);
+          item.preflightChecked = true;
+          if (normalized.converted) {
+            item.localPath = normalized.path;
+            item.url = normalized.path;
+            item.compatConverted = true;
+            item.uploadRequestId = api.newRequestId();
+          }
+          this.replaceImage(i, item);
+        } catch (error) {
+          throw mediaError('兼容原图格式', error);
+        }
+      }
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
           if (!item.prepared) {
