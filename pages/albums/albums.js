@@ -1,5 +1,5 @@
 const api = require('../../services/cloud');
-const { wxCall, isUncertain } = require('../../services/entry-view');
+const { wxCall, isUncertain, makeCompatibleImage } = require('../../services/entry-view');
 
 Page({
   data: { loading: true, busy: false, active: false, error: '', moreError: '', title: '', album: null,
@@ -98,7 +98,7 @@ Page({
         const item = Object.assign({}, this.data.images[i]);
         if (item.id) continue;
         this.setData({ progress: '正在上传 ' + (i + 1) + ' / ' + this.data.images.length });
-        for (let attempt = 0; attempt < 2 && !item.id; attempt++) {
+        for (let attempt = 0; attempt < 3 && !item.id; attempt++) {
           try {
             if (!item.prepared) { item.prepared = await api.prepareMedia({ requestId: item.requestId, name: 'album-photo', size: item.size }); this.updateImage(i, item); }
             if (!item.fileID) { item.fileID = (await wx.cloud.uploadFile({ cloudPath: item.prepared.cloudPath, filePath: item.localPath })).fileID; this.updateImage(i, item); }
@@ -106,11 +106,19 @@ Page({
             item.id = ready.id; this.updateImage(i, item);
           } catch (error) {
             const staleUpload = ['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE'].includes(error.code);
-            if (staleUpload) {
+            if (staleUpload && !item.staleRetried) {
+              item.staleRetried = true;
               delete item.prepared; delete item.fileID; item.requestId = api.newRequestId(); this.updateImage(i, item);
-              if (attempt === 0) continue;
+              continue;
             }
-            if (['INVALID_MEDIA_TYPE', 'INVALID_MEDIA_SIZE'].includes(error.code)) {
+            if (error.code === 'INVALID_MEDIA_TYPE' && !item.compatConverted && item.localPath) {
+              item.localPath = await makeCompatibleImage(item.localPath);
+              item.url = item.localPath;
+              item.compatConverted = true;
+              delete item.prepared; delete item.fileID; item.requestId = api.newRequestId(); this.updateImage(i, item);
+              continue;
+            }
+            if (error.code === 'INVALID_MEDIA_SIZE') {
               delete item.prepared; delete item.fileID; item.requestId = api.newRequestId(); this.updateImage(i, item);
             }
             throw error;
