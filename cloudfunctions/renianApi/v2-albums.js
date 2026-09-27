@@ -187,6 +187,6 @@ function createAlbums(ctx, media) {
       return { id: photo._id, deleted: true };
     });
   }
-  return { list, create, photos, add, remove, comments, addComment, ensureDailyAlbum, captureEntryImages, releaseEntryImages };
+  return { list, create, photos, add, remove, comments, addComment, ensureDailyAlbum, ensureDailyAlbumForMember: ensureDailyAlbumRecord, captureEntryImages, releaseEntryImages };
 }
 module.exports = { createAlbums };
