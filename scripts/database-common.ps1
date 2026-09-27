@@ -54,11 +54,20 @@ function Invoke-Tcb {
 function ConvertTo-TcbJsonArgument {
     param([Parameter(Mandatory = $true)][string]$Json)
 
-    # Windows PowerShell 5.1 rebuilds the native command line and strips the
-    # unescaped quotes inside JSON when an npm PowerShell shim ultimately calls
-    # node.exe. Backslash-escaping preserves the JSON quotes for the native argv.
+    # Windows PowerShell 5.1 rebuilds native command lines using the classic
+    # Windows argv quoting rules. To preserve a literal quote, a run of N
+    # backslashes immediately before it must become (2*N + 1) backslashes.
+    # This matters for RunCommands because its Command field is itself a JSON
+    # string and therefore already contains escaped quotes.
     if ($PSVersionTable.PSEdition -eq "Desktop" -and $env:OS -eq "Windows_NT") {
-        return $Json.Replace('"', '\"')
+        return [regex]::Replace(
+            $Json,
+            '(\\*)"',
+            {
+                param($match)
+                return ('\' * (($match.Groups[1].Value.Length * 2) + 1)) + '"'
+            }
+        )
     }
 
     return $Json
@@ -72,115 +81,53 @@ function ConvertTo-TcbMgoCommandsJson {
         throw "CloudBase NoSQL command JSON must not be empty."
     }
 
+    # CloudBase CLI 3.8.x passes --command directly as RunCommands.MgoCommands.
+    # If the caller already supplied the proper IMgoCommandParam[] envelope,
+    # preserve it as-is.
+    if ($trimmed.StartsWith("[")) {
+        return $trimmed
+    }
+
     try {
         $parsed = $trimmed | ConvertFrom-Json
     } catch {
         throw ("CloudBase NoSQL command is not valid JSON. " + $_.Exception.Message)
     }
 
-    if ($trimmed.StartsWith("[")) {
-        $items = @($parsed)
-        if ($items.Count -gt 0 -and
-            $null -ne $items[0].PSObject.Properties["TableName"] -and
-            $null -ne $items[0].PSObject.Properties["CommandType"] -and
-            $null -ne $items[0].PSObject.Properties["Command"]) {
-            return $trimmed
-        }
-        throw "CloudBase --command array must contain MgoCommandParam objects with TableName, CommandType, and Command."
-    }
-
     $tableName = $null
     $commandType = $null
 
-    if ($null -ne $parsed.PSObject.Properties["find"]) {
-        $tableName = [string]$parsed.find
-        $commandType = "QUERY"
-    } elseif ($null -ne $parsed.PSObject.Properties["insert"]) {
-        $tableName = [string]$parsed.insert
-        $commandType = "INSERT"
-    } elseif ($null -ne $parsed.PSObject.Properties["update"]) {
-        $tableName = [string]$parsed.update
-        $commandType = "UPDATE"
-    } elseif ($null -ne $parsed.PSObject.Properties["delete"]) {
-        $tableName = [string]$parsed.delete
-        $commandType = "DELETE"
-    } elseif ($null -ne $parsed.PSObject.Properties["createIndexes"]) {
-        $tableName = [string]$parsed.createIndexes
-        $commandType = "COMMAND"
-    } elseif ($null -ne $parsed.PSObject.Properties["count"]) {
-        $tableName = [string]$parsed.count
-        $commandType = "COMMAND"
-    } elseif ($null -ne $parsed.PSObject.Properties["aggregate"]) {
-        $tableName = [string]$parsed.aggregate
-        $commandType = "COMMAND"
-    } elseif ($null -ne $parsed.PSObject.Properties["distinct"]) {
-        $tableName = [string]$parsed.distinct
-        $commandType = "COMMAND"
-    } else {
-        throw "Unsupported Mongo command. Expected find/insert/update/delete/createIndexes/count/aggregate/distinct."
-    }
-
-    if (-not $tableName) {
-        throw "CloudBase Mongo command collection name is empty."
-    }
-
-    $commands = @(
-        [ordered]@{
-            TableName = $tableName
-            CommandType = $commandType
-            Command = $trimmed
+    foreach ($spec in @(
+        @{ Name = "update";        Type = "UPDATE" },
+        @{ Name = "find";          Type = "QUERY" },
+        @{ Name = "count";         Type = "QUERY" },
+        @{ Name = "aggregate";     Type = "QUERY" },
+        @{ Name = "distinct";      Type = "QUERY" },
+        @{ Name = "insert";        Type = "INSERT" },
+        @{ Name = "delete";        Type = "DELETE" },
+        @{ Name = "createIndexes"; Type = "COMMAND" },
+        @{ Name = "dropIndexes";   Type = "COMMAND" }
+    )) {
+        $prop = $parsed.PSObject.Properties[$spec.Name]
+        if ($null -ne $prop) {
+            $tableName = [string]$prop.Value
+            $commandType = [string]$spec.Type
+            break
         }
-    )
-
-    return ConvertTo-Json -InputObject $commands -Depth 12 -Compress
-}
-
-function Invoke-TcbExactArgs {
-    param(
-        [Parameter(Mandatory = $true)][string[]]$TcbArgs,
-        [switch]$Capture
-    )
-
-    $tcbCommand = Get-Command tcb -ErrorAction Stop
-    $shimDir = Split-Path -Parent $tcbCommand.Source
-    $cliJs = Join-Path $shimDir "node_modules/@cloudbase/cli/dist/standalone/cli.js"
-    $bridgeJs = Join-Path $script:RenianRepoRoot "scripts/tcb-argv-bridge.js"
-
-    if (-not (Test-Path -LiteralPath $cliJs)) {
-        throw ("CloudBase CLI entry not found: " + $cliJs)
-    }
-    if (-not (Test-Path -LiteralPath $bridgeJs)) {
-        throw ("TCB argv bridge not found: " + $bridgeJs)
     }
 
-    $argsFile = Join-Path ([System.IO.Path]::GetTempPath()) ("renian-tcb-args-" + [Guid]::NewGuid().ToString("N") + ".json")
-
-    try {
-        $argsJson = ConvertTo-Json -InputObject $TcbArgs -Compress
-        [System.IO.File]::WriteAllText(
-            $argsFile,
-            $argsJson,
-            [System.Text.UTF8Encoding]::new($false)
-        )
-
-        $lines = @(& node.exe $bridgeJs $cliJs $argsFile 2>&1)
-        $code = $LASTEXITCODE
-        $text = ($lines | ForEach-Object { [string]$_ }) -join [Environment]::NewLine
-
-        if ($code -ne 0) {
-            throw ("tcb " + ($TcbArgs -join " ") + " failed with exit code " + $code + [Environment]::NewLine + $text)
-        }
-
-        if ($Capture) {
-            return $text
-        }
-
-        if ($text) {
-            $text | Write-Host
-        }
-    } finally {
-        Remove-Item -LiteralPath $argsFile -Force -ErrorAction SilentlyContinue
+    if (-not $tableName -or -not $commandType) {
+        throw "Unsupported CloudBase NoSQL command. Could not infer TableName/CommandType."
     }
+
+    $mgoCommand = [ordered]@{
+        TableName = $tableName
+        CommandType = $commandType
+        Command = $trimmed
+    }
+
+    [object[]]$mgoCommands = @($mgoCommand)
+    return (ConvertTo-Json -InputObject $mgoCommands -Depth 20 -Compress)
 }
 
 function Invoke-NoSql {
@@ -189,11 +136,14 @@ function Invoke-NoSql {
         [Parameter(Mandatory = $true)][string]$CommandJson
     )
 
+    # CloudBase CLI 3.8.x validates --command as an MgoCommands JSON array.
+    # Keep callers ergonomic by accepting one command object and wrapping it.
     $commandsJson = ConvertTo-TcbMgoCommandsJson -CommandJson $CommandJson
+    $commandArg = ConvertTo-TcbJsonArgument -Json $commandsJson
 
-    return Invoke-TcbExactArgs -Capture -TcbArgs @(
+    return Invoke-Tcb -Capture -TcbArgs @(
         "db", "nosql", "execute",
-        "--command", $commandsJson,
+        "--command", $commandArg,
         "--env-id", $EnvId,
         "--json"
     )
