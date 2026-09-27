@@ -79,6 +79,26 @@ test('entry timeout freezes the submitted payload and retries with the same requ
   page.chooseRating({currentTarget:{dataset:{type:'bad'}}});await page.save();
   assert.equal(sent.length,2);assert.deepEqual(sent[0],sent[1]);assert.equal(sent[0].text,'最初的文字');assert.equal(sent[0].ratingType,'good');
 });
+test('opening an existing entry without editing does not create a draft', async () => {
+  const {page,read}=loadPage('entry',{getSession:async()=>session,getEntry:async()=>entry});
+  page._id=entry.id;
+  await page.load();
+  page.onUnload();
+  const drafts=read(path.join(root,'services/entry-drafts.js'));
+  assert.equal(drafts.read('pair',entry.id),null);
+});
+
+test('existing dirty draft cannot mask a newer server version', async () => {
+  const {page,read}=loadPage('entry',{getSession:async()=>session,getEntry:async()=>Object.assign({},entry,{version:2,text:'server newer'})});
+  page._id=entry.id;
+  const drafts=read(path.join(root,'services/entry-drafts.js'));
+  drafts.activate('pair');
+  drafts.write('pair',entry.id,{text:'stale local edit',mood:'',ratingType:'',images:[],version:1,dirty:true,pending:null});
+  await page.load();
+  assert.equal(page.data.text,'server newer');
+  assert.equal(page.data.ratingType,'');
+});
+
 test('entry upload failure retains local draft and retries uploaded file confirmation',async()=>{
   let uploads=0,confirms=0;
   const {page}=loadPage('entry',{
@@ -145,6 +165,61 @@ test('gift retries a timeout without duplicate request or changing content',asyn
   page.setData({title:'晚餐'});await page.gift();assert.equal(page.data.uncertain,true);
   page.onTitle({detail:{value:'新券'}});await page.gift();assert.deepEqual(writes[0],writes[1]);
 });
+test('gift keeps request and content when refresh fails after commit', async () => {
+  const writes=[]; let lists=0;
+  const {page}=loadPage('privileges',{
+    giftCoupon:async data=>{writes.push(JSON.parse(JSON.stringify(data)));},
+    listCoupons:async()=>{lists++; if(lists===1) throw new Error('offline'); return {items:[]};},
+  });
+  page.setData({title:'晚餐',note:'周末一起吃'});
+  await page.gift();
+  assert.equal(page.data.uncertain,true);
+  assert.equal(page.data.title,'晚餐');
+  assert.equal(writes.length,1);
+  await page.gift();
+  assert.equal(writes.length,2);
+  assert.deepEqual(writes[0],writes[1]);
+  assert.equal(page.data.title,'');
+  assert.equal(page.data.uncertain,false);
+});
+
+test('agreement keeps request and proposal when refresh fails after commit', async () => {
+  const writes=[]; let lists=0;
+  const {page}=loadPage('permissions',{
+    proposeAgreement:async data=>{writes.push(JSON.parse(JSON.stringify(data)));},
+    listAgreements:async()=>{lists++; if(lists===1) throw new Error('offline'); return {items:[]};},
+  });
+  page.setData({title:'散步',content:'周末'});
+  await page.submitAgreement();
+  assert.equal(page.data.uncertain,true);
+  assert.equal(page.data.title,'散步');
+  assert.equal(writes.length,1);
+  await page.submitAgreement();
+  assert.equal(writes.length,2);
+  assert.deepEqual(writes[0],writes[1]);
+  assert.equal(page.data.title,'');
+  assert.equal(page.data.uncertain,false);
+});
+
+test('memo keeps pending payload when list refresh fails after commit', async () => {
+  const writes=[]; let lists=0;
+  const saved={id:'memo1',title:'礼物',text:'下次准备花',images:[],version:1,updatedAt:'2026-09-26T06:00:00Z'};
+  const {page}=loadPage('profile',{
+    createPrivateMemo:async data=>{writes.push(JSON.parse(JSON.stringify(data)));return saved;},
+    listPrivateMemos:async()=>{lists++; if(lists===1) throw new Error('offline'); return {items:[saved]};},
+  });
+  page.setData({bindingStatus:'active',authLoading:false,memoTitle:'礼物',memoText:'下次准备花',memoImages:[]});
+  await page.saveMemo();
+  assert.equal(page.data.memoUncertain,true);
+  assert.equal(page.data.memoTitle,'礼物');
+  assert.equal(writes.length,1);
+  await page.saveMemo();
+  assert.equal(writes.length,2);
+  assert.deepEqual(writes[0],writes[1]);
+  assert.equal(page.data.memoTitle,'');
+  assert.equal(page.data.memoUncertain,false);
+});
+
 test('agreement timeout freezes proposal and reuses its request id',async()=>{
   const writes=[];let count=0;
   const {page}=loadPage('permissions',{proposeAgreement:async data=>{writes.push(JSON.parse(JSON.stringify(data)));if(++count===1)throw Object.assign(new Error('network'),{code:'CLOUD_INVOKE_FAILED'});},listAgreements:async()=>({items:[]})});
