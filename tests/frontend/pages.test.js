@@ -414,3 +414,32 @@ test('cloud service always sends API v2 and fixed action',async()=>{
   await module.exports.createEntry({action:'pair.cancel',apiVersion:1});
   assert.equal(sent.data.action,'entry.create');assert.equal(sent.data.apiVersion,2);
 });
+
+
+test('album image picker exposes original and compressed choices', async () => {
+  let picked;
+  const { page } = loadPage('albums', {}, {
+    chooseMedia: options => { picked = options; options.success({ tempFiles: [] }); },
+    getStorageSync: () => null, setStorageSync() {},
+  });
+  page.setData({ active: true, loading: false, busy: false, pending: false, images: [] });
+  await page.chooseImages();
+  assert.deepEqual(Array.from(picked.sizeType), ['original', 'compressed']);
+  assert.deepEqual(Array.from(picked.mediaType), ['image']);
+});
+
+test('album photo save downloads a signed URL then writes the local file to system album', async () => {
+  let downloadedUrl = '', savedPath = '';
+  const { page, events } = loadPage('albums', {
+    getMediaUrls: async () => ({ items: [{ id: 'media1', url: 'https://example.test/photo.jpg' }] }),
+  }, {
+    downloadFile: options => { downloadedUrl = options.url; options.success({ statusCode: 200, tempFilePath: '/tmp/photo.jpg' }); },
+    saveImageToPhotosAlbum: options => { savedPath = options.filePath; options.success({}); },
+    openSetting: () => {},
+  });
+  page.setData({ active: true, loading: false, busy: false, items: [{ id: 'photo1', mediaId: 'media1', url: '' }] });
+  await page.savePhoto({ currentTarget: { dataset: { id: 'photo1' } } });
+  assert.equal(downloadedUrl, 'https://example.test/photo.jpg');
+  assert.equal(savedPath, '/tmp/photo.jpg');
+  assert.equal(events.find(x => x.method === 'showToast').value.title, '已保存到系统相册');
+});
