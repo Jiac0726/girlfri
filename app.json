@@ -46,10 +46,5 @@
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json",
-  "lazyCodeLoading": "requiredComponents",
-  "permission": {
-    "scope.writePhotosAlbum": {
-      "desc": "用于将热念中的照片保存到你的系统相册"
-    }
-  }
+  "lazyCodeLoading": "requiredComponents"
 }
