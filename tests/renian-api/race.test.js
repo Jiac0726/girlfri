@@ -211,6 +211,29 @@ test('reminders default off and settings reject stale updates', async () => {
   assert.equal(on.version,1);
   await failure(call('reminder.update','A',{enabled:false,time:'21:30',expectedVersion:0}),'VERSION_CONFLICT');
 });
+test('parallel media prepare provisions staging metadata once', async () => {
+  await pair();
+  let calls = 0, release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const concurrent = createV2Api(cloud, {
+    database: cloud.__nodeDatabase(),
+    getUploadMetadata: async ({cloudPath}) => {
+      calls++;
+      await gate;
+      return {data:{fileId: 'cloud://mock-env.bucket/' + cloudPath}};
+    },
+  });
+  const event = {action:'media.prepare', requestId:'parallel_media_prepare', name:'x', size:20};
+  const first = concurrent(event, 'A');
+  for (let i = 0; i < 20 && calls < 1; i++) await new Promise(resolve => setImmediate(resolve));
+  const second = concurrent(event, 'A');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(calls, 1);
+  release();
+  const results = await Promise.all([first, second]);
+  assert.equal(results[0].id, results[1].id);
+  assert.equal(cloud.__colStore('v2_media').get(results[0].id).stagingFileID, 'cloud://mock-env.bucket/' + results[0].cloudPath);
+});
 test('media prepare registers abandoned file, validates owner and file signature, publishes private immutable copy', async () => {
   await pair();
   const m=await call('media.prepare','A',{name:'x',size:35});
