@@ -228,16 +228,21 @@ function createMedia(ctx, options = {}) {
     }
   }
 
-  async function privateMemoImages(item, openid, coupleId) {
+  async function privateMemoImages(item, openid, coupleId, tolerant = false) {
     if (!(item.images || []).length) return [];
     const docs = [];
     for (const id of item.images) {
       const doc = await get(db, 'media', id);
-      assert(doc && doc.coupleId === coupleId && doc.ownerOpenid === openid && doc.entryId === item.id &&
-        doc.attachmentType === 'private_memo' && doc.status === 'attached', 'MEDIA_UNAVAILABLE', '备忘录图片状态已改变，请刷新');
+      const valid = doc && doc.coupleId === coupleId && doc.ownerOpenid === openid && doc.entryId === item.id &&
+        doc.attachmentType === 'private_memo' && doc.status === 'attached';
+      if (!valid) {
+        if (!tolerant) fail('MEDIA_UNAVAILABLE', '备忘录图片状态已改变，请刷新');
+        docs.push({ _id: id, fileID: '' });
+        continue;
+      }
       docs.push(doc);
     }
-    return signed(docs);
+    return signed(docs, tolerant);
   }
 
   async function entryImages(entry, tolerant = false) {
