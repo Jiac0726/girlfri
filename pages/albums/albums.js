@@ -3,7 +3,8 @@ const { wxCall, isUncertain } = require('../../services/entry-view');
 
 Page({
   data: { loading: true, busy: false, active: false, error: '', moreError: '', title: '', album: null,
-    albumId: '', items: [], nextCursor: null, images: [], pending: false, progress: '', creating: false },
+    albumId: '', items: [], nextCursor: null, images: [], pending: false, progress: '', creating: false,
+    commentPhotoId: '', commentItems: [], commentText: '', commentLoading: false, commentSaving: false, commentError: '' },
   onLoad(options) { this._albumId = options.albumId || ''; this.setData({ albumId: this._albumId }); },
   onShow() { this._disposed = false; if (!this.data.busy) this.refresh(); },
   onUnload() { this.persist(); this._disposed = true; this._token = (this._token || 0) + 1; },
@@ -115,6 +116,68 @@ Page({
     finally { this.setData({ busy: false, progress: '' }); }
     if (this._pending && !this._disposed) return this.runPending();
   },
+  async toggleComments(e) {
+    if (this.data.loading || !this.data.active) return;
+    const photoId = e.currentTarget.dataset.id;
+    if (!photoId) return;
+    if (this.data.commentPhotoId === photoId) {
+      this._commentPending = null;
+      this.setData({ commentPhotoId: '', commentItems: [], commentText: '', commentError: '' });
+      return;
+    }
+    this._commentPending = null;
+    this.setData({ commentPhotoId: photoId, commentItems: [], commentText: '', commentError: '' });
+    await this.loadComments(photoId);
+  },
+  async loadComments(photoId = this.data.commentPhotoId) {
+    if (!photoId || this.data.commentLoading) return;
+    this.setData({ commentLoading: true, commentError: '' });
+    try {
+      const result = await api.listAlbumComments({ photoId, limit: 50 });
+      if (this._disposed || this.data.commentPhotoId !== photoId) return;
+      this.setData({ commentItems: result.items || [] });
+    } catch (error) {
+      if (!this._disposed && this.data.commentPhotoId === photoId) this.setData({ commentError: error.message || '评论加载失败，请重试' });
+    } finally {
+      if (!this._disposed && this.data.commentPhotoId === photoId) this.setData({ commentLoading: false });
+    }
+  },
+  onCommentInput(e) {
+    if (!this.data.commentSaving) this.setData({ commentText: e.detail.value });
+  },
+  async sendComment() {
+    const photoId = this.data.commentPhotoId;
+    if (!photoId || this.data.commentSaving) return;
+    if (!this._commentPending) {
+      const text = this.data.commentText.trim();
+      if (!text) return wx.showToast({ title: '写一句评论吧', icon: 'none' });
+      this._commentPending = { photoId, text, requestId: api.newRequestId() };
+    }
+    const pending = this._commentPending;
+    this.setData({ commentSaving: true, commentError: '' });
+    try {
+      const saved = await api.addAlbumComment(pending);
+      if (this._disposed || this.data.commentPhotoId !== photoId) return;
+      this._commentPending = null;
+      const items = [saved].concat(this.data.commentItems.filter(item => item.id !== saved.id));
+      this.setData({
+        commentItems: items,
+        commentText: '',
+        items: this.data.items.map(item => item.id === photoId
+          ? Object.assign({}, item, { commentCount: (Number(item.commentCount) || 0) + 1 }) : item),
+      });
+    } catch (error) {
+      if (!isUncertain(error)) this._commentPending = null;
+      if (!this._disposed && this.data.commentPhotoId === photoId) {
+        this.setData({ commentError: isUncertain(error)
+          ? '评论结果尚未确认，请再次点击发送，不会重复发布。'
+          : (error.message || '评论发送失败，请重试') });
+      }
+    } finally {
+      if (!this._disposed && this.data.commentPhotoId === photoId) this.setData({ commentSaving: false });
+    }
+  },
+
   async savePhoto(e) {
     if (this.data.loading || this.data.busy || !this.data.active) return;
     const photo = this.data.items.find(item => item.id === e.currentTarget.dataset.id);
