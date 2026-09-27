@@ -443,3 +443,34 @@ test('album photo save downloads a signed URL then writes the local file to syst
   assert.equal(savedPath, '/tmp/photo.jpg');
   assert.equal(events.find(x => x.method === 'showToast').value.title, '已保存到系统相册');
 });
+
+
+test('album photo comments can be opened and sent by either partner UI', async () => {
+  const writes = [];
+  const { page } = loadPage('albums', {
+    listAlbumComments: async () => ({ items: [{ id: 'old', text: '之前的评论', fromMe: false }] }),
+    addAlbumComment: async data => { writes.push(data); return { id: 'new', text: data.text, fromMe: true }; },
+  });
+  page.setData({ active: true, loading: false, items: [{ id: 'photo1', mediaId: 'm1', commentCount: 1 }] });
+  await page.toggleComments({ currentTarget: { dataset: { id: 'photo1' } } });
+  assert.equal(page.data.commentItems.length, 1);
+  page.onCommentInput({ detail: { value: '这张真好看' } });
+  await page.sendComment();
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].photoId, 'photo1');
+  assert.equal(writes[0].text, '这张真好看');
+  assert.match(writes[0].requestId, /^request_/);
+  assert.equal(page.data.commentItems[0].text, '这张真好看');
+  assert.equal(page.data.items[0].commentCount, 2);
+});
+
+test('memo photo picker also accepts original photos above the old 5 MB limit', async () => {
+  let options;
+  const { page } = loadPage('profile', {}, {
+    chooseMedia: input => { options = input; input.success({ tempFiles: [{ tempFilePath: 'large.jpg', size: 6 * 1024 * 1024 }] }); },
+  });
+  page.setData({ memoSaving: false, memoUncertain: false, memoImages: [] });
+  await page.chooseMemoImages();
+  assert.deepEqual(Array.from(options.sizeType), ['original', 'compressed']);
+  assert.equal(page.data.memoImages.length, 1);
+});
