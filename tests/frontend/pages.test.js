@@ -560,7 +560,7 @@ test('album HEIC is normalized before the first cloud upload', async () => {
   const { page } = loadPage('albums', {
     getSession: async () => session,
     listAlbumPhotos: async () => ({ album: { id: 'album', title: '我们', photoCount: 0 }, items: [] }),
-    prepareMedia: async () => ({ id: 'media-preflight', cloudPath: 'staging/preflight' }),
+    prepareMedia: async () => { prepareCount++; return { id: 'media-preflight', cloudPath: 'staging/preflight' }; },
     confirmMedia: async data => { confirmCount++; return { id: data.id, url: 'signed' }; },
     addAlbumPhotos: async data => batches.push(data),
   }, {
