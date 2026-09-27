@@ -275,8 +275,11 @@ test('media prepare registers abandoned file, validates owner and file signature
   assert.equal((await call('media.urls','B',{ids:[m.id]})).items.length,1);
   await failure(call('entry.create','A',{images:[m.id]}),'MEDIA_UNAVAILABLE');
   await call('entry.delete','A',{id:entry.id,expectedVersion:1});
-  assert.equal(cloud.__colStore('v2_media').get(m.id).status,'cleanup_pending');
-  await failure(call('media.urls','B',{ids:[m.id]}),'FORBIDDEN');
+  const retained=cloud.__colStore('v2_media').get(m.id);
+  assert.equal(retained.status,'attached');
+  assert.equal(retained.attachmentType,'album_photo');
+  assert.equal(retained.refCount,1);
+  assert.equal((await call('media.urls','B',{ids:[m.id]})).items.length,1);
 });
 test('invalid image is never exposed',async()=>{
   await pair(); const m=await call('media.prepare','A',{name:'x',size:20});
