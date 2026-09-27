@@ -55,6 +55,19 @@ function sh(cmd) {
   }
 }
 
+/**
+ * 结构自检：每个「### 变更 #N」条目都必须有「修改人」署名。
+ * 署名取自 git author，合并类条目必须分开写「实施」与「整合 / 记录」。
+ */
+function checkAttribution() {
+  const fs = require('fs');
+  if (!fs.existsSync(LEDGER)) return null;
+  const text = fs.readFileSync(LEDGER, 'utf8');
+  const entries = (text.match(/^### 变更 #\d+/gm) || []).length;
+  const signed = (text.match(/\| \*\*修改人\*\* \|/g) || []).length;
+  return { entries, signed, ok: entries > 0 && signed >= entries };
+}
+
 function resolveRange() {
   const a = process.argv[2];
   const b = process.argv[3] || 'HEAD';
@@ -115,7 +128,18 @@ function main() {
   }
 
   if (ledgerChanged) {
-    console.log('[ledger-guard] ✅ 产品代码有改动且台账已同步');
+    const attr = checkAttribution();
+    if (attr && !attr.ok) {
+      console.error('\n[ledger-guard] ❌ 拒绝：台账条目缺少「修改人」署名');
+      console.error(`  变更条目 ${attr.entries} 个，带署名 ${attr.signed} 个`);
+      console.error('  每条都要有 `| **修改人** | ... |`：');
+      console.error('    - 直接提交 → 写 git 的提交作者（名字 <邮箱>）');
+      console.error('    - 合并类  → 双署名：**实施** = 被合入提交作者；**整合 / 记录** = 做合并的人');
+      console.error('  规则见台账「八、台账维护规则」第 7 条。\n');
+      return 1;
+    }
+    console.log('[ledger-guard] ✅ 产品代码有改动且台账已同步' +
+      (attr ? `（署名 ${attr.signed}/${attr.entries}）` : ''));
     return 0;
   }
 
