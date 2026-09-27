@@ -1,0 +1,122 @@
+.settings-page {
+  min-height: 100%;
+  padding-bottom: 80rpx;
+  box-sizing: border-box;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 8rpx 42rpx;
+}
+
+.settings-back {
+  flex-shrink: 0;
+  width: 72rpx;
+  height: 72rpx;
+  margin: 0 22rpx 0 0;
+  padding: 0;
+  border-radius: 50%;
+  background: #fff7f8;
+  border: 2rpx solid #f2dce2;
+  color: #8f6a76;
+  font-size: 46rpx;
+  line-height: 66rpx;
+}
+
+.settings-back::after {
+  border: 0;
+}
+
+.settings-eyebrow {
+  color: #ff6b81;
+  font-size: 22rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
+
+.settings-title {
+  margin-top: 4rpx;
+  color: #4a3540;
+  font-size: 40rpx;
+  font-weight: 800;
+}
+
+.settings-sub {
+  margin-top: 6rpx;
+  color: #a98894;
+  font-size: 22rpx;
+}
+
+.settings-card {
+  margin-bottom: 24rpx;
+  padding: 10rpx 0;
+  border-radius: 28rpx;
+  background: rgba(255, 255, 255, 0.86);
+  border: 2rpx solid #f1e1e6;
+  box-shadow: 0 8rpx 28rpx rgba(97, 59, 73, 0.05);
+}
+
+.settings-section-title {
+  padding: 22rpx 28rpx 12rpx;
+  color: #8f6f7b;
+  font-size: 21rpx;
+  font-weight: 700;
+  letter-spacing: 1rpx;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  min-height: 112rpx;
+  padding: 18rpx 28rpx;
+  box-sizing: border-box;
+}
+
+.settings-row + .settings-row {
+  border-top: 1rpx solid #f4e8ec;
+}
+
+.settings-row-icon {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 20rpx;
+  background: #fff0f4;
+  color: #d45b74;
+  font-size: 30rpx;
+  line-height: 64rpx;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.settings-row-copy {
+  flex: 1;
+  min-width: 0;
+  margin-left: 18rpx;
+}
+
+.settings-row-title {
+  color: #4f3b44;
+  font-size: 27rpx;
+  font-weight: 700;
+}
+
+.settings-row-sub {
+  margin-top: 5rpx;
+  color: #aa8e98;
+  font-size: 20rpx;
+  line-height: 1.55;
+}
+
+.settings-row-arrow {
+  margin-left: 16rpx;
+  color: #d28a9a;
+  font-size: 38rpx;
+}
+
+.settings-footer {
+  margin-top: 36rpx;
+  color: #b99fa8;
+  font-size: 20rpx;
+  text-align: center;
+}
