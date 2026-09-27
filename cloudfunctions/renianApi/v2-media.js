@@ -2,7 +2,7 @@
 
 const { assert, fail, hash, randomId, text } = require('./v2-core');
 const { entryVisibleTo } = require('./v2-visibility');
-const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_BYTES = 20 * 1024 * 1024;
 const TTL = 24 * 3600000;
 const LEASE = 5 * 60000;
 const PROVISION_LEASE = 30 * 1000;
@@ -42,7 +42,7 @@ function createMedia(ctx, options = {}) {
   }
   async function prepare(event, openid) {
     const name = text(event.name, 200, '图片名称', true);
-    assert(Number.isInteger(event.size) && event.size > 0 && event.size <= MAX_BYTES, 'INVALID_MEDIA_SIZE', '每张图片不能超过 5 MB');
+    assert(Number.isInteger(event.size) && event.size > 0 && event.size <= MAX_BYTES, 'INVALID_MEDIA_SIZE', '每张图片不能超过 20 MB');
     const doc = await mutate('media.prepare', event, openid, async (tx, member, op) => {
       const id = 'media_' + hash(op).slice(0, 40);
       const now = new Date();
@@ -150,7 +150,7 @@ function createMedia(ctx, options = {}) {
     try {
       const download = await cloud.downloadFile({ fileID: event.fileID });
       const buffer = Buffer.isBuffer(download.fileContent) ? download.fileContent : Buffer.from(download.fileContent || []);
-      assert(buffer.length > 0 && buffer.length <= MAX_BYTES, 'INVALID_MEDIA_SIZE', '每张图片不能超过 5 MB');
+      assert(buffer.length > 0 && buffer.length <= MAX_BYTES, 'INVALID_MEDIA_SIZE', '每张图片不能超过 20 MB');
       const extension = imageExtension(buffer);
       assert(extension, 'INVALID_MEDIA_TYPE', '请选择有效的 JPG、PNG、GIF 或 WebP 图片');
       const publishedCloudPath = 'v2-published/' + reserved._id + '.' + extension;
