@@ -572,11 +572,19 @@ function createV2Api(cloud, options = {}) {
     assert(typeof openid === 'string' && openid.length > 0 && /^[A-Za-z0-9_-]+$/.test(openid), 'NO_IDENTITY', '无法获取微信身份');
     assert(event && typeof event === 'object', 'INVALID_INPUT', '请求不正确');
     switch (event.action) {
-      case 'session.get': return session(openid, await membership(db, openid, false));
+      case 'session.get': {
+        const member = await membership(db, openid, false);
+        if (member.pair && member.pair.status === 'active') await albums.ensureDailyAlbum(openid);
+        return session(openid, member);
+      }
       case 'pair.create': return pairs.issue(openid, false);
       case 'pair.refresh': return pairs.issue(openid, true);
       case 'pair.cancel': return pairs.cancel(openid);
-      case 'pair.join': return pairs.join(openid, event.inviteCode);
+      case 'pair.join': {
+        const result = await pairs.join(openid, event.inviteCode);
+        if (result.bindingStatus === 'active') await albums.ensureDailyAlbum(openid);
+        return result;
+      }
       case 'album.list': return albums.list(event, openid);
       case 'album.create': return albums.create(event, openid);
       case 'album.photos': return albums.photos(event, openid);
