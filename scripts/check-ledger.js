@@ -36,13 +36,15 @@ const CODE_PATHS = [
 ];
 
 // 不要求记台账的改动路径（文档、测试、CI、资源）
+// 注：\.md$ 放在最前，保证任意目录下的 Markdown 都算文档（含 scripts/LEDGER-GUARD.md）
 const DOC_PATHS = [
+  /\.md$/i,
   /^docs\//,
   /^tests\//,
   /^\.github\//,
   /^assets\//,
-  /\.(md|MD)$/,
   /^\.gitignore$/,
+  /^LICENSE/,
 ];
 
 function sh(cmd) {
@@ -77,8 +79,10 @@ function classify(files) {
   const other = [];
   for (const f of files) {
     if (f === LEDGER) continue;
-    if (CODE_PATHS.some((r) => r.test(f))) code.push(f);
-    else if (DOC_PATHS.some((r) => r.test(f))) doc.push(f);
+    // ⚠️ 顺序敏感：文档规则先于代码规则。
+    // 否则 scripts/LEDGER-GUARD.md 会被 /^scripts\// 误判成产品代码。
+    if (DOC_PATHS.some((r) => r.test(f))) doc.push(f);
+    else if (CODE_PATHS.some((r) => r.test(f))) code.push(f);
     else other.push(f);
   }
   return { code, doc, other };
@@ -87,8 +91,11 @@ function classify(files) {
 function main() {
   const [base, head] = resolveRange();
   const range = head ? `${base}...${head}` : base;
-  const raw = sh(`git diff --name-only --diff-filter=ACMRD ${range}`);
-  const files = raw ? raw.split('\n').filter(Boolean) : [];
+  // ⚠️ 必须用 -z（NUL 分隔）。默认输出会把非 ASCII 文件名转义成
+  // 八进制带引号串（"docs/\345\217\230..."），导致 includes(LEDGER)
+  // 永远匹配不上 —— 守卫会对中国文件名静默失效。
+  const raw = sh(`git diff --name-only -z --diff-filter=ACMRD ${range}`);
+  const files = raw ? raw.split('\0').filter(Boolean) : [];
 
   if (files.length === 0) {
     console.log(`[ledger-guard] 无改动文件（range: ${range}）→ 通过`);
