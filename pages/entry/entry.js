@@ -75,7 +75,7 @@ Page({
   chooseRating(e) {
     if (this.data.saving || this.data.uncertain) return;
     const type = e.currentTarget.dataset.type || '';
-    this.setData({ ratingType: this.data.ratingType === type ? '' : type }); this.persist();
+    this._dirty = true; this.setData({ ratingType: this.data.ratingType === type ? '' : type }); this.persist();
   },
   async chooseImages() {
     if (!this._ready || this.data.saving || this.data.uncertain || this.data.images.length >= 9) return;
