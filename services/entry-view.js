@@ -66,6 +66,16 @@ async function makeCompatibleImage(src) {
   }
   return compressed.tempFilePath;
 }
+async function normalizeLocalImage(src) {
+  const lower = String(src || '').split('?')[0].toLowerCase();
+  const extensionNeedsConversion = /\.(heic|heif)$/.test(lower);
+  const info = await wxCall('getImageInfo', { src }).catch(() => null);
+  const type = String(info && info.type || '').toLowerCase();
+  if (extensionNeedsConversion || (type && !COMPATIBLE_IMAGE_TYPES.has(type))) {
+    return { path: await makeCompatibleImage(src), converted: true };
+  }
+  return { path: src, converted: false };
+}
 function updateUrls(entries, urls, ids) {
   const byId = {};
   (urls || []).forEach((item) => { byId[item.id] = item.url; });
@@ -144,4 +154,4 @@ const entryActions = {
     }
   },
 };
-module.exports = { MOODS, RATINGS, todayUTC8, dayLabel, viewEntry, viewEntries, appendEntries, wxCall, isUncertain, makeCompatibleImage, entryActions };
+module.exports = { MOODS, RATINGS, todayUTC8, dayLabel, viewEntry, viewEntries, appendEntries, wxCall, isUncertain, makeCompatibleImage, normalizeLocalImage, entryActions };
