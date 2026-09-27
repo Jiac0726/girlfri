@@ -533,7 +533,7 @@ test('album unsupported original is converted and retried automatically', async 
   });
   page.onLoad({ albumId: 'album' });
   await page.refresh();
-  page.setData({ images: [{ localPath: 'original.heic', url: 'original.heic', size: 1024, requestId: 'upload-heic' }] });
+  page.setData({ images: [{ localPath: 'wxfile://tmp/original', url: 'wxfile://tmp/original', size: 1024, requestId: 'upload-heic' }] });
   await page.uploadPhotos();
   assert.equal(compressed, 1);
   assert.equal(prepareCount, 2);
@@ -550,4 +550,52 @@ test('image compatibility fallback rejects a format that remains unsupported aft
   });
   const view = read(path.join(root, 'services/entry-view.js'));
   await assert.rejects(view.makeCompatibleImage('original.heic'), error => error.code === 'INVALID_MEDIA_TYPE');
+});
+
+
+test('album HEIC is normalized before the first cloud upload', async () => {
+  let prepareCount = 0, uploadCount = 0, confirmCount = 0, compressed = 0;
+  let uploadedPath = '';
+  const batches = [];
+  const { page } = loadPage('albums', {
+    getSession: async () => session,
+    listAlbumPhotos: async () => ({ album: { id: 'album', title: '我们', photoCount: 0 }, items: [] }),
+    prepareMedia: async () => ({ id: 'media-preflight', cloudPath: 'staging/preflight' }),
+    confirmMedia: async data => { confirmCount++; return { id: data.id, url: 'signed' }; },
+    addAlbumPhotos: async data => batches.push(data),
+  }, {
+    getStorageSync: () => null,
+    setStorageSync() {},
+    getImageInfo: options => options.success({
+      type: String(options.src).includes('converted') ? 'jpeg' : 'heic',
+      path: options.src, width: 100, height: 100
+    }),
+    compressImage: options => { compressed++; options.success({ tempFilePath: 'converted.jpg' }); },
+    cloud: { uploadFile: async options => { uploadCount++; uploadedPath = options.filePath; return { fileID: 'cloud://mock/preflight' }; } },
+  });
+  page.onLoad({ albumId: 'album' });
+  await page.refresh();
+  page.setData({ images: [{ localPath: 'original.heic', url: 'original.heic', size: 1024, requestId: 'upload-preflight' }] });
+  await page.uploadPhotos();
+
+  assert.equal(compressed, 1);
+  assert.equal(prepareCount, 1);
+  assert.equal(uploadCount, 1);
+  assert.equal(confirmCount, 1);
+  assert.equal(uploadedPath, 'converted.jpg');
+  assert.equal(batches.length, 1);
+  assert.equal(page.data.images.length, 0);
+});
+
+test('supported JPEG skips compatibility conversion before upload', async () => {
+  let compressed = 0;
+  const { read } = loadPage('albums', {}, {
+    getImageInfo: options => options.success({ type: 'jpeg', path: options.src, width: 100, height: 100 }),
+    compressImage: options => { compressed++; options.success({ tempFilePath: 'converted.jpg' }); },
+  });
+  const view = read(path.join(root, 'services/entry-view.js'));
+  const result = await view.normalizeLocalImage('photo.jpg');
+  assert.equal(result.path, 'photo.jpg');
+  assert.equal(result.converted, false);
+  assert.equal(compressed, 0);
 });
