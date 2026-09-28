@@ -42,3 +42,34 @@ test('storage rules allow only authenticated staging writes and deny published w
   assert.equal(allow(rules.write,{openid:'A'},{openid:'A',path:'v2-published/photo'}),false);
   assert.equal(allow(rules.write,null,{openid:'A',path:'v2-upload/A/photo'}),false);
 });
+
+
+test('release database manifests deny all client reads and writes',()=>{
+  for (const file of ['config/database.v2.json','config/database.albums.json']) {
+    const schema=JSON.parse(fs.readFileSync(path.join(root,file),'utf8'));
+    for (const collection of schema.collections || []) {
+      assert.equal(collection.permissions.read,false,collection.name+' must deny client read');
+      assert.equal(collection.permissions.write,false,collection.name+' must deny client write');
+    }
+  }
+});
+
+test('mini-program client does not access CloudBase database directly',()=>{
+  function jsFiles(dir) {
+    if (!fs.existsSync(dir)) return [];
+    return fs.readdirSync(dir,{withFileTypes:true}).flatMap(entry=>{
+      const full=path.join(dir,entry.name);
+      return entry.isDirectory()?jsFiles(full):entry.name.endsWith('.js')?[full]:[];
+    });
+  }
+  const files=[
+    path.join(root,'app.js'),
+    ...jsFiles(path.join(root,'pages')),
+    ...jsFiles(path.join(root,'services')),
+    ...jsFiles(path.join(root,'helpers')),
+  ].filter(fs.existsSync);
+  for (const file of files) {
+    const source=fs.readFileSync(file,'utf8');
+    assert.equal(/wx\s*\.\s*cloud\s*\.\s*database\s*\(/.test(source),false,path.relative(root,file)+' must not call wx.cloud.database()');
+  }
+});
