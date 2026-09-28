@@ -247,7 +247,7 @@ test('profile mood text uses profile safety scene', async () => {
     return { result: { suggest: 'pass', label: 100 } };
   });
 
-  await call('profile.update', 'A', { moodEmoji: '😊', moodText: '今天很开心' });
+  await call('profile.mood.update', 'A', { moodEmoji: '😊', moodText: '今天很开心' });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].scene, 1);
   assert.equal(calls[0].content, '今天很开心');
