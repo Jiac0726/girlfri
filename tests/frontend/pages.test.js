@@ -293,6 +293,64 @@ test('binding failure has a retry state; own invite replacement requires confirm
   await page.refresh();assert.equal(page.data.bindingStatus,'error');await page.refresh();
   page.setData({joinCode:'BCDEFGHJ'});await page.joinPair();assert.equal(joins,0);assert.equal(page.data.inviteCode,'ABCDEFGH');
 });
+test('binding success loads both real account avatars', async () => {
+  let pairReads = 0;
+  const { page } = loadPage('bind', {
+    getSession: async () => ({ bindingStatus: 'active', bound: true }),
+    getPairAccountAvatars: async () => {
+      pairReads++;
+      return {
+        me: { avatarUrl: 'https://signed.invalid/me.jpg', avatarVersion: 2 },
+        partner: { avatarUrl: 'https://signed.invalid/ta.jpg' },
+      };
+    },
+  });
+  await page.refresh();
+  assert.equal(pairReads, 1);
+  assert.equal(page.data.bindingStatus, 'active');
+  assert.equal(page.data.myAvatarUrl, 'https://signed.invalid/me.jpg');
+  assert.equal(page.data.partnerAvatarUrl, 'https://signed.invalid/ta.jpg');
+  assert.equal(page._avatarVersion, 2);
+});
+
+test('binding success can request and save my WeChat avatar inline', async () => {
+  let pairReads = 0;
+  const updates = [];
+  const { page, events } = loadPage('bind', {
+    getPairAccountAvatars: async () => {
+      pairReads++;
+      return pairReads === 1
+        ? { me: { avatarUrl: '', avatarVersion: 0 }, partner: { avatarUrl: 'https://signed.invalid/ta.jpg' } }
+        : { me: { avatarUrl: 'https://signed.invalid/me-new.jpg', avatarVersion: 1 }, partner: { avatarUrl: 'https://signed.invalid/ta.jpg' } };
+    },
+    prepareMedia: async () => ({ id: 'avatar-media', cloudPath: 'v2-upload/A/avatar' }),
+    confirmMedia: async data => ({ id: data.id, url: 'https://signed.invalid/staged.jpg' }),
+    updateAccountAvatar: async data => {
+      updates.push(data);
+      return { avatarMediaId: data.mediaId, avatarUrl: 'https://signed.invalid/me-new.jpg', avatarVersion: 1 };
+    },
+  }, {
+    getImageInfo: options => options.success({ type: 'jpeg', path: options.src, width: 100, height: 100 }),
+    getFileSystemManager: () => ({
+      stat: options => options.success({ stats: { size: 2048 } }),
+    }),
+    cloud: {
+      uploadFile: async options => ({ fileID: 'cloud://mock-env.bucket/' + options.cloudPath }),
+    },
+  });
+
+  page.setData({ bindingStatus: 'active', loading: false });
+  await page.loadPairAvatars();
+  await page.onChooseAvatar({ detail: { avatarUrl: 'wxfile://wechat-avatar.jpg' } });
+
+  assert.equal(updates.length, 1);
+  assert.equal(updates[0].mediaId, 'avatar-media');
+  assert.equal(updates[0].expectedVersion, 0);
+  assert.equal(page.data.myAvatarUrl, 'https://signed.invalid/me-new.jpg');
+  assert.equal(page.data.partnerAvatarUrl, 'https://signed.invalid/ta.jpg');
+  assert.equal(events.find(x => x.method === 'showToast').value.title, '头像已更新');
+});
+
 test('profile private memo creates an item with attached image ids',async()=>{
   const writes=[];
   const saved={id:'memo1',title:'礼物',text:'下次见面记得带礼物',images:[{id:'photo',url:'signed'}],version:1,updatedAt:'2026-09-26T06:00:00Z'};
