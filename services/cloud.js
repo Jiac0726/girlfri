@@ -106,6 +106,7 @@ module.exports = {
   revokeCoupon: (data) => call('coupon.revoke', data),
   getCouponHistory: (query) => call('coupon.history', query),
   getAccountProfile: () => call('account.get'),
+  getPairAccountAvatars: () => call('account.pair'),
   updateAccountAvatar: (data) => call('account.avatar.update', data),
   getProfile: () => call('profile.get'),
   listPrivateMemos: () => call('memo.list'),
