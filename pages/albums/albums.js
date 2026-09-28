@@ -110,6 +110,14 @@ Page({
           }
           this.updateImage(i, item);
         }
+        if (item.prepared && !item.prepared.reviewCloudPath) {
+          delete item.prepared;
+          delete item.stagingFileID;
+          delete item.fileID;
+          delete item.reviewFileID;
+          item.requestId = api.newRequestId();
+          this.updateImage(i, item);
+        }
         if (!item.reviewLocalPath && item.localPath) {
           const review = await makeSafetyReviewImage(item.localPath);
           item.reviewLocalPath = review.path;
@@ -124,7 +132,7 @@ Page({
             const ready = await api.confirmMedia({ id: item.prepared.id, fileID: item.fileID, reviewFileID: item.reviewFileID });
             item.id = ready.id; this.updateImage(i, item);
           } catch (error) {
-            const staleUpload = ['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE'].includes(error.code);
+            const staleUpload = ['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'CONTENT_IMAGE_REVIEW_REQUIRED'].includes(error.code);
             if (staleUpload && !item.staleRetried) {
               item.staleRetried = true;
               delete item.prepared; delete item.fileID; delete item.reviewFileID; item.requestId = api.newRequestId(); this.updateImage(i, item);
