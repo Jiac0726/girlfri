@@ -498,7 +498,7 @@ test('settings WeChat avatar chooser uploads and persists the selected avatar', 
   const updates = [];
   let uploadedPath = '', reviewUploadedPath = '';
   const { page, events } = loadPage('settings', {
-    prepareMedia: async data => ({ id: 'avatar-media', cloudPath: 'v2-upload/A/avatar', declaredSize: data.size }),
+    prepareMedia: async data => ({ id: 'avatar-media', cloudPath: 'v2-upload/A/avatar', reviewCloudPath: 'v2-review/A/avatar', declaredSize: data.size }),
     confirmMedia: async data => ({ id: data.id, url: 'https://signed.invalid/avatar' }),
     updateAccountAvatar: async data => {
       updates.push(data);
@@ -638,8 +638,8 @@ test('album stale media confirmation automatically reprovisions and retries once
   await page.refresh();
   page.setData({ images: [{
     localPath: 'tmp.jpg', url: 'tmp.jpg', size: 1024,
-    requestId: 'old-request', prepared: { id: 'stale-media', cloudPath: 'stale/path' },
-    fileID: 'cloud://mock/stale'
+    requestId: 'old-request', prepared: { id: 'stale-media', cloudPath: 'stale/path', reviewCloudPath: 'stale/review' },
+    fileID: 'cloud://mock/stale', reviewFileID: 'cloud://mock/stale-review'
   }] });
   await page.uploadPhotos();
   assert.equal(prepareCount, 1);
