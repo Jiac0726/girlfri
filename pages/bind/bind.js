@@ -1,4 +1,5 @@
 const api = require('../../services/cloud');
+const { uploadAccountAvatar } = require('../../services/avatar-upload');
 
 function normalizeInviteCode(value) {
   return String(value || '').toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 8);
@@ -12,7 +13,22 @@ function formatExpire(value) {
 }
 
 Page({
-  data: { statusBarHeight: 24, loading: true, bindingStatus: 'loading', errorMessage: '', inviteCode: '', inviteExpiresText: '', joinCode: '', isCreator: false, openedFromInvite: false, manualJoin: false },
+  data: {
+    statusBarHeight: 24,
+    loading: true,
+    bindingStatus: 'loading',
+    errorMessage: '',
+    inviteCode: '',
+    inviteExpiresText: '',
+    joinCode: '',
+    isCreator: false,
+    openedFromInvite: false,
+    manualJoin: false,
+    myAvatarUrl: '',
+    partnerAvatarUrl: '',
+    avatarLoading: false,
+    avatarSaving: false,
+  },
   onLoad(options) {
     if (typeof wx.getWindowInfo === 'function') this.setData({ statusBarHeight: wx.getWindowInfo().statusBarHeight || 24 });
     const code = normalizeInviteCode(options && options.inviteCode);
@@ -31,13 +47,56 @@ Page({
   async refresh(showToast) {
     const request = this._sessionRequest = (this._sessionRequest || 0) + 1;
     this.setData({ loading: true, errorMessage: '' });
-    try { const session = await api.getSession(); if (request !== this._sessionRequest) return; this.applySession(session); if (showToast) wx.showToast({ title: '状态已刷新', icon: 'none' }); }
-    catch (e) { if (request === this._sessionRequest) this.setData({ bindingStatus: 'error', errorMessage: '暂时无法获取绑定状态，请检查网络后重试。' }); }
-    finally { if (request === this._sessionRequest) this.setData({ loading: false }); }
+    try {
+      const session = await api.getSession();
+      if (request !== this._sessionRequest) return;
+      this.applySession(session);
+      if (session.bindingStatus === 'active' || session.bound) await this.loadPairAvatars();
+      if (showToast) wx.showToast({ title: '状态已刷新', icon: 'none' });
+    } catch (e) {
+      if (request === this._sessionRequest) this.setData({ bindingStatus: 'error', errorMessage: '暂时无法获取绑定状态，请检查网络后重试。' });
+    } finally {
+      if (request === this._sessionRequest) this.setData({ loading: false });
+    }
   },
   applySession(session) {
     const status = session.bindingStatus || (session.bound ? 'active' : 'unbound');
-    this.setData({ bindingStatus: status, inviteCode: session.inviteCode || '', inviteExpired: !!session.inviteExpired, inviteExpiresText: formatExpire(session.inviteExpiresAt), isCreator: !!session.isCreator });
+    const update = { bindingStatus: status, inviteCode: session.inviteCode || '', inviteExpired: !!session.inviteExpired, inviteExpiresText: formatExpire(session.inviteExpiresAt), isCreator: !!session.isCreator };
+    if (status !== 'active') Object.assign(update, { myAvatarUrl: '', partnerAvatarUrl: '' });
+    this.setData(update);
+  },
+  async loadPairAvatars() {
+    if (this.data.bindingStatus !== 'active' || this.data.avatarLoading) return;
+    this.setData({ avatarLoading: true });
+    try {
+      const data = await api.getPairAccountAvatars();
+      this._avatarVersion = Number(data && data.me && data.me.avatarVersion) || 0;
+      this.setData({
+        myAvatarUrl: data && data.me && data.me.avatarUrl || '',
+        partnerAvatarUrl: data && data.partner && data.partner.avatarUrl || '',
+      });
+    } catch (_) {
+      // Binding success must remain usable even if avatar signing is temporarily unavailable.
+    } finally {
+      this.setData({ avatarLoading: false });
+    }
+  },
+  async onChooseAvatar(e) {
+    if (this.data.bindingStatus !== 'active' || this.data.avatarSaving || this.data.loading) return;
+    const avatarUrl = e && e.detail && e.detail.avatarUrl;
+    if (!avatarUrl) return;
+    this.setData({ avatarSaving: true });
+    try {
+      const account = await uploadAccountAvatar(api, avatarUrl, this._avatarVersion || 0);
+      this._avatarVersion = Number(account && account.avatarVersion) || this._avatarVersion || 0;
+      this.setData({ myAvatarUrl: account && account.avatarUrl || this.data.myAvatarUrl });
+      await this.loadPairAvatars();
+      wx.showToast({ title: '头像已更新', icon: 'success' });
+    } catch (error) {
+      wx.showToast({ title: error.message || '头像更新失败，请重试', icon: 'none' });
+    } finally {
+      this.setData({ avatarSaving: false });
+    }
   },
   showManualJoin() { this.setData({ manualJoin: true }); },
   onJoinInput(e) { this.setData({ joinCode: normalizeInviteCode(e.detail.value) }); },
@@ -60,8 +119,12 @@ Page({
       if (!confirmed) return;
     }
     this.setData({ loading: true }); wx.showLoading({ title: '绑定中', mask: true });
-    try { const session = await api.joinPair(code); this.applySession(session); wx.showToast({ title: '绑定成功 💕', icon: 'none' }); }
-    catch (e) { wx.showToast({ title: e.message || '绑定失败', icon: 'none' }); }
+    try {
+      const session = await api.joinPair(code);
+      this.applySession(session);
+      if (session.bindingStatus === 'active' || session.bound) await this.loadPairAvatars();
+      wx.showToast({ title: '绑定成功 💕', icon: 'none' });
+    } catch (e) { wx.showToast({ title: e.message || '绑定失败', icon: 'none' }); }
     finally { wx.hideLoading(); this.setData({ loading: false }); }
   },
   copyCode() { if (this.data.inviteCode && !this.data.inviteExpired) wx.setClipboardData({ data: this.data.inviteCode }); },
