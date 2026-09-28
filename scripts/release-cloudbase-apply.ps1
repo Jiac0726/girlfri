@@ -92,7 +92,7 @@ foreach ($collection in @("couple_users", "couples", "ratings")) {
         Set-DatabaseAclAdminOnly -EnvId $EnvId -Collection $collection
     } catch {
         $message = [string]$_.Exception.Message
-        if ($message -match "ResourceNotFound|NotFound|not exist|does not exist|不存在") {
+        if ($message -match "ResourceNotFound|NotFound|not exist|does not exist") {
             Write-Host ("  legacy collection absent, skipped: " + $collection)
         } else {
             throw

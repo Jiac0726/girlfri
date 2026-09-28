@@ -47,7 +47,9 @@ jobs:
             'database-preflight.ps1',
             'database-migrate.ps1',
             'v2-migrate-legacy.ps1',
-            'scripts/database-common.ps1'
+            'scripts/database-common.ps1',
+            'scripts/release-cloudbase-apply.ps1',
+            'scripts/release-cloudbase-audit.ps1'
           )
 
           foreach ($file in $files) {
@@ -139,6 +141,14 @@ jobs:
 
           Write-Host 'update-main.ps1 force-update smoke test passed.'
 
+
+      - name: Windows PowerShell 5.1 release script parse
+        shell: pwsh
+        run: |
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\powershell\release-parse-compat.ps1
+          if ($LASTEXITCODE -ne 0) {
+            throw "Windows PowerShell 5.1 release script parse test failed with exit code $LASTEXITCODE"
+          }
 
       - name: Windows PowerShell 5.1 preflight compatibility
         shell: pwsh
