@@ -113,14 +113,25 @@ test('home shows received miss count and sends a miss with a request id',async()
   const {page,events}=loadPage('index',{
     getSession:async()=>Object.assign({},session,{missCount:3}),
     getEntryMonth:async()=>({totalEntries:0,recordDays:0,sharedDays:0,days:[]}),
-    sendMiss:async data=>{sent.push(data);return {sent:true,partnerCount:1};},
+    sendMiss:async data=>{sent.push(data);return {sent:true,partnerCount:1,notified:false,delivery:'immediate'};},
   });
   await page.refresh();
   assert.equal(page.data.missCount,3);
   await page.sendMiss();
   assert.equal(sent.length,1);
   assert.match(sent[0].requestId,/^request_/);
-  assert.equal(events.find(x=>x.method==='showToast').value.title,'想念送过去了 ♡');
+  assert.equal(events.find(x=>x.method==='showToast').value.title,'想念送达，未发送微信即时提醒');
+});
+
+test('home confirms immediate WeChat miss notification when delivered',async()=>{
+  const {page,events}=loadPage('index',{
+    getSession:async()=>Object.assign({},session,{missCount:0}),
+    getEntryMonth:async()=>({totalEntries:0,recordDays:0,sharedDays:0,days:[]}),
+    sendMiss:async()=>({sent:true,partnerCount:1,notified:true,delivery:'immediate'}),
+  });
+  await page.refresh();
+  await page.sendMiss();
+  assert.equal(events.find(x=>x.method==='showToast').value.title,'想念送达，已即时提醒 TA ♡');
 });
 
 test('expanded feed owns the full entry list',async()=>{
@@ -385,8 +396,8 @@ test('miss notification authorization stores one accepted one-time quota',async(
   assert.equal(writes.length,1);
   assert.match(writes[0].requestId,/^request_/);
   assert.equal(page.data.missNotifyQuota,1);
-  assert.equal(page.data.missNotifyStatusText,'已允许 1 次想念提醒');
-  assert.equal(events.find(x=>x.method==='showToast').value.title,'下一次想念会提醒你 ♡');
+  assert.equal(page.data.missNotifyStatusText,'已开启 1 次即时提醒');
+  assert.equal(events.find(x=>x.method==='showToast').value.title,'下一次想念将即时提醒 ♡');
 });
 
 test('miss subscription uses the server template and displays native error details without granting quota',async()=>{
