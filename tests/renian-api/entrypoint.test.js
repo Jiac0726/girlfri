@@ -32,12 +32,13 @@ test('scheduled workers refuse ordinary WeChat callers',async()=>{
     const result=await main({});assert.equal(runs,0);assert.equal(JSON.stringify(result).includes('SCHEDULED_ONLY'),true);
   }
 });
-test('storage rules permit only owner staging writes and deny published writes/direct reads',()=>{
+test('storage rules allow only authenticated staging writes and deny published writes/direct reads',()=>{
   const rules=JSON.parse(fs.readFileSync(path.join(root,'config/storage.rules.v2.json'),'utf8'));
   const allow=(expr,auth,resource)=>vm.runInNewContext(expr,{auth,resource});
   assert.equal(allow(rules.read,{openid:'A'},{openid:'A',path:'v2-upload/A/photo'}),false);
   assert.equal(allow(rules.write,{openid:'A'},{openid:'A',path:'v2-upload/A/photo'}),true);
-  assert.equal(allow(rules.write,{openid:'B'},{openid:'A',path:'v2-upload/A/photo'}),false);
+  assert.equal(allow(rules.write,{openid:'B'},{openid:'A',path:'v2-upload/A/photo'}),true);
+  assert.equal(allow(rules.write,{openid:'A'},{openid:'A',path:'v2-review/A/photo'}),true);
   assert.equal(allow(rules.write,{openid:'A'},{openid:'A',path:'v2-published/photo'}),false);
   assert.equal(allow(rules.write,null,{openid:'A',path:'v2-upload/A/photo'}),false);
 });
