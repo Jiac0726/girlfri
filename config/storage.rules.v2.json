@@ -1,4 +1,4 @@
 {
   "read": "false",
-  "write": "auth != null && auth.openid != null && /^v2-upload\\//.test(resource.path) && resource.openid == auth.openid"
+  "write": "auth != null && auth.openid != null && resource.openid == auth.openid && (/^v2-upload\\//.test(resource.path) || /^v2-review\\//.test(resource.path))"
 }
