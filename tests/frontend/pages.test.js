@@ -616,6 +616,39 @@ test('memo photo picker also accepts original photos above the old 5 MB limit', 
 });
 
 
+test('daily upload retries when prepare response is missing cloudPath', async () => {
+  let prepareCount = 0, uploads = 0;
+  const { page } = loadPage('entry', {
+    getSession: async () => session,
+    prepareMedia: async () => {
+      prepareCount++;
+      return prepareCount === 1
+        ? { id: 'legacy-media', reviewCloudPath: 'review/legacy' }
+        : { id: 'fresh-media', cloudPath: 'staging/fresh', reviewCloudPath: 'review/fresh' };
+    },
+    confirmMedia: async data => ({ id: data.id, url: 'signed' }),
+  }, {
+    cloud: {
+      uploadFile: async options => {
+        assert.equal(typeof options.cloudPath, 'string');
+        assert.ok(options.cloudPath.length > 0);
+        uploads++;
+        return { fileID: 'cloud://mock/' + options.cloudPath };
+      },
+    },
+  });
+  page._ready = true;
+  page._scope = 'pair';
+  page.setData({
+    loading: false,
+    images: [{ localPath: 'tmp.jpg', url: 'tmp.jpg', size: 1024, uploadRequestId: 'legacy-request' }],
+  });
+  await page.uploadImages();
+  assert.equal(prepareCount, 2);
+  assert.equal(uploads, 2);
+  assert.equal(page.data.images[0].id, 'fresh-media');
+});
+
 test('album stale media confirmation automatically reprovisions and retries once', async () => {
   let prepareCount = 0, uploadCount = 0, confirmCount = 0;
   const batches = [];
