@@ -77,6 +77,30 @@ Invoke-Tcb -TcbArgs @(
 )
 
 Write-Host ""
+Write-Host "---------------- APPLY DATABASE CLIENT ACL ----------------"
+
+$releaseCollections = @(Get-RenianReleaseDatabaseCollections)
+foreach ($collection in $releaseCollections) {
+    Write-Host ("  ADMINONLY: " + $collection)
+    Set-DatabaseAclAdminOnly -EnvId $EnvId -Collection $collection
+}
+
+foreach ($collection in @("couple_users", "couples", "ratings")) {
+    try {
+        $null = Get-DatabaseAclTag -EnvId $EnvId -Collection $collection
+        Write-Host ("  ADMINONLY legacy: " + $collection)
+        Set-DatabaseAclAdminOnly -EnvId $EnvId -Collection $collection
+    } catch {
+        $message = [string]$_.Exception.Message
+        if ($message -match "ResourceNotFound|NotFound|not exist|does not exist|不存在") {
+            Write-Host ("  legacy collection absent, skipped: " + $collection)
+        } else {
+            throw
+        }
+    }
+}
+
+Write-Host ""
 Write-Host "---------------- CREATE TIMER TRIGGERS ----------------"
 
 Invoke-Tcb -TcbArgs @(
