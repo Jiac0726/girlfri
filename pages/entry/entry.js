@@ -1,5 +1,6 @@
 const api = require('../../services/cloud');
 const view = require('../../services/entry-view');
+const { makeSafetyReviewImage } = require('../../services/media-review');
 const drafts = require('../../services/entry-drafts');
 
 function mediaError(stage, error) {
@@ -114,6 +115,16 @@ Page({
           throw mediaError('兼容原图格式', error);
         }
       }
+      if (!item.reviewLocalPath && item.localPath) {
+        try {
+          const review = await makeSafetyReviewImage(item.localPath);
+          item.reviewLocalPath = review.path;
+          item.reviewSize = review.size;
+          this.replaceImage(i, item);
+        } catch (error) {
+          throw mediaError('生成安全审核图', error);
+        }
+      }
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
           if (!item.prepared) {
@@ -125,14 +136,23 @@ Page({
             item.stagingFileID = uploaded.fileID;
             this.replaceImage(i, item);
           }
-          const confirmed = await api.confirmMedia({ id: item.prepared.id, fileID: item.stagingFileID });
+          if (!item.reviewFileID) {
+            const reviewed = await wx.cloud.uploadFile({ cloudPath: item.prepared.reviewCloudPath, filePath: item.reviewLocalPath });
+            item.reviewFileID = reviewed.fileID;
+            this.replaceImage(i, item);
+          }
+          const confirmed = await api.confirmMedia({
+            id: item.prepared.id,
+            fileID: item.stagingFileID,
+            reviewFileID: item.reviewFileID,
+          });
           this.replaceImage(i, confirmed);
           break;
         } catch (error) {
           const staleUpload = ['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE'].includes(error.code);
           if (staleUpload && !item.staleRetried) {
             item.staleRetried = true;
-            delete item.prepared; delete item.stagingFileID; item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
+            delete item.prepared; delete item.stagingFileID; delete item.reviewFileID; item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
             continue;
           }
           if (error.code === 'INVALID_MEDIA_TYPE' && !item.compatConverted && item.localPath) {
@@ -140,14 +160,18 @@ Page({
               item.localPath = await view.makeCompatibleImage(item.localPath);
               item.url = item.localPath;
               item.compatConverted = true;
-              delete item.prepared; delete item.stagingFileID; item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
+              delete item.prepared; delete item.stagingFileID; delete item.reviewFileID;
+              delete item.reviewLocalPath; delete item.reviewSize;
+              item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
+              const review = await makeSafetyReviewImage(item.localPath);
+              item.reviewLocalPath = review.path; item.reviewSize = review.size; this.replaceImage(i, item);
               continue;
             } catch (convertError) {
               throw mediaError('兼容原图格式', convertError);
             }
           }
           if (error.code === 'INVALID_MEDIA_SIZE') {
-            delete item.prepared; delete item.stagingFileID; item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
+            delete item.prepared; delete item.stagingFileID; delete item.reviewFileID; item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
           }
           throw mediaError(error.code && error.code.startsWith('MEDIA_') ? '服务端校验' : '上传图片', error);
         }
