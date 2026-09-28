@@ -101,8 +101,8 @@
     <view class="miss-setting">
       <view class="miss-setting-head">
         <view>
-          <view class="settings-row-title">想念提醒</view>
-          <view class="settings-row-sub">TA 点“想念”时，用微信服务通知提醒你。</view>
+          <view class="settings-row-title">想念即时提醒</view>
+          <view class="settings-row-sub">TA 点“想念”后，立即用微信服务通知你。</view>
         </view>
         <view class="miss-setting-badge">{{missNotifyQuota ? missNotifyQuota + ' 次' : '未授权'}}</view>
       </view>
@@ -119,11 +119,11 @@
         loading="{{missNotifySaving}}"
         disabled="{{missNotifySaving || loading || !missNotifyReady}}"
       >
-        {{missNotifyQuota ? '再允许一次提醒' : '允许下一次想念提醒'}}
+        {{missNotifyQuota ? '再允许一次即时提醒' : '允许下一次即时提醒'}}
       </button>
 
       <view class="miss-setting-note">
-        一次授权对应 1 次通知；收到一次想念提醒后，可回到这里再次允许。
+        TA 点击想念后立即发送；微信一次性订阅每次只授权 1 次，使用后可再次允许。
       </view>
     </view>
   </view>

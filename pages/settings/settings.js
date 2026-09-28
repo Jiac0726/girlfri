@@ -224,7 +224,7 @@ Page({
     this.setData({
       missNotifyReady: true,
       missNotifyQuota: quota,
-      missNotifyStatusText: quota ? '已允许 ' + quota + ' 次想念提醒' : '没有可用提醒次数',
+      missNotifyStatusText: quota ? '已开启 ' + quota + ' 次即时提醒' : '未开启即时提醒',
     });
   },
 
@@ -249,7 +249,7 @@ Page({
       stage = '保存提醒授权';
       const value = await api.authorizeMissNotify({ requestId: api.newRequestId() });
       this.applyMissNotify(value);
-      wx.showToast({ title: '下一次想念会提醒你 ♡', icon: 'none' });
+      wx.showToast({ title: '下一次想念将即时提醒 ♡', icon: 'none' });
     } catch (error) {
       const code = error && (error.errCode !== undefined ? error.errCode : error.code);
       const detail = String((error && (error.errMsg || error.message)) || error || '未知错误');

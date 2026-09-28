@@ -200,11 +200,15 @@ test('miss notification requires recipient authorization and consumes one quota'
   await pair();
   const settings = await call('miss.notify.authorize','B',{requestId:'miss_auth_request'});
   assert.equal(settings.quota,1);
-  assert.equal((await call('miss.notify.get','B')).enabled,true);
+  assert.equal(settings.delivery,'immediate');
+  const missSettings = await call('miss.notify.get','B');
+  assert.equal(missSettings.enabled,true);
+  assert.equal(missSettings.delivery,'immediate');
 
   const result = await call('miss.send','A',{requestId:'miss_notify_request'});
   assert.equal(result.partnerCount,1);
   assert.equal(result.notified,true);
+  assert.equal(result.delivery,'immediate');
   assert.equal(cloud.__subscribeMessages.length,1);
   const message = cloud.__subscribeMessages[0];
   assert.equal(message.touser,'B');

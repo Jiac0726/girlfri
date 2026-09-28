@@ -120,7 +120,12 @@ Page({
     try {
       const result = await api.sendMiss(payload);
       this._missPending = null;
-      wx.showToast({ title: result && result.notified ? '想念送达，也提醒 TA 了 ♡' : '想念送过去了 ♡', icon: 'none' });
+      wx.showToast({
+        title: result && result.notified
+          ? '想念送达，已即时提醒 TA ♡'
+          : '想念送达，未发送微信即时提醒',
+        icon: 'none',
+      });
     } catch (error) {
       if (!view.isUncertain(error)) this._missPending = null;
       wx.showToast({ title: error.message || '这次想念没送出去', icon: 'none' });
