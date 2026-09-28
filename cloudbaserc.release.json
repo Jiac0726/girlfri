@@ -1,0 +1,47 @@
+{
+  "$schema": "https://static.cloudbase.net/cli/cloudbaserc.schema.json",
+  "functionRoot": "cloudfunctions",
+  "functions": [
+    {
+      "name": "renianApi",
+      "type": "Event",
+      "runtime": "Nodejs16.13",
+      "handler": "index.main",
+      "timeout": 60,
+      "memorySize": 512,
+      "installDependency": true
+    },
+    {
+      "name": "dailyReminder",
+      "type": "Event",
+      "runtime": "Nodejs16.13",
+      "handler": "index.main",
+      "timeout": 60,
+      "memorySize": 256,
+      "installDependency": true,
+      "triggers": [
+        {
+          "name": "dailyRatingReminderTimer",
+          "type": "timer",
+          "config": "0 */5 * * * * *"
+        }
+      ]
+    },
+    {
+      "name": "mediaCleanup",
+      "type": "Event",
+      "runtime": "Nodejs16.13",
+      "handler": "index.main",
+      "timeout": 60,
+      "memorySize": 256,
+      "installDependency": true,
+      "triggers": [
+        {
+          "name": "abandonedMediaCleanup",
+          "type": "timer",
+          "config": "0 17 * * * * *"
+        }
+      ]
+    }
+  ]
+}
