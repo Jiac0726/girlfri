@@ -193,3 +193,62 @@ test('paired avatar view returns only the two active members', async () => {
   assert.match(fromB.me.avatarUrl, /avatarB/);
   assert.match(fromB.partner.avatarUrl, /avatarA/);
 });
+
+
+test('shared text safety rejects risky content before persistence', async () => {
+  await pair();
+  const calls = [];
+  cloud.__setMsgSecCheck(async input => {
+    calls.push(input);
+    return input.content.includes('blocked')
+      ? { result: { suggest: 'risky', label: 100 } }
+      : { result: { suggest: 'pass', label: 100 } };
+  });
+
+  await assert.rejects(
+    call('entry.create', 'A', { text: 'blocked', mood: '', ratingType: '', images: [] }),
+    error => error.code === 'CONTENT_RISKY'
+  );
+  assert.equal(cloud.__colStore('v2_entries').size, 0);
+
+  await assert.rejects(
+    call('album.create', 'A', { title: 'blocked' }),
+    error => error.code === 'CONTENT_RISKY'
+  );
+  assert.equal([...cloud.__colStore('v2_albums').values()].filter(x => !x.system).length, 0);
+
+  const safe = await call('entry.create', 'A', { text: '今天很好', mood: '', ratingType: '', images: [] });
+  assert.equal(safe.text, '今天很好');
+  assert.ok(calls.some(item => item.scene === 4 && item.openid === 'A'));
+});
+
+test('shared text safety fails closed when WeChat security API is unavailable', async () => {
+  await pair();
+  cloud.__setMsgSecCheck(async () => { throw new Error('security service offline'); });
+
+  await assert.rejects(
+    call('agreement.propose', 'A', { title: '散步', content: '周末一起去公园' }),
+    error => error.code === 'CONTENT_CHECK_FAILED'
+  );
+  assert.equal(cloud.__colStore('v2_agreements').size, 0);
+
+  await assert.rejects(
+    call('coupon.gift', 'A', { title: '晚餐券', note: '一起吃饭' }),
+    error => error.code === 'CONTENT_CHECK_FAILED'
+  );
+  assert.equal(cloud.__colStore('v2_coupons').size, 0);
+});
+
+test('profile mood text uses profile safety scene', async () => {
+  await pair();
+  const calls = [];
+  cloud.__setMsgSecCheck(async input => {
+    calls.push(input);
+    return { result: { suggest: 'pass', label: 100 } };
+  });
+
+  await call('profile.update', 'A', { moodEmoji: '😊', moodText: '今天很开心' });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].scene, 1);
+  assert.equal(calls[0].content, '今天很开心');
+});
