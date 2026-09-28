@@ -21,7 +21,7 @@ function cleanReminder(user) {
 }
 function cleanMissNotify(user) {
   const quota = Math.max(0, Number(user && user.missNotifyQuota) || 0);
-  return { templateId: MISS_TEMPLATE_ID, quota, enabled: quota > 0, needsRenewal: quota <= 0 };
+  return { templateId: MISS_TEMPLATE_ID, quota, enabled: quota > 0, needsRenewal: quota <= 0, delivery: 'immediate' };
 }
 function chinaTime(value = new Date()) {
   const s = new Date(value.getTime() + 8 * 3600000).toISOString();
@@ -575,7 +575,7 @@ function createV2Api(cloud, options = {}) {
         changed.missNotifyClaimedAt = now;
       }
       await put(tx, 'users', otherOpenid, changed);
-      return { sent: true, partnerCount, sentAt: iso(now), notifyReserved };
+      return { sent: true, partnerCount, sentAt: iso(now), notifyReserved, delivery: 'immediate' };
     });
 
     if (!result.notifyReserved) return Object.assign({}, result, { notified: false });
