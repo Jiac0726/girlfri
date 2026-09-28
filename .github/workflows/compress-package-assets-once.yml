@@ -1,0 +1,98 @@
+name: Compress package images once
+
+on:
+  push:
+    branches:
+      - fix/restore-compress-assets-2026-09-28
+
+permissions:
+  contents: write
+
+jobs:
+  compress:
+    if: "!contains(github.event.head_commit.message, '[asset-compress]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/restore-compress-assets-2026-09-28
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --disable-pip-version-check pillow
+      - name: Compress JPEG package assets below 200 KB
+        shell: python
+        run: |
+          from PIL import Image
+          from pathlib import Path
+          import os
+
+          targets = [
+              Path("assets/bind-couple.jpg"),
+              Path("assets/bind-couple-portrait.jpg"),
+              Path("assets/hero-sunset.jpg"),
+          ]
+          limit = 195 * 1024
+          for path in targets:
+              before = path.stat().st_size
+              if before <= limit:
+                  print(f"{path}: already {before} bytes")
+                  continue
+              image = Image.open(path).convert("RGB")
+              best = None
+              for quality in range(88, 39, -4):
+                  tmp = path.with_suffix(".tmp.jpg")
+                  image.save(tmp, "JPEG", quality=quality, optimize=True, progressive=True, subsampling="4:2:0")
+                  size = tmp.stat().st_size
+                  if size <= limit:
+                      best = (tmp.read_bytes(), quality, size)
+                      tmp.unlink()
+                      break
+                  tmp.unlink()
+              if best is None:
+                  # Last-resort modest downscale while preserving aspect ratio.
+                  resized = image.copy()
+                  for scale in (0.95, 0.90, 0.85, 0.80):
+                      resized = image.resize(
+                          (max(1, int(image.width * scale)), max(1, int(image.height * scale))),
+                          Image.Resampling.LANCZOS,
+                      )
+                      tmp = path.with_suffix(".tmp.jpg")
+                      resized.save(tmp, "JPEG", quality=72, optimize=True, progressive=True, subsampling="4:2:0")
+                      size = tmp.stat().st_size
+                      if size <= limit:
+                          best = (tmp.read_bytes(), 72, size)
+                          tmp.unlink()
+                          break
+                      tmp.unlink()
+              if best is None:
+                  raise SystemExit(f"Could not compress {path} below {limit} bytes")
+              path.write_bytes(best[0])
+              print(f"{path}: {before} -> {best[2]} bytes, quality={best[1]}")
+      - name: Verify package media limit
+        shell: python
+        run: |
+          from pathlib import Path
+          exts={".png",".jpg",".jpeg",".gif",".webp",".mp3",".wav",".m4a",".aac",".ogg"}
+          bad=[]
+          for p in Path(".").rglob("*"):
+              if not p.is_file() or p.suffix.lower() not in exts:
+                  continue
+              if any(part in {"docs",".git","node_modules"} for part in p.parts):
+                  continue
+              if p.stat().st_size > 200*1024:
+                  bad.append((str(p),p.stat().st_size))
+          if bad:
+              raise SystemExit("Oversized package media: "+repr(bad))
+          print("All package media are <= 200 KB")
+      - name: Commit compressed assets
+        run: |
+          if git diff --quiet -- assets; then
+            echo "No asset changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets
+          git commit -m "chore: compress required package images [asset-compress]"
+          git push
