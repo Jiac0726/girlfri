@@ -542,7 +542,7 @@ function createV2Api(cloud, options = {}) {
   async function missNotifyAuthorize(event, openid) {
     return mutate('miss.notify.authorize', event, openid, async (tx, member) => {
       const now = new Date();
-      const quota = Math.min(20, Math.max(0, Number(member.user.missNotifyQuota) || 0) + 1);
+      const quota = Math.max(0, Number(member.user.missNotifyQuota) || 0) + 1;
       const user = Object.assign({}, member.user, {
         missNotifyQuota: quota,
         missNotifyLastAuthorizedAt: now,
