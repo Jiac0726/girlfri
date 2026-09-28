@@ -119,3 +119,48 @@ test('cleanup keeps unknown file identity retryable when storage metadata is una
   await createMediaCleanup(cloud,undefined,{getUploadMetadata:async()=>{throw new Error('temporary outage');}}).run();
   assert.equal(cloud.__colStore('v2_media').get('old').status,'cleanup_claimed');
 });
+
+
+test('account avatar attaches securely and replaces the previous avatar', async () => {
+  const p = await pair();
+  const media = cloud.__colStore('v2_media');
+  const readyAvatar = id => media.set(id, {
+    coupleId: p.coupleId,
+    ownerOpenid: 'A',
+    status: 'ready',
+    entryId: '',
+    expiresAt: new Date(Date.now() + 3600000),
+    fileID: 'cloud://mock-env.bucket/v2-published/' + id + '.png',
+  });
+
+  readyAvatar('avatar1');
+  const first = await call('account.avatar.update', 'A', { mediaId: 'avatar1', expectedVersion: 0 });
+  assert.equal(first.avatarMediaId, 'avatar1');
+  assert.equal(first.avatarVersion, 1);
+  assert.ok(first.avatarUrl);
+
+  const firstDoc = media.get('avatar1');
+  assert.equal(firstDoc.status, 'attached');
+  assert.equal(firstDoc.attachmentType, 'profile_avatar');
+  assert.equal(firstDoc.entryId, 'A');
+  assert.equal(cloud.__colStore('v2_users').get('A').avatarMediaId, 'avatar1');
+
+  const read = await call('account.get', 'A');
+  assert.equal(read.avatarMediaId, 'avatar1');
+  assert.equal(read.avatarVersion, 1);
+  assert.ok(read.avatarUrl);
+
+  await assert.rejects(call('media.urls', 'B', { ids: ['avatar1'] }), error => error.code === 'FORBIDDEN');
+
+  readyAvatar('avatar2');
+  const second = await call('account.avatar.update', 'A', { mediaId: 'avatar2', expectedVersion: 1 });
+  assert.equal(second.avatarMediaId, 'avatar2');
+  assert.equal(second.avatarVersion, 2);
+  assert.equal(media.get('avatar1').status, 'cleanup_pending');
+  assert.equal(media.get('avatar2').status, 'attached');
+
+  await assert.rejects(
+    call('account.avatar.update', 'A', { mediaId: 'avatar2', expectedVersion: 0 }),
+    error => error.code === 'VERSION_CONFLICT'
+  );
+});
