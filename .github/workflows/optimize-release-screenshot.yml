@@ -1,0 +1,95 @@
+name: Optimize release screenshot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/optimize-release-screenshot.yml"
+      - "docs/release-2026-09-27/welcome.png"
+
+permissions:
+  contents: write
+
+jobs:
+  optimize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Compress PNG below 200 KiB
+        run: |
+          python -m pip install --quiet pillow
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+
+          path = Path("docs/release-2026-09-27/welcome.png")
+          limit = 190 * 1024
+          original_size = path.stat().st_size
+          if original_size <= limit:
+              print(f"Already small enough: {original_size} bytes")
+              raise SystemExit(0)
+
+          im = Image.open(path).convert("RGB")
+          best = None
+
+          # Preserve dimensions first; screenshots compress very well as indexed PNG.
+          for colors in (256, 192, 128, 96, 64, 48, 32):
+              q = im.quantize(colors=colors, method=Image.Quantize.MEDIANCUT)
+              tmp = path.with_suffix(".optimized.png")
+              q.save(tmp, format="PNG", optimize=True, compress_level=9)
+              size = tmp.stat().st_size
+              print(f"colors={colors}, size={size}")
+              if best is None or size < best[0]:
+                  best = (size, tmp.read_bytes())
+              if size <= limit:
+                  path.write_bytes(tmp.read_bytes())
+                  tmp.unlink(missing_ok=True)
+                  break
+              tmp.unlink(missing_ok=True)
+          else:
+              # Last resort: slight proportional downscale, then indexed PNG.
+              work = im
+              for scale in (0.9, 0.8, 0.7, 0.6):
+                  w = max(1, round(im.width * scale))
+                  h = max(1, round(im.height * scale))
+                  work = im.resize((w, h), Image.Resampling.LANCZOS)
+                  q = work.quantize(colors=96, method=Image.Quantize.MEDIANCUT)
+                  tmp = path.with_suffix(".optimized.png")
+                  q.save(tmp, format="PNG", optimize=True, compress_level=9)
+                  size = tmp.stat().st_size
+                  print(f"scale={scale}, size={size}")
+                  if best is None or size < best[0]:
+                      best = (size, tmp.read_bytes())
+                  if size <= limit:
+                      path.write_bytes(tmp.read_bytes())
+                      tmp.unlink(missing_ok=True)
+                      break
+                  tmp.unlink(missing_ok=True)
+              else:
+                  path.write_bytes(best[1])
+
+          final_size = path.stat().st_size
+          print(f"{original_size} -> {final_size} bytes")
+          if final_size > 200 * 1024:
+              raise SystemExit(f"Compressed image still exceeds 200 KiB: {final_size}")
+          PY
+
+      - name: Commit optimized screenshot
+        run: |
+          if git diff --quiet -- docs/release-2026-09-27/welcome.png; then
+            echo "No image changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/release-2026-09-27/welcome.png
+          git commit -m "chore: compress release screenshot under 200KB"
+          git push
