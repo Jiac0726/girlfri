@@ -57,9 +57,27 @@ function createMedia(ctx, options = {}, security) {
       await put(tx, 'media', id, value);
       return value;
     });
-    const current = await get(db, 'media', doc._id);
+    let current = await get(db, 'media', doc._id);
     assert(current && ['prepared', 'confirming', 'ready', 'attached'].includes(current.status), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
     if (current.status !== 'attached') assert(new Date(current.expiresAt).getTime() > Date.now(), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
+
+    if (!current.cloudPath) {
+      let recoveredCloudPath = '';
+      if (current.stagingFileID) {
+        const match = /^cloud:\/\/[^/]+\/(.+)$/.exec(String(current.stagingFileID));
+        if (match && match[1].startsWith('v2-upload/' + openid + '/')) recoveredCloudPath = match[1];
+      }
+      if (!recoveredCloudPath) recoveredCloudPath = 'v2-upload/' + openid + '/' + randomId('upload');
+      current = await transaction(async tx => {
+        const row = await get(tx, 'media', doc._id);
+        assert(row && ['prepared', 'confirming', 'ready', 'attached'].includes(row.status), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
+        if (row.cloudPath) return row;
+        const changed = Object.assign({}, row, { cloudPath: recoveredCloudPath, updatedAt: new Date() });
+        await put(tx, 'media', doc._id, changed);
+        return changed;
+      });
+    }
+
     if (!current.stagingFileID) {
       assert(typeof options.getUploadMetadata === 'function', 'MEDIA_ENV_UNAVAILABLE', '图片服务暂时不可用');
       let latest = current;
@@ -92,9 +110,9 @@ function createMedia(ctx, options = {}, security) {
         try {
           // Reuse the database's initialized Node SDK. Register identity before the
           // client can upload so an interrupted upload remains discoverable by cleanup.
-          const metadata = await options.getUploadMetadata({ cloudPath: doc.cloudPath });
+          const metadata = await options.getUploadMetadata({ cloudPath: claimed.cloudPath });
           const fileID = metadata && metadata.data && metadata.data.fileId;
-          parsedFile(fileID, doc.cloudPath);
+          parsedFile(fileID, claimed.cloudPath);
           latest = await transaction(async tx => {
             const row = await get(tx, 'media', doc._id);
             assert(row && row.stagingProvisionToken === provisionToken && row.status === 'prepared' &&
