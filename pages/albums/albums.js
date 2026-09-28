@@ -1,5 +1,6 @@
 const api = require('../../services/cloud');
 const { wxCall, isUncertain, makeCompatibleImage, normalizeLocalImage } = require('../../services/entry-view');
+const { makeSafetyReviewImage } = require('../../services/media-review');
 
 Page({
   data: { loading: true, busy: false, active: false, error: '', moreError: '', title: '', album: null,
@@ -109,28 +110,39 @@ Page({
           }
           this.updateImage(i, item);
         }
+        if (!item.reviewLocalPath && item.localPath) {
+          const review = await makeSafetyReviewImage(item.localPath);
+          item.reviewLocalPath = review.path;
+          item.reviewSize = review.size;
+          this.updateImage(i, item);
+        }
         for (let attempt = 0; attempt < 3 && !item.id; attempt++) {
           try {
             if (!item.prepared) { item.prepared = await api.prepareMedia({ requestId: item.requestId, name: 'album-photo', size: item.size }); this.updateImage(i, item); }
             if (!item.fileID) { item.fileID = (await wx.cloud.uploadFile({ cloudPath: item.prepared.cloudPath, filePath: item.localPath })).fileID; this.updateImage(i, item); }
-            const ready = await api.confirmMedia({ id: item.prepared.id, fileID: item.fileID });
+            if (!item.reviewFileID) { item.reviewFileID = (await wx.cloud.uploadFile({ cloudPath: item.prepared.reviewCloudPath, filePath: item.reviewLocalPath })).fileID; this.updateImage(i, item); }
+            const ready = await api.confirmMedia({ id: item.prepared.id, fileID: item.fileID, reviewFileID: item.reviewFileID });
             item.id = ready.id; this.updateImage(i, item);
           } catch (error) {
             const staleUpload = ['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE'].includes(error.code);
             if (staleUpload && !item.staleRetried) {
               item.staleRetried = true;
-              delete item.prepared; delete item.fileID; item.requestId = api.newRequestId(); this.updateImage(i, item);
+              delete item.prepared; delete item.fileID; delete item.reviewFileID; item.requestId = api.newRequestId(); this.updateImage(i, item);
               continue;
             }
             if (error.code === 'INVALID_MEDIA_TYPE' && !item.compatConverted && item.localPath) {
               item.localPath = await makeCompatibleImage(item.localPath);
               item.url = item.localPath;
               item.compatConverted = true;
-              delete item.prepared; delete item.fileID; item.requestId = api.newRequestId(); this.updateImage(i, item);
+              delete item.prepared; delete item.fileID; delete item.reviewFileID;
+              delete item.reviewLocalPath; delete item.reviewSize;
+              item.requestId = api.newRequestId(); this.updateImage(i, item);
+              const review = await makeSafetyReviewImage(item.localPath);
+              item.reviewLocalPath = review.path; item.reviewSize = review.size; this.updateImage(i, item);
               continue;
             }
             if (error.code === 'INVALID_MEDIA_SIZE') {
-              delete item.prepared; delete item.fileID; item.requestId = api.newRequestId(); this.updateImage(i, item);
+              delete item.prepared; delete item.fileID; delete item.reviewFileID; item.requestId = api.newRequestId(); this.updateImage(i, item);
             }
             throw error;
           }
