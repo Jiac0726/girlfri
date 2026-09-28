@@ -15,6 +15,15 @@ function readText(file) {
   return fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '');
 }
 
+// 容忍 JSONC：部分配置（如 server/container.config.json）含 // 注释，
+// 严格 JSON.parse 会直接抛。只删【行首】的 // 与成对的 /* */，
+// 因此字符串里的 https:// 不会被误伤。
+function parseJsonText(text) {
+  return JSON.parse(
+    String(text).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  );
+}
+
 function resolveLocalModule(fromFile, request) {
   if (!request || !request.startsWith('.')) return null;
   const base = path.resolve(path.dirname(fromFile), request);
@@ -116,12 +125,12 @@ walk(root, (file, item) => {
     new vm.Script(readText(file), { filename: file });
     js++;
   } else if (item.name.endsWith('.json')) {
-    JSON.parse(readText(file));
+    parseJsonText(readText(file));
     json++;
   }
 });
 
-const app = JSON.parse(readText(path.join(root, 'app.json')));
+const app = parseJsonText(readText(path.join(root, 'app.json')));
 for (const page of app.pages) {
   for (const ext of ['js', 'json', 'wxml', 'wxss']) {
     if (!fs.existsSync(path.join(root, page + '.' + ext))) {
