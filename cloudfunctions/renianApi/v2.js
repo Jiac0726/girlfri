@@ -422,6 +422,66 @@ function createV2Api(cloud, options = {}) {
     return result;
   }
 
+  async function accountGet(openid) {
+    const member = await membership(db, openid);
+    const avatar = await media.avatarImage(member.user.avatarMediaId || '', openid, member.pair._id, true);
+    return {
+      avatarMediaId: member.user.avatarMediaId || '',
+      avatarUrl: avatar.url || '',
+      avatarVersion: member.user.avatarVersion || 0,
+    };
+  }
+
+  async function accountPair(openid) {
+    const member = await membership(db, openid);
+    const partnerOpenid = partner(member.pair, openid);
+    const other = await get(db, 'users', partnerOpenid);
+    assert(other && other.coupleId === member.pair._id && other.status === 'active',
+      'PAIR_INVALID', '对方资料状态异常');
+    const [mine, theirs] = await Promise.all([
+      media.avatarImage(member.user.avatarMediaId || '', openid, member.pair._id, true),
+      media.avatarImage(other.avatarMediaId || '', partnerOpenid, member.pair._id, true),
+    ]);
+    return {
+      me: {
+        avatarUrl: mine.url || '',
+        avatarVersion: member.user.avatarVersion || 0,
+      },
+      partner: {
+        avatarUrl: theirs.url || '',
+      },
+    };
+  }
+
+  async function accountAvatarUpdate(event, openid) {
+    assert(typeof event.mediaId === 'string' && event.mediaId.length > 0 && event.mediaId.length <= 100,
+      'INVALID_MEDIA', '请选择有效头像');
+    const result = await mutate('account.avatar.update', event, openid, async (tx, member) => {
+      const currentVersion = member.user.avatarVersion || 0;
+      if (event.expectedVersion !== undefined) {
+        assert(event.expectedVersion === currentVersion, 'VERSION_CONFLICT', '头像已更新，请刷新后重试');
+      }
+      const beforeId = member.user.avatarMediaId || '';
+      await media.syncAvatar(tx, member, openid, beforeId, event.mediaId);
+      const now = new Date();
+      const user = Object.assign({}, member.user, {
+        avatarMediaId: event.mediaId,
+        avatarVersion: currentVersion + 1,
+        avatarUpdatedAt: now,
+        updatedAt: now,
+      });
+      await put(tx, 'users', openid, user);
+      return { avatarMediaId: event.mediaId, avatarVersion: user.avatarVersion };
+    });
+    const member = await membership(db, openid);
+    const avatar = await media.avatarImage(result.avatarMediaId, openid, member.pair._id, true);
+    return {
+      avatarMediaId: result.avatarMediaId,
+      avatarUrl: avatar.url || '',
+      avatarVersion: result.avatarVersion,
+    };
+  }
+
   async function profileGet(openid) {
     const member = await membership(db, openid);
     const other = await get(db, 'users', partner(member.pair, openid));
@@ -608,6 +668,9 @@ function createV2Api(cloud, options = {}) {
       case 'coupon.gift': return couponGift(event, openid);
       case 'coupon.request': case 'coupon.respond': case 'coupon.cancelRequest': case 'coupon.revoke': return couponChange(event.action, event, openid);
       case 'coupon.history': return couponHistory(event, openid);
+      case 'account.get': return accountGet(openid);
+      case 'account.pair': return accountPair(openid);
+      case 'account.avatar.update': return accountAvatarUpdate(event, openid);
       case 'profile.get': return profileGet(openid);
       case 'profile.memo.update': return privateMemoUpdate(event, openid);
       case 'memo.list': return memoList(openid);

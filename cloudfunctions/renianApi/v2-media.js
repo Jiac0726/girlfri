@@ -204,7 +204,9 @@ function createMedia(ctx, options = {}) {
     for (const id of [...new Set(event.ids)]) {
       const doc = await ownedDocument(db, 'media', id, member.pair._id);
       if (doc.status === 'attached') {
-        if (doc.attachmentType === 'private_memo') {
+        if (doc.attachmentType === 'profile_avatar') {
+          assert(doc.ownerOpenid === openid && doc.entryId === openid, 'FORBIDDEN', '这张头像只属于当前账号');
+        } else if (doc.attachmentType === 'private_memo') {
           assert(doc.ownerOpenid === openid, 'FORBIDDEN', '这张图片只属于你的私密备忘录');
           const memo = (member.user.privateMemoItems || []).find(item => item.id === doc.entryId);
           const legacyMemoId = 'memo_legacy_' + hash(openid).slice(0, 24);
@@ -280,6 +282,55 @@ function createMedia(ctx, options = {}) {
     }
   }
 
+  async function syncAvatar(tx, member, openid, beforeId, afterId) {
+    const before = String(beforeId || '');
+    const after = String(afterId || '');
+    if (after) {
+      const doc = await ownedDocument(tx, 'media', after, member.pair._id);
+      assert(doc.ownerOpenid === openid, 'FORBIDDEN', '只能使用自己上传的头像');
+      if (after === before) {
+        assert(doc.status === 'attached' && doc.attachmentType === 'profile_avatar' && doc.entryId === openid,
+          'MEDIA_UNAVAILABLE', '头像状态已改变，请重新选择');
+      } else {
+        assert(doc.status === 'ready' && !doc.entryId && new Date(doc.expiresAt).getTime() > Date.now(),
+          'MEDIA_UNAVAILABLE', '头像已使用或已过期，请重新选择');
+        await put(tx, 'media', after, Object.assign({}, doc, {
+          status: 'attached',
+          entryId: openid,
+          attachmentType: 'profile_avatar',
+          refCount: 1,
+          expiresAt: null,
+          updatedAt: new Date(),
+        }));
+      }
+    }
+    if (before && before !== after) {
+      const old = await ownedDocument(tx, 'media', before, member.pair._id);
+      assert(old.ownerOpenid === openid && old.status === 'attached' &&
+        old.attachmentType === 'profile_avatar' && old.entryId === openid,
+      'MEDIA_UNAVAILABLE', '原头像状态已改变，请刷新');
+      await put(tx, 'media', before, Object.assign({}, old, {
+        status: 'cleanup_pending',
+        refCount: 0,
+        cleanupAfter: new Date(),
+        updatedAt: new Date(),
+      }));
+    }
+  }
+
+  async function avatarImage(mediaId, openid, coupleId, tolerant = false) {
+    if (!mediaId) return { id: '', url: '' };
+    const doc = await get(db, 'media', mediaId);
+    const valid = doc && doc.coupleId === coupleId && doc.ownerOpenid === openid &&
+      doc.entryId === openid && doc.attachmentType === 'profile_avatar' && doc.status === 'attached';
+    if (!valid) {
+      if (!tolerant) fail('MEDIA_UNAVAILABLE', '头像暂时不可用');
+      return { id: mediaId, url: '' };
+    }
+    const result = await signed([doc], tolerant);
+    return { id: mediaId, url: result[0] && result[0].url || '' };
+  }
+
   async function privateMemoImages(item, openid, coupleId, tolerant = false) {
     if (!(item.images || []).length) return [];
     const docs = [];
@@ -326,7 +377,7 @@ function createMedia(ctx, options = {}) {
     }
     return signed(docs, true);
   }
-  return { prepare, confirm, urls, sync, syncPrivateMemo, privateMemoImages, entryImages, albumImages };
+  return { prepare, confirm, urls, sync, syncAvatar, avatarImage, syncPrivateMemo, privateMemoImages, entryImages, albumImages };
 }
 
 module.exports = { createMedia, imageExtension, MAX_BYTES };

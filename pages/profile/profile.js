@@ -1,8 +1,6 @@
 const api = require('../../services/cloud');
 const { MOODS, wxCall, isUncertain, makeCompatibleImage, normalizeLocalImage } = require('../../services/entry-view');
 const { dateLabel } = require('../../helpers/interactions');
-const TEMPLATE = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
-const TIMES = ['20:00','20:30','21:00','21:30','22:00','22:30'];
 function profile(x) { return Object.assign({ moodEmoji: '', moodText: '', hasMood: false }, x || {}, { moodUpdatedLabel: dateLabel(x && x.moodUpdatedAt) }); }
 function memoMediaError(stage, error) {
   const raw = String((error && (error.errMsg || error.message)) || error || '未知错误');
@@ -20,13 +18,12 @@ function memoMediaError(stage, error) {
 }
 Page({
   data: { moods: MOODS, authLoading: true, saving: false, bindingStatus: 'loading', moodEmoji: '', moodText: '', savedMoodEmoji: '', savedMoodText: '', myUpdatedLabel: '', partner: profile(), pendingAgreementCount: 0, pendingCouponCount: 0,
-    memoSaving: false, memoItems: [], memoTitle: '', memoText: '', memoImages: [], memoEditingId: '', memoUncertain: false, memoDeletingId: '',
-    reminderSaving: false, reminderEnabled: false, reminderReady: false, reminderTime: '21:30', reminderTimeOptions: TIMES, reminderTimeIndex: 3, reminderStatusText: '未开启提醒', error: '' },
+    memoSaving: false, memoItems: [], memoTitle: '', memoText: '', memoImages: [], memoEditingId: '', memoUncertain: false, memoDeletingId: '', error: '' },
   onShow() { this._disposed = false; this.loadProfile(); },
   onUnload() { this._disposed = true; this._loadToken = (this._loadToken || 0) + 1; },
   async onPullDownRefresh() { try { await this.loadProfile(); } finally { wx.stopPullDownRefresh(); } },
   async loadProfile() {
-    if (this.data.saving || this.data.memoSaving || this.data.reminderSaving) return;
+    if (this.data.saving || this.data.memoSaving) return;
     const token = this._loadToken = (this._loadToken || 0) + 1, revision = this._draftRevision || 0;
     this.setData({ authLoading: true, error: '' });
     try {
@@ -40,17 +37,13 @@ Page({
         this.setData({
           moodEmoji: '', moodText: '', savedMoodEmoji: '', savedMoodText: '',
           memoItems: [], memoTitle: '', memoText: '', memoImages: [], memoEditingId: '', memoUncertain: false, memoDeletingId: '',
-          partner: profile(), pendingAgreementCount: 0, pendingCouponCount: 0, reminderReady: false,
+          partner: profile(), pendingAgreementCount: 0, pendingCouponCount: 0,
         });
       }
       this.setData({ bindingStatus: session.bindingStatus });
-      if (session.bindingStatus !== 'active') {
-        this.setData({ reminderEnabled: false, reminderReady: false });
-        return;
-      }
-      const [data, reminder, memos] = await Promise.all([
+      if (session.bindingStatus !== 'active') return;
+      const [data, memos] = await Promise.all([
         api.getProfile(),
-        api.getReminderSettings(),
         api.listPrivateMemos(),
       ]);
       if (token !== this._loadToken) return;
@@ -70,17 +63,11 @@ Page({
       };
       if (!this._dirty && revision === (this._draftRevision || 0)) Object.assign(update, { moodEmoji: me.moodEmoji, moodText: me.moodText });
       this.setData(update);
-      this.applyReminder(reminder);
     } catch (error) {
       if (token !== this._loadToken) return;
-      this.setData({ error: error.message || '加载失败，请重试', reminderReady: false });
+      this.setData({ error: error.message || '加载失败，请重试' });
       if (api.isBindingError(error)) this.setData({ bindingStatus: 'unbound', partner: profile() });
     } finally { if (token === this._loadToken) this.setData({ authLoading: false }); }
-  },
-  applyReminder(value) {
-    this._reminderVersion = value.version;
-    this.setData({ reminderReady: true, reminderEnabled: !!value.enabled, reminderTime: value.time, reminderTimeIndex: TIMES.indexOf(value.time),
-      reminderStatusText: value.enabled ? '已授权：当天未分享，将在 ' + value.time + ' 提醒' : value.needsRenewal ? '本次授权已使用或失效，可再次开启' : '未开启提醒' });
   },
   goSettings() { wx.navigateTo({ url: '/pages/settings/settings' }); },
   goBind() { wx.navigateTo({ url: '/pages/bind/bind' }); },
@@ -322,29 +309,5 @@ Page({
       wx.showToast({ title: 'TA 已经可以看到啦', icon: 'none' });
     } catch (error) { wx.showToast({ title: error.message || '更新失败', icon: 'none' }); }
     finally { if (!this._disposed) this.setData({ saving: false }); }
-  },
-  async onReminderToggle(e) {
-    if (this.data.reminderSaving || this.data.authLoading || !this.data.reminderReady || this.data.bindingStatus !== 'active') return;
-    const enabled = !!e.detail.value; this.setData({ reminderSaving: true });
-    try {
-      if (enabled) {
-        const result = await wxCall('requestSubscribeMessage', { tmplIds: [TEMPLATE] });
-        if (result[TEMPLATE] !== 'accept') { this.setData({ reminderEnabled: false }); wx.showToast({ title: '允许订阅后才能开启提醒', icon: 'none' }); return; }
-      }
-      this.applyReminder(await api.updateReminderSettings(enabled, this.data.reminderTime, this._reminderVersion));
-    } catch (error) {
-      this.setData({ reminderReady: false, error: error.message || '设置未确认，请刷新后重试' });
-      try { this.applyReminder(await api.getReminderSettings()); } catch (_) {}
-    } finally { if (!this._disposed) this.setData({ reminderSaving: false }); }
-  },
-  async onReminderTimeChange(e) {
-    if (this.data.reminderSaving || this.data.authLoading || !this.data.reminderReady) return;
-    const time = TIMES[Number(e.detail.value)]; if (!time) return;
-    this.setData({ reminderSaving: true });
-    try { this.applyReminder(await api.updateReminderSettings(this.data.reminderEnabled, time, this._reminderVersion)); }
-    catch (error) {
-      this.setData({ reminderReady: false, error: error.message || '设置未确认，请刷新后重试' });
-      try { this.applyReminder(await api.getReminderSettings()); } catch (_) {}
-    } finally { if (!this._disposed) this.setData({ reminderSaving: false }); }
   },
 });

@@ -4,7 +4,7 @@
     <view class="settings-header-copy">
       <view class="settings-eyebrow">热念 · 个人</view>
       <view class="settings-title">个人设置</view>
-      <view class="settings-sub">管理提醒、微信权限与使用说明</view>
+      <view class="settings-sub">管理账户、提醒、微信权限与使用说明</view>
     </view>
   </view>
 
@@ -13,7 +13,91 @@
   </view>
 
   <view class="settings-card">
+    <view class="settings-section-title">账户设置</view>
+
+    <view class="settings-row" bindtap="goAccountBinding">
+      <view class="settings-row-icon">♡</view>
+      <view class="settings-row-copy">
+        <view class="settings-row-title">双人关系</view>
+        <view class="settings-row-sub">{{accountStatusText}}</view>
+      </view>
+      <view class="account-action">{{accountActionText}}</view>
+      <view class="settings-row-arrow">›</view>
+    </view>
+
+    <view class="settings-row account-avatar-row">
+      <button
+        class="account-avatar-button"
+        open-type="chooseAvatar"
+        bindchooseavatar="onChooseAvatar"
+        loading="{{avatarSaving}}"
+        disabled="{{avatarSaving || loading || bindingStatus !== 'active'}}"
+        aria-label="选择微信头像"
+      >
+        <image wx:if="{{avatarUrl}}" class="account-avatar-image" src="{{avatarUrl}}" mode="aspectFill" />
+        <view wx:else class="account-avatar-placeholder">♡</view>
+      </button>
+      <view class="settings-row-copy">
+        <view class="settings-row-title">微信头像</view>
+        <view class="settings-row-sub">
+          {{bindingStatus === 'active' ? '点击头像，由微信选择并授权热念使用。' : '完成双人绑定后可设置头像。'}}
+        </view>
+      </view>
+      <view class="account-action">{{avatarUrl ? '更换' : '设置'}}</view>
+    </view>
+
+    <view class="settings-row account-info-row">
+      <view class="settings-row-icon">微</view>
+      <view class="settings-row-copy">
+        <view class="settings-row-title">微信身份</view>
+        <view class="settings-row-sub">使用当前微信账号自动识别，无需单独登录。</view>
+      </view>
+      <view class="account-status-pill">当前账号</view>
+    </view>
+  </view>
+
+  <view class="settings-card">
     <view class="settings-section-title">提醒设置</view>
+    <view class="daily-reminder-setting" wx:if="{{bindingStatus === 'active'}}">
+      <view class="daily-reminder-head">
+        <view>
+          <view class="settings-row-title">每日分享提醒</view>
+          <view class="settings-row-sub">当天还没有分享时，在设定时间用微信服务通知提醒你。</view>
+        </view>
+        <switch
+          color="#ff6b81"
+          checked="{{reminderEnabled}}"
+          disabled="{{reminderSaving || loading || !reminderReady}}"
+          bindchange="onReminderToggle"
+        />
+      </view>
+
+      <view class="daily-reminder-time-row">
+        <view>
+          <view class="settings-row-title">提醒时间</view>
+          <view class="settings-row-sub">仅在当天还没有分享时提醒</view>
+        </view>
+        <picker
+          mode="selector"
+          range="{{reminderTimeOptions}}"
+          value="{{reminderTimeIndex}}"
+          disabled="{{reminderSaving || loading || !reminderReady}}"
+          bindchange="onReminderTimeChange"
+        >
+          <view class="daily-reminder-time">{{reminderTime}} ›</view>
+        </picker>
+      </view>
+
+      <view class="daily-reminder-status {{reminderEnabled ? 'active' : ''}}">
+        <text class="daily-reminder-dot"></text>
+        <text>{{reminderStatusText}}</text>
+      </view>
+
+      <view class="daily-reminder-note">
+        每日分享提醒使用一次性订阅。成功发送一次后，需要再次开启，微信才会允许下一次提醒。
+      </view>
+    </view>
+
     <view class="miss-setting">
       <view class="miss-setting-head">
         <view>

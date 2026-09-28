@@ -190,46 +190,6 @@
   </view>
 
 
-  <view class="card reminder-card" wx:if="{{bindingStatus === 'active'}}">
-    <view class="reminder-head">
-      <view>
-        <view class="card-title">每日分享提醒</view>
-        <view class="reminder-sub">到点仍未分享时，微信会发一条服务通知。</view>
-      </view>
-      <switch
-        color="#ff6b81"
-        checked="{{reminderEnabled}}"
-        disabled="{{reminderSaving || authLoading || !reminderReady}}"
-        bindchange="onReminderToggle"
-      />
-    </view>
-
-    <view class="reminder-row">
-      <view class="reminder-row-copy">
-        <view class="reminder-row-title">提醒时间</view>
-        <view class="reminder-row-sub">仅在当天还没有分享时提醒</view>
-      </view>
-      <picker
-        mode="selector"
-        range="{{reminderTimeOptions}}"
-        value="{{reminderTimeIndex}}"
-        disabled="{{reminderSaving || authLoading || !reminderReady}}"
-        bindchange="onReminderTimeChange"
-      >
-        <view class="reminder-time">{{reminderTime}} ›</view>
-      </picker>
-    </view>
-
-    <view class="reminder-status {{reminderEnabled ? 'on' : ''}}">
-      <text class="reminder-dot"></text>
-      <text>{{reminderStatusText}}</text>
-    </view>
-
-    <view class="reminder-note">
-      此模板是一次性订阅：每成功发送 1 次提醒后，需要再次点击开启，微信才会允许下一次提醒。
-    </view>
-  </view>
-
   <view class="partner-section" wx:if="{{bindingStatus === 'active'}}">
     <view class="section-heading">
       <view>

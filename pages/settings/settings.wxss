@@ -223,3 +223,143 @@ button.miss-setting-button[disabled] {
   font-size: 20rpx;
   line-height: 1.65;
 }
+
+
+.daily-reminder-setting {
+  padding: 16rpx 28rpx 26rpx;
+  border-bottom: 1rpx solid #f4e8ec;
+}
+
+.daily-reminder-head,
+.daily-reminder-time-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.daily-reminder-head > view:first-child,
+.daily-reminder-time-row > view:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.daily-reminder-time-row {
+  margin-top: 24rpx;
+  padding-top: 22rpx;
+  border-top: 1rpx solid #f5eaed;
+}
+
+.daily-reminder-time {
+  min-width: 118rpx;
+  padding: 12rpx 0 12rpx 18rpx;
+  color: #a64d68;
+  font-size: 23rpx;
+  font-weight: 700;
+  text-align: right;
+}
+
+.daily-reminder-status {
+  display: flex;
+  align-items: center;
+  margin-top: 22rpx;
+  color: #9f828d;
+  font-size: 21rpx;
+  line-height: 1.5;
+}
+
+.daily-reminder-status.active {
+  color: #a64d68;
+}
+
+.daily-reminder-dot {
+  width: 14rpx;
+  height: 14rpx;
+  margin-right: 12rpx;
+  border-radius: 50%;
+  background: #d7c6cc;
+  flex-shrink: 0;
+}
+
+.daily-reminder-status.active .daily-reminder-dot {
+  background: #ff6b81;
+  box-shadow: 0 0 0 7rpx rgba(255, 107, 129, 0.12);
+}
+
+.daily-reminder-note {
+  margin-top: 18rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 18rpx;
+  background: #fff8fa;
+  color: #b0919c;
+  font-size: 20rpx;
+  line-height: 1.65;
+}
+
+
+.account-action {
+  flex-shrink: 0;
+  margin-left: 14rpx;
+  color: #a64d68;
+  font-size: 21rpx;
+  font-weight: 700;
+}
+
+.account-status-pill {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  padding: 8rpx 14rpx;
+  border-radius: 999rpx;
+  background: #fff0f4;
+  color: #a64d68;
+  font-size: 19rpx;
+  line-height: 1.4;
+}
+
+.account-info-row {
+  cursor: default;
+}
+
+
+.account-avatar-row {
+  min-height: 132rpx;
+}
+
+button.account-avatar-button {
+  flex-shrink: 0;
+  width: 76rpx !important;
+  min-width: 76rpx;
+  max-width: 76rpx;
+  height: 76rpx !important;
+  margin: 0;
+  padding: 0 !important;
+  overflow: hidden;
+  border-radius: 50% !important;
+  background: #fff0f4;
+  border: 2rpx solid #f1d7df;
+  line-height: 76rpx;
+}
+
+button.account-avatar-button::after {
+  border: 0;
+  border-radius: 50%;
+}
+
+button.account-avatar-button[disabled] {
+  opacity: 0.55;
+}
+
+.account-avatar-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.account-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  color: #c65d77;
+  font-size: 34rpx;
+  line-height: 72rpx;
+  text-align: center;
+}

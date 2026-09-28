@@ -39,7 +39,16 @@ button.secondary-link{margin-top:8rpx;color:#aa8a97;font-size:22rpx}
 .code-input{width:100%;height:90rpx;box-sizing:border-box;padding:0 16rpx;border:1rpx solid #eed5dc;border-radius:22rpx;background:#fff7f6;text-align:center;font-size:30rpx;letter-spacing:5rpx}
 button.outline-btn{width:100%;margin-top:18rpx;line-height:84rpx;border-radius:44rpx;border:1rpx solid #f3b1bd;background:transparent;color:#d35f7b;font-size:27rpx}
 .success-stage{position:relative;min-height:calc(100vh - 88px);box-sizing:border-box;display:flex;flex-direction:column;align-items:center;padding:68rpx 58rpx calc(42rpx + env(safe-area-inset-bottom))}
-.success-pair-art{width:100%;height:280rpx;border-radius:36rpx;mix-blend-mode:multiply}
+.success-avatar-pair{display:flex;align-items:center;justify-content:center;gap:34rpx;width:100%;min-height:240rpx;margin-top:10rpx}
+.success-avatar-person{display:flex;flex-direction:column;align-items:center;min-width:180rpx}
+button.success-avatar-button,.success-avatar-static{width:168rpx;height:168rpx;margin:0;padding:0;border-radius:50%;overflow:hidden;background:#fff7f7;border:8rpx solid rgba(255,255,255,.9);box-shadow:0 16rpx 36rpx rgba(157,87,105,.16)}
+button.success-avatar-button::after{border:0;border-radius:50%}
+button.success-avatar-button[disabled]{opacity:.72}
+.success-avatar-image{display:block;width:100%;height:100%}
+.success-avatar-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#ffe9ed,#f8ccd4);color:#b75d73;font-size:42rpx;font-weight:700}
+.success-avatar-heart{margin-top:-34rpx;color:#f26f87;font-size:72rpx;font-family:"KaiTi","STKaiti",serif;transform:rotate(-8deg)}
+.success-avatar-label{margin-top:18rpx;color:#866f79;font-size:23rpx;text-align:center;line-height:1.4}
+.success-avatar-hint{margin-top:8rpx;color:#ad8793;font-size:21rpx;text-align:center}
 .success-title{font-size:46rpx;font-weight:600;margin-top:50rpx}
 .success-stage .invite-sub{margin-top:20rpx}
 .success-stage button.love-btn{margin-top:62rpx;position:relative;z-index:1}

@@ -293,6 +293,64 @@ test('binding failure has a retry state; own invite replacement requires confirm
   await page.refresh();assert.equal(page.data.bindingStatus,'error');await page.refresh();
   page.setData({joinCode:'BCDEFGHJ'});await page.joinPair();assert.equal(joins,0);assert.equal(page.data.inviteCode,'ABCDEFGH');
 });
+test('binding success loads both real account avatars', async () => {
+  let pairReads = 0;
+  const { page } = loadPage('bind', {
+    getSession: async () => ({ bindingStatus: 'active', bound: true }),
+    getPairAccountAvatars: async () => {
+      pairReads++;
+      return {
+        me: { avatarUrl: 'https://signed.invalid/me.jpg', avatarVersion: 2 },
+        partner: { avatarUrl: 'https://signed.invalid/ta.jpg' },
+      };
+    },
+  });
+  await page.refresh();
+  assert.equal(pairReads, 1);
+  assert.equal(page.data.bindingStatus, 'active');
+  assert.equal(page.data.myAvatarUrl, 'https://signed.invalid/me.jpg');
+  assert.equal(page.data.partnerAvatarUrl, 'https://signed.invalid/ta.jpg');
+  assert.equal(page._avatarVersion, 2);
+});
+
+test('binding success can request and save my WeChat avatar inline', async () => {
+  let pairReads = 0;
+  const updates = [];
+  const { page, events } = loadPage('bind', {
+    getPairAccountAvatars: async () => {
+      pairReads++;
+      return pairReads === 1
+        ? { me: { avatarUrl: '', avatarVersion: 0 }, partner: { avatarUrl: 'https://signed.invalid/ta.jpg' } }
+        : { me: { avatarUrl: 'https://signed.invalid/me-new.jpg', avatarVersion: 1 }, partner: { avatarUrl: 'https://signed.invalid/ta.jpg' } };
+    },
+    prepareMedia: async () => ({ id: 'avatar-media', cloudPath: 'v2-upload/A/avatar' }),
+    confirmMedia: async data => ({ id: data.id, url: 'https://signed.invalid/staged.jpg' }),
+    updateAccountAvatar: async data => {
+      updates.push(data);
+      return { avatarMediaId: data.mediaId, avatarUrl: 'https://signed.invalid/me-new.jpg', avatarVersion: 1 };
+    },
+  }, {
+    getImageInfo: options => options.success({ type: 'jpeg', path: options.src, width: 100, height: 100 }),
+    getFileSystemManager: () => ({
+      stat: options => options.success({ stats: { size: 2048 } }),
+    }),
+    cloud: {
+      uploadFile: async options => ({ fileID: 'cloud://mock-env.bucket/' + options.cloudPath }),
+    },
+  });
+
+  page.setData({ bindingStatus: 'active', loading: false });
+  await page.loadPairAvatars();
+  await page.onChooseAvatar({ detail: { avatarUrl: 'wxfile://wechat-avatar.jpg' } });
+
+  assert.equal(updates.length, 1);
+  assert.equal(updates[0].mediaId, 'avatar-media');
+  assert.equal(updates[0].expectedVersion, 0);
+  assert.equal(page.data.myAvatarUrl, 'https://signed.invalid/me-new.jpg');
+  assert.equal(page.data.partnerAvatarUrl, 'https://signed.invalid/ta.jpg');
+  assert.equal(events.find(x => x.method === 'showToast').value.title, '头像已更新');
+});
+
 test('profile private memo creates an item with attached image ids',async()=>{
   const writes=[];
   const saved={id:'memo1',title:'礼物',text:'下次见面记得带礼物',images:[{id:'photo',url:'signed'}],version:1,updatedAt:'2026-09-26T06:00:00Z'};
@@ -397,16 +455,91 @@ test('miss template rejection or filtering never grants quota',async()=>{
   }
 });
 
-test('reminder is enabled only after explicit subscribe acceptance, with setting version',async()=>{
+test('daily reminder is enabled from settings only after explicit subscribe acceptance, with setting version',async()=>{
   const changes=[];
-  const {page}=loadPage('profile',{updateReminderSettings:async(...data)=>{changes.push(data);return {enabled:true,time:'21:30',version:3};}},
+  const {page}=loadPage('settings',{updateReminderSettings:async(...data)=>{changes.push(data);return {enabled:true,time:'21:30',version:3};}},
     {requestSubscribeMessage:options=>options.success({tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk:'accept'})});
-  page.setData({bindingStatus:'active',authLoading:false,reminderReady:true});page._reminderVersion=2;
+  page.setData({bindingStatus:'active',loading:false,reminderReady:true});page._reminderVersion=2;
   await page.onReminderToggle({detail:{value:true}});assert.deepEqual(changes[0],[true,'21:30',2]);
 });
-test('subscription rejection never enables server setting',async()=>{
-  let writes=0;const {page}=loadPage('profile',{updateReminderSettings:async()=>writes++},{requestSubscribeMessage:options=>options.success({})});
-  page.setData({bindingStatus:'active',authLoading:false,reminderReady:true});await page.onReminderToggle({detail:{value:true}});assert.equal(writes,0);
+test('daily reminder subscription rejection in settings never enables server setting',async()=>{
+  let writes=0;const {page}=loadPage('settings',{updateReminderSettings:async()=>writes++},{requestSubscribeMessage:options=>options.success({})});
+  page.setData({bindingStatus:'active',loading:false,reminderReady:true});await page.onReminderToggle({detail:{value:true}});assert.equal(writes,0);
+});
+
+test('settings account section reflects relationship status and opens binding page', async () => {
+  const { page, events } = loadPage('settings', {
+    getSession: async () => ({ bindingStatus: 'waiting' }),
+  });
+  await page.loadSettings();
+  assert.equal(page.data.bindingStatus, 'waiting');
+  assert.equal(page.data.accountStatusText, '正在等待 TA 加入');
+  assert.equal(page.data.accountActionText, '继续绑定');
+
+  page.goAccountBinding();
+  const nav = events.find(x => x.method === 'navigateTo');
+  assert.equal(nav.value.url, '/pages/bind/bind');
+
+  page.applyAccount({ bindingStatus: 'active' });
+  assert.equal(page.data.accountStatusText, '已完成双人绑定');
+  assert.equal(page.data.accountActionText, '查看状态');
+
+  page.applyAccount({ bindingStatus: 'unbound' });
+  assert.equal(page.data.accountStatusText, '尚未绑定双人关系');
+  assert.equal(page.data.accountActionText, '去绑定');
+});
+
+test('settings WeChat avatar chooser uploads and persists the selected avatar', async () => {
+  const updates = [];
+  let uploadedPath = '';
+  const { page, events } = loadPage('settings', {
+    prepareMedia: async data => ({ id: 'avatar-media', cloudPath: 'v2-upload/A/avatar', declaredSize: data.size }),
+    confirmMedia: async data => ({ id: data.id, url: 'https://signed.invalid/avatar' }),
+    updateAccountAvatar: async data => {
+      updates.push(data);
+      return { avatarMediaId: data.mediaId, avatarUrl: 'https://signed.invalid/avatar', avatarVersion: 1 };
+    },
+    getAccountProfile: async () => ({ avatarMediaId: '', avatarUrl: '', avatarVersion: 0 }),
+  }, {
+    getImageInfo: options => options.success({ type: 'jpeg', path: options.src, width: 100, height: 100 }),
+    getFileSystemManager: () => ({
+      stat: options => options.success({ stats: { size: 2048 } }),
+    }),
+    cloud: {
+      uploadFile: async options => {
+        uploadedPath = options.filePath;
+        return { fileID: 'cloud://mock-env.bucket/' + options.cloudPath };
+      },
+    },
+  });
+
+  page.setData({ bindingStatus: 'active', loading: false, avatarReady: true });
+  page._avatarVersion = 0;
+  await page.onChooseAvatar({ detail: { avatarUrl: 'wxfile://avatar.jpg' } });
+
+  assert.equal(uploadedPath, 'wxfile://avatar.jpg');
+  assert.equal(updates.length, 1);
+  assert.equal(updates[0].mediaId, 'avatar-media');
+  assert.equal(updates[0].expectedVersion, 0);
+  assert.equal(page.data.avatarUrl, 'https://signed.invalid/avatar');
+  assert.equal(page._avatarVersion, 1);
+  assert.equal(events.find(x => x.method === 'showToast').value.title, '头像已更新');
+});
+
+test('settings loads both daily share reminder and miss notification state', async () => {
+  let reminderReads=0, missReads=0;
+  const {page}=loadPage('settings',{
+    getSession:async()=>session,
+    getAccountProfile:async()=>({avatarMediaId:'',avatarUrl:'',avatarVersion:0}),
+    getReminderSettings:async()=>{reminderReads++;return {enabled:true,time:'22:00',version:4};},
+    getMissNotifySettings:async()=>{missReads++;return {quota:1,templateId:'miss-template'};},
+  });
+  await page.loadSettings();
+  assert.equal(reminderReads,1);
+  assert.equal(missReads,1);
+  assert.equal(page.data.reminderEnabled,true);
+  assert.equal(page.data.reminderTime,'22:00');
+  assert.equal(page.data.missNotifyQuota,1);
 });
 test('cloud service always sends API v2 and fixed action',async()=>{
   let sent;const module={exports:{}};

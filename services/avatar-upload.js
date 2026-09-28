@@ -1,0 +1,62 @@
+'use strict';
+
+const { normalizeLocalImage, makeCompatibleImage } = require('./entry-view');
+
+function localFileSize(path) {
+  return new Promise((resolve, reject) => {
+    try {
+      const fs = wx.getFileSystemManager();
+      fs.stat({
+        path,
+        success: result => resolve(Number(result && result.stats && result.stats.size) || 0),
+        fail: reject,
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+async function uploadAccountAvatar(api, avatarUrl, expectedVersion) {
+  let localPath = avatarUrl;
+  if (!localPath) throw new Error('没有选择头像');
+
+  const normalized = await normalizeLocalImage(localPath);
+  localPath = normalized.path;
+  let converted = normalized.converted;
+  let confirmed = null;
+
+  for (let attempt = 0; attempt < 3 && !confirmed; attempt++) {
+    try {
+      const size = await localFileSize(localPath);
+      if (!size || size > 20 * 1024 * 1024) throw new Error('头像不能超过 20 MB');
+      const prepared = await api.prepareMedia({
+        requestId: api.newRequestId(),
+        name: 'account-avatar',
+        size,
+      });
+      const uploaded = await wx.cloud.uploadFile({
+        cloudPath: prepared.cloudPath,
+        filePath: localPath,
+      });
+      confirmed = await api.confirmMedia({ id: prepared.id, fileID: uploaded.fileID });
+    } catch (error) {
+      if (error.code === 'INVALID_MEDIA_TYPE' && !converted) {
+        localPath = await makeCompatibleImage(localPath);
+        converted = true;
+        continue;
+      }
+      if (['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'MEDIA_PROCESSING'].includes(error.code) && attempt < 2) continue;
+      throw error;
+    }
+  }
+
+  if (!confirmed || !confirmed.id) throw new Error('头像上传未完成，请重试');
+  return api.updateAccountAvatar({
+    requestId: api.newRequestId(),
+    mediaId: confirmed.id,
+    expectedVersion: Number(expectedVersion) || 0,
+  });
+}
+
+module.exports = { uploadAccountAvatar };
