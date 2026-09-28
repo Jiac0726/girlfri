@@ -106,6 +106,10 @@
       {
         "type": "file",
         "value": "v2-migrate-legacy.ps1"
+      },
+      {
+        "type": "file",
+        "value": "docs/release-2026-09-27/welcome.png"
       }
     ],
     "include": []
