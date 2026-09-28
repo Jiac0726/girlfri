@@ -191,6 +191,7 @@ function createMedia(ctx, options = {}, security) {
         return doc;
       }
       assert(doc.reviewCloudPath && doc.reviewStagingFileID, 'CONTENT_IMAGE_REVIEW_REQUIRED', '请重新选择图片以完成安全检查');
+      assert(typeof event.reviewFileID === 'string' && event.reviewFileID, 'CONTENT_IMAGE_REVIEW_REQUIRED', '请重新选择图片以完成安全检查');
       parsedFile(event.reviewFileID, doc.reviewCloudPath);
       assert(doc.reviewStagingFileID === event.reviewFileID, 'INVALID_MEDIA_FILE', '图片审核副本不属于本次上传');
       assert(doc.status === 'prepared', doc.status === 'confirming' ? 'MEDIA_PROCESSING' : 'MEDIA_UNAVAILABLE', '图片正在处理或已经失效，请稍后重试');
