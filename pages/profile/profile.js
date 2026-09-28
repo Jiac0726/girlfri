@@ -1,5 +1,6 @@
 const api = require('../../services/cloud');
 const { MOODS, wxCall, isUncertain, makeCompatibleImage, normalizeLocalImage } = require('../../services/entry-view');
+const { makeSafetyReviewImage } = require('../../services/media-review');
 const { dateLabel } = require('../../helpers/interactions');
 function profile(x) { return Object.assign({ moodEmoji: '', moodText: '', hasMood: false }, x || {}, { moodUpdatedLabel: dateLabel(x && x.moodUpdatedAt) }); }
 function memoMediaError(stage, error) {
@@ -138,6 +139,24 @@ Page({
           throw memoMediaError('兼容原图格式', error);
         }
       }
+      if (item.prepared && !item.prepared.reviewCloudPath) {
+        delete item.prepared;
+        delete item.stagingFileID;
+        delete item.fileID;
+        delete item.reviewFileID;
+        item.uploadRequestId = api.newRequestId();
+        this.replaceMemoImage(i, item);
+      }
+      if (!item.reviewLocalPath && item.localPath) {
+        try {
+          const review = await makeSafetyReviewImage(item.localPath);
+          item.reviewLocalPath = review.path;
+          item.reviewSize = review.size;
+          this.replaceMemoImage(i, item);
+        } catch (error) {
+          throw memoMediaError('生成安全审核图', error);
+        }
+      }
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
           if (!item.prepared) {
@@ -149,15 +168,25 @@ Page({
             item.stagingFileID = uploaded.fileID;
             this.replaceMemoImage(i, item);
           }
-          const confirmed = await api.confirmMedia({ id: item.prepared.id, fileID: item.stagingFileID });
+          if (!item.reviewFileID) {
+            const reviewed = await wx.cloud.uploadFile({ cloudPath: item.prepared.reviewCloudPath, filePath: item.reviewLocalPath });
+            item.reviewFileID = reviewed.fileID;
+            this.replaceMemoImage(i, item);
+          }
+          const confirmed = await api.confirmMedia({
+            id: item.prepared.id,
+            fileID: item.stagingFileID,
+            reviewFileID: item.reviewFileID,
+          });
           this.replaceMemoImage(i, confirmed);
           break;
         } catch (error) {
-          const staleUpload = ['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE'].includes(error.code);
+          const staleUpload = ['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'CONTENT_IMAGE_REVIEW_REQUIRED'].includes(error.code);
           if (staleUpload && !item.staleRetried) {
             item.staleRetried = true;
             delete item.prepared;
             delete item.stagingFileID;
+            delete item.reviewFileID;
             item.uploadRequestId = api.newRequestId();
             this.replaceMemoImage(i, item);
             continue;
@@ -169,7 +198,14 @@ Page({
               item.compatConverted = true;
               delete item.prepared;
               delete item.stagingFileID;
+              delete item.reviewFileID;
+              delete item.reviewLocalPath;
+              delete item.reviewSize;
               item.uploadRequestId = api.newRequestId();
+              this.replaceMemoImage(i, item);
+              const review = await makeSafetyReviewImage(item.localPath);
+              item.reviewLocalPath = review.path;
+              item.reviewSize = review.size;
               this.replaceMemoImage(i, item);
               continue;
             } catch (convertError) {

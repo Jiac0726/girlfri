@@ -7,6 +7,18 @@ const handle = createV2Api(cloud, { database: cloud.__nodeDatabase(), getUploadM
 let serial = 0;
 const call = (action, who = 'A', data = {}) => handle(Object.assign({ action, requestId: 'request_' + (++serial) }, data), who);
 const failure = (promise, code) => assert.rejects(promise, e => e.code === code && e.isBusiness === true);
+function validPng(size=35){
+  const png=Buffer.alloc(Math.max(35,size));
+  Buffer.from([137,80,78,71,13,10,26,10]).copy(png);
+  png.writeUInt32BE(13,8); png.write('IHDR',12);
+  png.writeUInt32BE(1,16); png.writeUInt32BE(1,20);
+  return png;
+}
+function stageReview(prepared){
+  const reviewFileID='cloud://mock-env.bucket/'+prepared.reviewCloudPath;
+  cloud.__files.set(reviewFileID,validPng());
+  return reviewFileID;
+}
 async function pair(a = 'A', b = 'B') { const invite = await call('pair.create', a); return call('pair.join', b, { inviteCode: invite.inviteCode }); }
 beforeEach(() => cloud.__reset());
 test('unbound users cannot read shared records; pending invitation is reusable', async () => {
@@ -139,9 +151,10 @@ test('private love memo items and images are owner-only', async () => {
 
   const prepared = await call('media.prepare','A',{name:'memo-photo',size:35});
   const fileID='cloud://mock-env.bucket/'+prepared.cloudPath;
-  const png=Buffer.alloc(35); Buffer.from([137,80,78,71,13,10,26,10]).copy(png); png.writeUInt32BE(13,8); png.write('IHDR',12); png.writeUInt32BE(1,16); png.writeUInt32BE(1,20);
+  const png=validPng();
   cloud.__files.set(fileID,png);
-  const ready = await call('media.confirm','A',{id:prepared.id,fileID});
+  const reviewFileID=stageReview(prepared);
+  const ready = await call('media.confirm','A',{id:prepared.id,fileID,reviewFileID});
 
   const memo = await call('memo.create','A',{title:'礼物',text:'记得周末准备一束花',images:[ready.id]});
   assert.equal(memo.title,'礼物');
@@ -238,11 +251,10 @@ test('private memo survives unavailable image signing without masking the mutati
   await pair();
   const prepared = await call('media.prepare','A',{name:'memo-photo',size:35});
   const fileID='cloud://mock-env.bucket/'+prepared.cloudPath;
-  const png=Buffer.alloc(35);
-  Buffer.from([137,80,78,71,13,10,26,10]).copy(png);
-  png.writeUInt32BE(13,8); png.write('IHDR',12); png.writeUInt32BE(1,16); png.writeUInt32BE(1,20);
+  const png=validPng();
   cloud.__files.set(fileID,png);
-  const ready = await call('media.confirm','A',{id:prepared.id,fileID});
+  const reviewFileID=stageReview(prepared);
+  const ready = await call('media.confirm','A',{id:prepared.id,fileID,reviewFileID});
   const original = cloud.getTempFileURL;
   cloud.getTempFileURL = async () => { throw new Error('signing temporarily unavailable'); };
   try {
@@ -265,9 +277,10 @@ test('media prepare registers abandoned file, validates owner and file signature
   assert.equal(cloud.__colStore('v2_media').get(m.id).stagingFileID,fileID);
   await failure(call('media.confirm','B',{id:m.id,fileID}),'FORBIDDEN');
   await failure(call('media.confirm','A',{id:m.id,fileID:'cloud://foreign/'+m.cloudPath}),'INVALID_MEDIA_FILE');
-  const png=Buffer.alloc(35); Buffer.from([137,80,78,71,13,10,26,10]).copy(png); png.writeUInt32BE(13,8); png.write('IHDR',12); png.writeUInt32BE(1,16); png.writeUInt32BE(1,20);
+  const png=validPng();
   cloud.__files.set(fileID,png);
-  const ready=await call('media.confirm','A',{id:m.id,fileID});
+  const reviewFileID=stageReview(m);
+  const ready=await call('media.confirm','A',{id:m.id,fileID,reviewFileID});
   assert.equal(cloud.__colStore('v2_media').get(m.id).stagingFileID,fileID);
   assert.match(ready.fileID,/v2-published/); assert.equal(cloud.__files.has(fileID),false);
   await failure(call('media.urls','B',{ids:[m.id]}),'FORBIDDEN');
@@ -284,6 +297,7 @@ test('media prepare registers abandoned file, validates owner and file signature
 test('invalid image is never exposed',async()=>{
   await pair(); const m=await call('media.prepare','A',{name:'x',size:20});
   const fileID='cloud://mock-env.bucket/'+m.cloudPath; cloud.__files.set(fileID,Buffer.from('<script>not an image</script>'));
-  await failure(call('media.confirm','A',{id:m.id,fileID}),'INVALID_MEDIA_TYPE');
+  const reviewFileID=stageReview(m);
+  await failure(call('media.confirm','A',{id:m.id,fileID,reviewFileID}),'INVALID_MEDIA_TYPE');
   assert.equal(cloud.__colStore('v2_media').get(m.id).status,'cleanup_pending');
 });

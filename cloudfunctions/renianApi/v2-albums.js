@@ -6,7 +6,7 @@ const DAILY_ALBUM_TITLE = '日常照片';
 const dailyAlbumId = coupleId => 'album_daily_' + hash(coupleId).slice(0, 40);
 const dailyPhotoId = (entryId, mediaId) => 'photo_daily_' + hash(entryId + ':' + mediaId).slice(0, 40);
 
-function createAlbums(ctx, media) {
+function createAlbums(ctx, media, security) {
   const { db, transaction, get, membership, ownedDocument, mutate, put, page } = ctx;
   const albumView = doc => ({ id: doc._id, title: doc.title, photoCount: doc.photoCount || 0, createdAt: iso(doc.createdAt) });
   const commentView = (doc, openid) => ({ id: doc._id, text: doc.text, fromMe: doc.authorOpenid === openid, createdAt: iso(doc.createdAt) });
@@ -91,6 +91,7 @@ function createAlbums(ctx, media) {
 
   async function create(event, openid) {
     const title = text(event.title, 40, '相册名称', true);
+    await security.checkText(title, openid, 4);
     return mutate('album.create', event, openid, async (tx, member, op) => {
       const doc = { _id: 'album_' + hash(op).slice(0, 40), coupleId: member.pair._id,
         title, creatorOpenid: openid, photoCount: 0, createdAt: new Date() };
@@ -142,6 +143,7 @@ function createAlbums(ctx, media) {
 
   async function addComment(event, openid) {
     const content = text(event.text, 200, '评论', true);
+    await security.checkText(content, openid, 2);
     return mutate('album.commentAdd', event, openid, async (tx, member, op) => {
       const photo = await ownedDocument(tx, 'photos', event.photoId, member.pair._id);
       assert(!photo.deleted, 'PHOTO_DELETED', '照片已删除');

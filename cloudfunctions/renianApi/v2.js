@@ -4,6 +4,7 @@ const { createContext, assert, fail, hash, text, version, utcDay, iso } = requir
 const { createPairs } = require('./v2-pairs');
 const { createMedia } = require('./v2-media');
 const { createAlbums } = require('./v2-albums');
+const { createSecurity } = require('./v2-security');
 const { entryVisibleTo } = require('./v2-visibility');
 
 const REMINDER_TEMPLATE_ID = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
@@ -39,8 +40,9 @@ function validateDay(value) {
 
 function createV2Api(cloud, options = {}) {
   const ctx = createContext(cloud, options.database);
-  const media = createMedia(ctx, options);
-  const albums = createAlbums(ctx, media);
+  const security = createSecurity(cloud);
+  const media = createMedia(ctx, options, security);
+  const albums = createAlbums(ctx, media, security);
   const pairs = createPairs(ctx, {
     onActivated: (tx, member) => albums.ensureDailyAlbumForMember(tx, member),
   });
@@ -113,6 +115,7 @@ function createV2Api(cloud, options = {}) {
   }
   async function entryCreate(event, openid) {
     const input = entryInput(event);
+    await security.checkText(input.text, openid, 4);
     const result = await mutate('entry.create', event, openid, async (tx, member, op) => {
       const now = new Date();
       const id = 'entry_' + hash(op).slice(0, 40);
@@ -128,6 +131,7 @@ function createV2Api(cloud, options = {}) {
   }
   async function entryChange(action, event, openid) {
     const input = action === 'entry.update' ? entryInput(event) : null;
+    if (input) await security.checkText(input.text, openid, 4);
     const result = await mutate(action, event, openid, async (tx, member) => {
       const doc = await ownedDocument(tx, 'entries', event.id, member.pair._id);
       assert(doc.authorOpenid === openid, 'FORBIDDEN', '只能修改或删除自己的分享');
@@ -191,6 +195,7 @@ function createV2Api(cloud, options = {}) {
   async function agreementPropose(event, openid) {
     const title = text(event.title, 40, '约定名称', true);
     const content = text(event.content, 500, '约定内容', true);
+    await security.checkFields(openid, 4, [title, content]);
     const result = await mutate('agreement.propose', event, openid, async (tx, member, op) => {
       let previous = null;
       if (event.replacesId) {
@@ -244,6 +249,7 @@ function createV2Api(cloud, options = {}) {
   async function couponGift(event, openid) {
     const title = text(event.title, 40, '券名称', true);
     const note = text(event.note, 200, '券说明');
+    await security.checkFields(openid, 4, [title, note]);
     const result = await mutate('coupon.gift', event, openid, async (tx, member, op) => {
       const now = new Date();
       const doc = { _id: 'coupon_' + hash(op).slice(0, 40), coupleId: member.pair._id, issuedBy: openid, receivedBy: partner(member.pair, openid),
@@ -524,6 +530,7 @@ function createV2Api(cloud, options = {}) {
     const moodEmoji = text(event.moodEmoji, 8, '心情');
     const moodText = text(event.moodText, 60, '心情文字');
     assert(moodEmoji || moodText, 'INVALID_MOOD', '选一个心情，或者写一句现在的感受');
+    await security.checkText(moodText, openid, 1);
     return transaction(async tx => {
       const member = await membership(tx, openid);
       const now = new Date();

@@ -24,20 +24,39 @@ function createMediaCleanup(cloud, clock = () => new Date(), options = {}) {
 
   async function cleanStaging(id) {
     const record = await get(media().doc(id));
-    if (!record || !record.stagingCleanupPending || !record.stagingFileID) return;
-    if (!['ready', 'attached', 'deleted'].includes(record.status)) return;
-    // Only cleanup a staging path recorded for this asset, never its published file.
-    if (record.stagingFileID === record.fileID || !record.stagingFileID.includes('/v2-upload/')) {
-      throw new Error('INVALID_STAGING_FILE');
-    }
-    await remove(record.stagingFileID);
-    await db.runTransaction(async (tx) => {
-      const ref = tx.collection('v2_media').doc(id);
-      const latest = await get(ref);
-      if (latest && latest.stagingFileID === record.stagingFileID) {
-        await ref.update({ data: { stagingCleanupPending: false } });
+    if (!record || !['ready', 'attached', 'deleted'].includes(record.status)) return;
+    const updates = {};
+
+    if (record.stagingCleanupPending && record.stagingFileID) {
+      // Only cleanup a staging path recorded for this asset, never its published file.
+      if (record.stagingFileID === record.fileID || !record.stagingFileID.includes('/v2-upload/')) {
+        throw new Error('INVALID_STAGING_FILE');
       }
-    });
+      await remove(record.stagingFileID);
+      updates.stagingCleanupPending = false;
+    }
+
+    if (record.reviewCleanupPending && record.reviewStagingFileID) {
+      if (!record.reviewStagingFileID.includes('/v2-review/')) throw new Error('INVALID_REVIEW_FILE');
+      await remove(record.reviewStagingFileID);
+      updates.reviewCleanupPending = false;
+    }
+
+    if (Object.keys(updates).length) {
+      await db.runTransaction(async (tx) => {
+        const ref = tx.collection('v2_media').doc(id);
+        const latest = await get(ref);
+        if (!latest) return;
+        const data = {};
+        if (updates.stagingCleanupPending === false && latest.stagingFileID === record.stagingFileID) {
+          data.stagingCleanupPending = false;
+        }
+        if (updates.reviewCleanupPending === false && latest.reviewStagingFileID === record.reviewStagingFileID) {
+          data.reviewCleanupPending = false;
+        }
+        if (Object.keys(data).length) await ref.update({ data });
+      });
+    }
   }
 
   async function cleanup(id) {
@@ -78,15 +97,21 @@ function createMediaCleanup(cloud, clock = () => new Date(), options = {}) {
       claimed.stagingFileID = fileID;
     }
     // A failure leaves cleanup_claimed in the DB for the next scheduled run.
-    for (const fileID of [...new Set([claimed.fileID, claimed.stagingFileID].filter(Boolean))]) {
-      if (!/^cloud:\/\/[^/]+\/v2-(upload|published)\//.test(fileID)) throw new Error('INVALID_MEDIA_FILE');
+    for (const fileID of [...new Set([claimed.fileID, claimed.stagingFileID, claimed.reviewStagingFileID].filter(Boolean))]) {
+      if (!/^cloud:\/\/[^/]+\/v2-(upload|published|review)\//.test(fileID)) throw new Error('INVALID_MEDIA_FILE');
       await remove(fileID);
     }
     await db.runTransaction(async (tx) => {
       const ref = tx.collection('v2_media').doc(id);
       const latest = await get(ref);
       if (latest && latest.status === 'cleanup_claimed') {
-        await ref.update({ data: { status: 'deleted', stagingCleanupPending: false, deletedAt: clock(), updatedAt: clock() } });
+        await ref.update({ data: {
+          status: 'deleted',
+          stagingCleanupPending: false,
+          reviewCleanupPending: false,
+          deletedAt: clock(),
+          updatedAt: clock(),
+        } });
       }
     });
     return true;
@@ -120,6 +145,7 @@ function createMediaCleanup(cloud, clock = () => new Date(), options = {}) {
       { status: 'cleanup_claimed' },
       { status: 'deleted', stagingFileID: '', fileID: '' },
       { stagingCleanupPending: true },
+      { reviewCleanupPending: true },
     ];
     let removed = 0, failed = 0;
     // Bounded batches keep the job restartable even when storage is unavailable.
@@ -127,7 +153,7 @@ function createMediaCleanup(cloud, clock = () => new Date(), options = {}) {
       const rows = (await media().where(condition).orderBy('_id', 'asc').limit(100).get()).data || [];
       for (const row of rows) {
         try {
-          if (condition.stagingCleanupPending) await cleanStaging(row._id);
+          if (condition.stagingCleanupPending || condition.reviewCleanupPending) await cleanStaging(row._id);
           else if (await cleanup(row._id)) removed++;
         } catch (error) {
           failed++;

@@ -3,6 +3,7 @@
 const { assert, fail, hash, randomId, text } = require('./v2-core');
 const { entryVisibleTo } = require('./v2-visibility');
 const MAX_BYTES = 20 * 1024 * 1024;
+const MAX_REVIEW_BYTES = 1024 * 1024;
 const TTL = 24 * 3600000;
 const LEASE = 5 * 60000;
 const PROVISION_LEASE = 30 * 1000;
@@ -16,7 +17,7 @@ function imageExtension(buffer) {
   return '';
 }
 
-function createMedia(ctx, options = {}) {
+function createMedia(ctx, options = {}, security) {
   const { cloud, db, transaction, get, put, membership, mutate, ownedDocument } = ctx;
   function parsedFile(fileID, path) {
     const environment = String((cloud.getWXContext() || {}).ENV || process.env.TCB_ENV || process.env.SCF_NAMESPACE || '');
@@ -47,8 +48,11 @@ function createMedia(ctx, options = {}) {
       const id = 'media_' + hash(op).slice(0, 40);
       const now = new Date();
       const value = { _id: id, ownerOpenid: openid, coupleId: member.pair._id, name, declaredSize: event.size,
-        cloudPath: 'v2-upload/' + openid + '/' + randomId('upload'), status: 'prepared', entryId: '', refCount: 0,
-        stagingFileID: '', fileID: '', stagingCleanupPending: false, createdAt: now, updatedAt: now,
+        cloudPath: 'v2-upload/' + openid + '/' + randomId('upload'),
+        reviewCloudPath: 'v2-review/' + openid + '/' + randomId('review'),
+        status: 'prepared', entryId: '', refCount: 0,
+        stagingFileID: '', reviewStagingFileID: '', fileID: '',
+        stagingCleanupPending: false, reviewCleanupPending: false, createdAt: now, updatedAt: now,
         expiresAt: new Date(now.getTime() + TTL), cleanupAfter: null };
       await put(tx, 'media', id, value);
       return value;
@@ -111,7 +115,36 @@ function createMedia(ctx, options = {}) {
       }
       assert(latest.stagingFileID, 'MEDIA_PROVISION_BUSY', '图片上传准备仍在进行，请稍后重试');
     }
-    return { id: doc._id, cloudPath: doc.cloudPath };
+    let prepared = await get(db, 'media', doc._id);
+    if (!prepared.reviewCloudPath) {
+      const reviewCloudPath = 'v2-review/' + openid + '/' + randomId('review');
+      prepared = await transaction(async tx => {
+        const row = await get(tx, 'media', doc._id);
+        assert(row && ['prepared', 'confirming', 'ready', 'attached'].includes(row.status), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
+        if (row.reviewCloudPath) return row;
+        const changed = Object.assign({}, row, { reviewCloudPath, updatedAt: new Date() });
+        await put(tx, 'media', row._id, changed);
+        return changed;
+      });
+    }
+    if (!prepared.reviewStagingFileID) {
+      assert(typeof options.getUploadMetadata === 'function', 'MEDIA_ENV_UNAVAILABLE', '图片服务暂时不可用');
+      const metadata = await options.getUploadMetadata({ cloudPath: prepared.reviewCloudPath });
+      const reviewFileID = metadata && metadata.data && metadata.data.fileId;
+      parsedFile(reviewFileID, prepared.reviewCloudPath);
+      prepared = await transaction(async tx => {
+        const row = await get(tx, 'media', doc._id);
+        assert(row && ['prepared', 'confirming', 'ready', 'attached'].includes(row.status), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
+        if (row.reviewStagingFileID) return row;
+        const changed = Object.assign({}, row, {
+          reviewStagingFileID: reviewFileID,
+          updatedAt: new Date(),
+        });
+        await put(tx, 'media', row._id, changed);
+        return changed;
+      });
+    }
+    return { id: doc._id, cloudPath: doc.cloudPath, reviewCloudPath: prepared.reviewCloudPath };
   }
   async function deleteStaging(doc) {
     if (!doc.stagingFileID) return;
@@ -124,6 +157,24 @@ function createMedia(ctx, options = {}) {
       });
     } catch (_) { /* Preserve stagingCleanupPending for the privileged cleanup task. */ }
   }
+  async function deleteReviewStaging(doc) {
+    if (!doc.reviewStagingFileID) return;
+    try {
+      const response = await cloud.deleteFile({ fileList: [doc.reviewStagingFileID] });
+      const success = response.fileList && response.fileList.some(item =>
+        item.fileID === doc.reviewStagingFileID && (item.status === 0 || item.status === -503003));
+      if (success) await transaction(async tx => {
+        const current = await get(tx, 'media', doc._id);
+        if (current && current.reviewStagingFileID === doc.reviewStagingFileID) {
+          await put(tx, 'media', doc._id, Object.assign({}, current, {
+            reviewCleanupPending: false,
+            updatedAt: new Date(),
+          }));
+        }
+      });
+    } catch (_) { /* Preserve reviewCleanupPending for the privileged cleanup task. */ }
+  }
+
   async function confirm(event, openid) {
     const token = randomId('confirm');
     const reserved = await transaction(async tx => {
@@ -139,15 +190,40 @@ function createMedia(ctx, options = {}) {
         assert(doc.stagingFileID === event.fileID, 'INVALID_MEDIA_FILE', '图片不属于本次上传');
         return doc;
       }
+      assert(doc.reviewCloudPath && doc.reviewStagingFileID, 'CONTENT_IMAGE_REVIEW_REQUIRED', '请重新选择图片以完成安全检查');
+      assert(typeof event.reviewFileID === 'string' && event.reviewFileID, 'CONTENT_IMAGE_REVIEW_REQUIRED', '请重新选择图片以完成安全检查');
+      parsedFile(event.reviewFileID, doc.reviewCloudPath);
+      assert(doc.reviewStagingFileID === event.reviewFileID, 'INVALID_MEDIA_FILE', '图片审核副本不属于本次上传');
       assert(doc.status === 'prepared', doc.status === 'confirming' ? 'MEDIA_PROCESSING' : 'MEDIA_UNAVAILABLE', '图片正在处理或已经失效，请稍后重试');
       assert(new Date(doc.expiresAt).getTime() > Date.now(), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
-      const changed = Object.assign({}, doc, { status: 'confirming', confirmToken: token, confirmLeaseUntil: new Date(Date.now() + LEASE), stagingFileID: event.fileID, stagingCleanupPending: true, updatedAt: new Date() });
+      const changed = Object.assign({}, doc, {
+        status: 'confirming',
+        confirmToken: token,
+        confirmLeaseUntil: new Date(Date.now() + LEASE),
+        stagingFileID: event.fileID,
+        reviewStagingFileID: event.reviewFileID,
+        stagingCleanupPending: true,
+        reviewCleanupPending: true,
+        updatedAt: new Date(),
+      });
       await put(tx, 'media', doc._id, changed);
       return changed;
     });
     if (reserved.status === 'ready' || reserved.status === 'attached') return (await signed([reserved]))[0];
     let uploadedFileID = '';
     try {
+      const reviewDownload = await cloud.downloadFile({ fileID: event.reviewFileID });
+      const reviewBuffer = Buffer.isBuffer(reviewDownload.fileContent)
+        ? reviewDownload.fileContent
+        : Buffer.from(reviewDownload.fileContent || []);
+      assert(reviewBuffer.length > 0 && reviewBuffer.length <= MAX_REVIEW_BYTES,
+        'CONTENT_IMAGE_REVIEW_INVALID', '图片审核副本不能超过 1 MB');
+      const reviewExtension = imageExtension(reviewBuffer);
+      assert(reviewExtension, 'CONTENT_IMAGE_REVIEW_INVALID', '图片审核副本格式不正确');
+      assert(security && typeof security.checkImage === 'function',
+        'CONTENT_CHECK_FAILED', '图片安全检查暂时不可用，请稍后重试');
+      await security.checkImage(reviewBuffer, reviewExtension);
+
       const download = await cloud.downloadFile({ fileID: event.fileID });
       const buffer = Buffer.isBuffer(download.fileContent) ? download.fileContent : Buffer.from(download.fileContent || []);
       assert(buffer.length > 0 && buffer.length <= MAX_BYTES, 'INVALID_MEDIA_SIZE', '每张图片不能超过 20 MB');
@@ -172,6 +248,7 @@ function createMedia(ctx, options = {}) {
         return changed;
       });
       await deleteStaging(ready);
+      await deleteReviewStaging(ready);
       return (await signed([ready]))[0];
     } catch (error) {
       // Invalid images are never made ready. Transient failures may retry the same upload;

@@ -12,6 +12,15 @@ const originalSign=cloud.getTempFileURL;
 beforeEach(()=>cloud.__reset());
 afterEach(()=>{cloud.getTempFileURL=originalSign;cloud.__setOpenid('A');});
 async function pair() { const invite=await call('pair.create'); return call('pair.join','B',{inviteCode:invite.inviteCode}); }
+function validSafetyPng() {
+  const png = Buffer.alloc(35);
+  Buffer.from([137,80,78,71,13,10,26,10]).copy(png);
+  png.writeUInt32BE(13,8);
+  png.write('IHDR',12);
+  png.writeUInt32BE(1,16);
+  png.writeUInt32BE(1,20);
+  return png;
+}
 function entry(coupleId,id,images=[],legacyPrivate=false) {
   const now=new Date();
   cloud.__colStore('v2_entries').set(id,{coupleId,authorOpenid:'A',text:id,mood:'',images,version:1,createdAt:now,updatedAt:now,dayKey:'2026-09-27',deleted:false,legacyPrivate});
@@ -192,4 +201,106 @@ test('paired avatar view returns only the two active members', async () => {
   const fromB = await call('account.pair', 'B');
   assert.match(fromB.me.avatarUrl, /avatarB/);
   assert.match(fromB.partner.avatarUrl, /avatarA/);
+});
+
+
+test('shared text safety rejects risky content before persistence', async () => {
+  await pair();
+  const calls = [];
+  cloud.__setMsgSecCheck(async input => {
+    calls.push(input);
+    return input.content.includes('blocked')
+      ? { result: { suggest: 'risky', label: 100 } }
+      : { result: { suggest: 'pass', label: 100 } };
+  });
+
+  await assert.rejects(
+    call('entry.create', 'A', { text: 'blocked', mood: '', ratingType: '', images: [] }),
+    error => error.code === 'CONTENT_RISKY'
+  );
+  assert.equal(cloud.__colStore('v2_entries').size, 0);
+
+  await assert.rejects(
+    call('album.create', 'A', { title: 'blocked' }),
+    error => error.code === 'CONTENT_RISKY'
+  );
+  assert.equal([...cloud.__colStore('v2_albums').values()].filter(x => !x.system).length, 0);
+
+  const safe = await call('entry.create', 'A', { text: '今天很好', mood: '', ratingType: '', images: [] });
+  assert.equal(safe.text, '今天很好');
+  assert.ok(calls.some(item => item.scene === 4 && item.openid === 'A'));
+});
+
+test('shared text safety fails closed when WeChat security API is unavailable', async () => {
+  await pair();
+  cloud.__setMsgSecCheck(async () => { throw new Error('security service offline'); });
+
+  await assert.rejects(
+    call('agreement.propose', 'A', { title: '散步', content: '周末一起去公园' }),
+    error => error.code === 'CONTENT_CHECK_FAILED'
+  );
+  assert.equal(cloud.__colStore('v2_agreements').size, 0);
+
+  await assert.rejects(
+    call('coupon.gift', 'A', { title: '晚餐券', note: '一起吃饭' }),
+    error => error.code === 'CONTENT_CHECK_FAILED'
+  );
+  assert.equal(cloud.__colStore('v2_coupons').size, 0);
+});
+
+test('profile mood text uses profile safety scene', async () => {
+  await pair();
+  const calls = [];
+  cloud.__setMsgSecCheck(async input => {
+    calls.push(input);
+    return { result: { suggest: 'pass', label: 100 } };
+  });
+
+  await call('profile.mood.update', 'A', { moodEmoji: '😊', moodText: '今天很开心' });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].scene, 1);
+  assert.equal(calls[0].content, '今天很开心');
+});
+
+
+test('image safety review blocks risky media before original publication', async () => {
+  await pair();
+  const prepared = await call('media.prepare', 'A', { name: 'photo', size: 35 });
+  const originalFileID = 'cloud://mock-env.bucket/' + prepared.cloudPath;
+  const reviewFileID = 'cloud://mock-env.bucket/' + prepared.reviewCloudPath;
+  cloud.__files.set(originalFileID, validSafetyPng());
+  cloud.__files.set(reviewFileID, validSafetyPng());
+
+  cloud.__setImgSecCheck(async () => {
+    const error = new Error('risky content');
+    error.errCode = 87014;
+    throw error;
+  });
+
+  await assert.rejects(
+    call('media.confirm', 'A', { id: prepared.id, fileID: originalFileID, reviewFileID }),
+    error => error.code === 'CONTENT_RISKY'
+  );
+
+  const media = cloud.__colStore('v2_media').get(prepared.id);
+  assert.equal(media.status, 'cleanup_pending');
+  assert.equal(media.fileID || '', '');
+  assert.equal([...cloud.__files.keys()].some(id => id.includes('/v2-published/')), false);
+});
+
+test('media confirmation cannot publish without its safety review file', async () => {
+  await pair();
+  const prepared = await call('media.prepare', 'A', { name: 'photo', size: 35 });
+  const originalFileID = 'cloud://mock-env.bucket/' + prepared.cloudPath;
+  cloud.__files.set(originalFileID, validSafetyPng());
+
+  await assert.rejects(
+    call('media.confirm', 'A', { id: prepared.id, fileID: originalFileID }),
+    error => error.code === 'CONTENT_IMAGE_REVIEW_REQUIRED'
+  );
+
+  const media = cloud.__colStore('v2_media').get(prepared.id);
+  assert.equal(media.status, 'prepared');
+  assert.equal(media.fileID || '', '');
+  assert.equal([...cloud.__files.keys()].some(id => id.includes('/v2-published/')), false);
 });

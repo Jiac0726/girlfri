@@ -8,6 +8,11 @@ function loadPage(name, api = {}, customWx = {}) {
   let page, sequence=0; const events=[], modules={};
   const wx = Object.assign(Object.fromEntries(['showToast','showLoading','hideLoading','stopPullDownRefresh','navigateTo','navigateBack','switchTab','pageScrollTo','previewImage','setClipboardData'].map(method=>[method,value=>events.push({method,value})])),{
     showModal(options) { options.success({confirm:true}); },
+    getImageInfo(options) { options.success({ type: 'jpeg', path: options.src, width: 100, height: 100 }); },
+    compressImage(options) { options.success({ tempFilePath: String(options.src || 'image') + '.review.jpg' }); },
+    getFileSystemManager() {
+      return { stat(options) { options.success({ stats: { size: 1024 } }); } };
+    },
   },customWx);
   const remote=Object.assign({newRequestId:()=> 'request_'+(++sequence),isBindingError:e=>e.code==='NOT_BOUND'},api);
   function read(file) {
@@ -45,14 +50,14 @@ test('album upload resumes confirmation without uploading the same file twice', 
   const { page } = loadPage('albums', {
     getSession: async () => session,
     listAlbumPhotos: async () => ({ album: { id: 'album', title: '我们', photoCount: 0 }, items: [] }),
-    prepareMedia: async () => ({ id: 'media', cloudPath: 'staging/path' }),
+    prepareMedia: async () => ({ id: 'media', cloudPath: 'staging/path', reviewCloudPath: 'review/path' }),
     confirmMedia: async () => { if (++confirms === 1) throw Object.assign(Error('network'), { code: 'CLOUD_INVOKE_FAILED' }); return { id: 'media' }; },
     addAlbumPhotos: async data => batches.push(data),
   }, { getStorageSync: () => null, setStorageSync() {}, cloud: { uploadFile: async () => { uploads++; return { fileID: 'staged' }; } } });
   page.onLoad({ albumId: 'album' }); await page.refresh();
   page.setData({ images: [{ localPath: 'tmp.jpg', url: 'tmp.jpg', size: 20, requestId: 'upload_once' }] });
   await page.uploadPhotos(); assert.equal(page.data.images[0].fileID, 'staged');
-  await page.uploadPhotos(); assert.equal(uploads, 1); assert.equal(confirms, 2); assert.equal(batches.length, 1);
+  await page.uploadPhotos(); assert.equal(uploads, 2); assert.equal(confirms, 2); assert.equal(batches.length, 1);
   assert.equal(page.data.images.length, 0); assert.equal(page.data.pending, false);
 });
 test('album pending mutation survives page recreation and confirms without duplicate identity', async () => {
@@ -156,13 +161,13 @@ test('existing dirty draft cannot mask a newer server version', async () => {
 test('entry upload failure retains local draft and retries uploaded file confirmation',async()=>{
   let uploads=0,confirms=0;
   const {page}=loadPage('entry',{
-    getSession:async()=>session,prepareMedia:async()=>({id:'photo',cloudPath:'staging'}),
+    getSession:async()=>session,prepareMedia:async()=>({id:'photo',cloudPath:'staging',reviewCloudPath:'review'}),
     confirmMedia:async()=>{if(++confirms===1)throw Object.assign(new Error('network'),{code:'CLOUD_INVOKE_FAILED'});return {id:'photo',url:'signed'};},
     createEntry:async()=>entry,
   },{cloud:{uploadFile:async()=>{uploads++;return {fileID:'file'};}}});
   page._id='';await page.load();page.setData({images:[{localPath:'tmp',url:'tmp',size:10,uploadRequestId:'upload_123'}]});
   await page.save();assert.equal(page.data.images[0].localPath,'tmp');await page.save();
-  assert.equal(uploads,1);assert.equal(confirms,2);
+  assert.equal(uploads,2);assert.equal(confirms,2);
 });
 test('drafts are cleared when switching relationship',()=>{
   const {read}=loadPage('entry');const drafts=read(path.join(root,'services/entry-drafts.js'));
@@ -323,7 +328,7 @@ test('binding success can request and save my WeChat avatar inline', async () =>
         ? { me: { avatarUrl: '', avatarVersion: 0 }, partner: { avatarUrl: 'https://signed.invalid/ta.jpg' } }
         : { me: { avatarUrl: 'https://signed.invalid/me-new.jpg', avatarVersion: 1 }, partner: { avatarUrl: 'https://signed.invalid/ta.jpg' } };
     },
-    prepareMedia: async () => ({ id: 'avatar-media', cloudPath: 'v2-upload/A/avatar' }),
+    prepareMedia: async () => ({ id: 'avatar-media', cloudPath: 'v2-upload/A/avatar', reviewCloudPath: 'v2-review/A/avatar' }),
     confirmMedia: async data => ({ id: data.id, url: 'https://signed.invalid/staged.jpg' }),
     updateAccountAvatar: async data => {
       updates.push(data);
@@ -491,9 +496,9 @@ test('settings account section reflects relationship status and opens binding pa
 
 test('settings WeChat avatar chooser uploads and persists the selected avatar', async () => {
   const updates = [];
-  let uploadedPath = '';
+  let uploadedPath = '', reviewUploadedPath = '';
   const { page, events } = loadPage('settings', {
-    prepareMedia: async data => ({ id: 'avatar-media', cloudPath: 'v2-upload/A/avatar', declaredSize: data.size }),
+    prepareMedia: async data => ({ id: 'avatar-media', cloudPath: 'v2-upload/A/avatar', reviewCloudPath: 'v2-review/A/avatar', declaredSize: data.size }),
     confirmMedia: async data => ({ id: data.id, url: 'https://signed.invalid/avatar' }),
     updateAccountAvatar: async data => {
       updates.push(data);
@@ -507,7 +512,8 @@ test('settings WeChat avatar chooser uploads and persists the selected avatar', 
     }),
     cloud: {
       uploadFile: async options => {
-        uploadedPath = options.filePath;
+        if (String(options.cloudPath).includes('v2-review/')) reviewUploadedPath = options.filePath;
+        else uploadedPath = options.filePath;
         return { fileID: 'cloud://mock-env.bucket/' + options.cloudPath };
       },
     },
@@ -518,6 +524,7 @@ test('settings WeChat avatar chooser uploads and persists the selected avatar', 
   await page.onChooseAvatar({ detail: { avatarUrl: 'wxfile://avatar.jpg' } });
 
   assert.equal(uploadedPath, 'wxfile://avatar.jpg');
+  assert.ok(reviewUploadedPath);
   assert.equal(updates.length, 1);
   assert.equal(updates[0].mediaId, 'avatar-media');
   assert.equal(updates[0].expectedVersion, 0);
@@ -615,7 +622,7 @@ test('album stale media confirmation automatically reprovisions and retries once
   const { page } = loadPage('albums', {
     getSession: async () => session,
     listAlbumPhotos: async () => ({ album: { id: 'album', title: '我们', photoCount: 0 }, items: [] }),
-    prepareMedia: async data => ({ id: 'media-' + (++prepareCount), cloudPath: 'staging/' + prepareCount }),
+    prepareMedia: async data => ({ id: 'media-' + (++prepareCount), cloudPath: 'staging/' + prepareCount, reviewCloudPath: 'review/' + prepareCount }),
     confirmMedia: async data => {
       confirmCount++;
       if (confirmCount === 1) throw Object.assign(new Error('stale'), { code: 'MEDIA_UNAVAILABLE' });
@@ -631,12 +638,12 @@ test('album stale media confirmation automatically reprovisions and retries once
   await page.refresh();
   page.setData({ images: [{
     localPath: 'tmp.jpg', url: 'tmp.jpg', size: 1024,
-    requestId: 'old-request', prepared: { id: 'stale-media', cloudPath: 'stale/path' },
-    fileID: 'cloud://mock/stale'
+    requestId: 'old-request', prepared: { id: 'stale-media', cloudPath: 'stale/path', reviewCloudPath: 'stale/review' },
+    fileID: 'cloud://mock/stale', reviewFileID: 'cloud://mock/stale-review'
   }] });
   await page.uploadPhotos();
   assert.equal(prepareCount, 1);
-  assert.equal(uploadCount, 1);
+  assert.equal(uploadCount, 2);
   assert.equal(confirmCount, 2);
   assert.equal(batches.length, 1);
   assert.match(batches[0].images[0], /^media-/);
@@ -645,12 +652,12 @@ test('album stale media confirmation automatically reprovisions and retries once
 
 
 test('album unsupported original is converted and retried automatically', async () => {
-  let prepareCount = 0, uploadCount = 0, confirmCount = 0, compressed = 0;
+  let prepareCount = 0, uploadCount = 0, confirmCount = 0, compatCompressed = 0, reviewCompressed = 0;
   const batches = [];
   const { page } = loadPage('albums', {
     getSession: async () => session,
     listAlbumPhotos: async () => ({ album: { id: 'album', title: '我们', photoCount: 0 }, items: [] }),
-    prepareMedia: async () => ({ id: 'media-' + (++prepareCount), cloudPath: 'staging/' + prepareCount }),
+    prepareMedia: async () => ({ id: 'media-' + (++prepareCount), cloudPath: 'staging/' + prepareCount, reviewCloudPath: 'review/' + prepareCount }),
     confirmMedia: async data => {
       confirmCount++;
       if (confirmCount === 1) throw Object.assign(new Error('heic'), { code: 'INVALID_MEDIA_TYPE' });
@@ -660,7 +667,15 @@ test('album unsupported original is converted and retried automatically', async 
   }, {
     getStorageSync: () => null,
     setStorageSync() {},
-    compressImage: options => { compressed++; options.success({ tempFilePath: 'converted.jpg' }); },
+    compressImage: options => {
+      if (options.compressedWidth) {
+        reviewCompressed++;
+        options.success({ tempFilePath: 'review.jpg' });
+      } else {
+        compatCompressed++;
+        options.success({ tempFilePath: 'converted.jpg' });
+      }
+    },
     getImageInfo: options => options.success({ type: 'jpeg', path: options.src, width: 100, height: 100 }),
     cloud: { uploadFile: async options => ({ fileID: 'cloud://mock/' + (++uploadCount) }) },
   });
@@ -668,9 +683,10 @@ test('album unsupported original is converted and retried automatically', async 
   await page.refresh();
   page.setData({ images: [{ localPath: 'wxfile://tmp/original', url: 'wxfile://tmp/original', size: 1024, requestId: 'upload-heic' }] });
   await page.uploadPhotos();
-  assert.equal(compressed, 1);
+  assert.equal(compatCompressed, 1);
+  assert.equal(reviewCompressed, 2);
   assert.equal(prepareCount, 2);
-  assert.equal(uploadCount, 2);
+  assert.equal(uploadCount, 4);
   assert.equal(confirmCount, 2);
   assert.equal(batches.length, 1);
   assert.equal(page.data.images.length, 0);
@@ -687,13 +703,13 @@ test('image compatibility fallback rejects a format that remains unsupported aft
 
 
 test('album HEIC is normalized before the first cloud upload', async () => {
-  let prepareCount = 0, uploadCount = 0, confirmCount = 0, compressed = 0;
-  let uploadedPath = '';
+  let prepareCount = 0, uploadCount = 0, confirmCount = 0, compatCompressed = 0, reviewCompressed = 0;
+  let uploadedPath = '', reviewUploadedPath = '';
   const batches = [];
   const { page } = loadPage('albums', {
     getSession: async () => session,
     listAlbumPhotos: async () => ({ album: { id: 'album', title: '我们', photoCount: 0 }, items: [] }),
-    prepareMedia: async () => { prepareCount++; return { id: 'media-preflight', cloudPath: 'staging/preflight' }; },
+    prepareMedia: async () => { prepareCount++; return { id: 'media-preflight', cloudPath: 'staging/preflight', reviewCloudPath: 'review/preflight' }; },
     confirmMedia: async data => { confirmCount++; return { id: data.id, url: 'signed' }; },
     addAlbumPhotos: async data => batches.push(data),
   }, {
@@ -703,19 +719,34 @@ test('album HEIC is normalized before the first cloud upload', async () => {
       type: String(options.src).includes('converted') ? 'jpeg' : 'heic',
       path: options.src, width: 100, height: 100
     }),
-    compressImage: options => { compressed++; options.success({ tempFilePath: 'converted.jpg' }); },
-    cloud: { uploadFile: async options => { uploadCount++; uploadedPath = options.filePath; return { fileID: 'cloud://mock/preflight' }; } },
+    compressImage: options => {
+      if (options.compressedWidth) {
+        reviewCompressed++;
+        options.success({ tempFilePath: 'review.jpg' });
+      } else {
+        compatCompressed++;
+        options.success({ tempFilePath: 'converted.jpg' });
+      }
+    },
+    cloud: { uploadFile: async options => {
+      uploadCount++;
+      if (String(options.cloudPath).includes('review/')) reviewUploadedPath = options.filePath;
+      else uploadedPath = options.filePath;
+      return { fileID: 'cloud://mock/' + String(options.cloudPath) };
+    } },
   });
   page.onLoad({ albumId: 'album' });
   await page.refresh();
   page.setData({ images: [{ localPath: 'original.heic', url: 'original.heic', size: 1024, requestId: 'upload-preflight' }] });
   await page.uploadPhotos();
 
-  assert.equal(compressed, 1);
+  assert.equal(compatCompressed, 1);
+  assert.equal(reviewCompressed, 1);
   assert.equal(prepareCount, 1);
-  assert.equal(uploadCount, 1);
+  assert.equal(uploadCount, 2);
   assert.equal(confirmCount, 1);
   assert.equal(uploadedPath, 'converted.jpg');
+  assert.equal(reviewUploadedPath, 'review.jpg');
   assert.equal(batches.length, 1);
   assert.equal(page.data.images.length, 0);
 });
