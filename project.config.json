@@ -7,13 +7,106 @@
   "description": "热念 · 双人每日关系记录小程序",
   "packOptions": {
     "ignore": [
-      { "type": "folder", "value": "docs" },
-      { "type": "folder", "value": "tests" },
-      { "type": "folder", "value": "scripts" },
-      { "type": "folder", "value": ".github" },
-      { "type": "folder", "value": ".playwright-cli" },
-      { "type": "folder", "value": "output" },
-      { "type": "folder", "value": "backups" }
+      {
+        "type": "folder",
+        "value": "docs"
+      },
+      {
+        "type": "folder",
+        "value": "tests"
+      },
+      {
+        "type": "folder",
+        "value": "scripts"
+      },
+      {
+        "type": "folder",
+        "value": ".github"
+      },
+      {
+        "type": "folder",
+        "value": ".playwright-cli"
+      },
+      {
+        "type": "folder",
+        "value": "output"
+      },
+      {
+        "type": "folder",
+        "value": "backups"
+      },
+      {
+        "type": "file",
+        "value": "config/env.local.example.js"
+      },
+      {
+        "type": "file",
+        "value": "project.private.config.example.json"
+      },
+      {
+        "type": "file",
+        "value": "cloudbaserc.release.json"
+      },
+      {
+        "type": "file",
+        "value": "AUTH.md"
+      },
+      {
+        "type": "file",
+        "value": "BRAND.md"
+      },
+      {
+        "type": "file",
+        "value": "README.md"
+      },
+      {
+        "type": "file",
+        "value": "V2-DEPLOY.md"
+      },
+      {
+        "type": "file",
+        "value": "database-migrate.cmd"
+      },
+      {
+        "type": "file",
+        "value": "database-migrate.ps1"
+      },
+      {
+        "type": "file",
+        "value": "database-preflight.cmd"
+      },
+      {
+        "type": "file",
+        "value": "database-preflight.ps1"
+      },
+      {
+        "type": "file",
+        "value": "setup-local.cmd"
+      },
+      {
+        "type": "file",
+        "value": "setup-local.ps1"
+      },
+      {
+        "type": "file",
+        "value": "update-main-force.cmd"
+      },
+      {
+        "type": "file",
+        "value": "update-main.cmd"
+      },
+      {
+        "type": "file",
+        "value": "update-main.ps1"
+      },
+      {
+        "type": "file",
+        "value": "v2-migrate-legacy.cmd"
+      },
+      {
+        "type": "file",
+        "value": "v2-migrate-legacy.ps1"
+      }
     ],
     "include": []
   },
@@ -25,7 +118,7 @@
     "urlCheck": false,
     "coverView": true,
     "lazyloadPlaceholderEnable": false,
-    "ignoreUploadUnusedFiles": false
+    "ignoreUploadUnusedFiles": true
   },
   "editorSetting": {
     "tabIndent": "insertSpaces",
