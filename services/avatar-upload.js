@@ -47,7 +47,7 @@ async function uploadAccountAvatar(api, avatarUrl, expectedVersion) {
         review = await makeSafetyReviewImage(localPath);
         continue;
       }
-      if (['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'MEDIA_PROCESSING'].includes(error.code) && attempt < 2) continue;
+      if (['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'MEDIA_PROCESSING', 'MEDIA_PREPARE_INVALID'].includes(error.code) && attempt < 2) continue;
       throw error;
     }
   }
