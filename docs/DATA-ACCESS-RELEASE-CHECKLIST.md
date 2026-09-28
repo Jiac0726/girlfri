@@ -34,14 +34,14 @@ CloudBase 官方将“无权限”用于需要服务端处理的敏感数据场�
 - `config/database.v2.json`
 - `config/database.albums.json`
 
-注意：旧迁移脚本会创建缺失集合和索引，但不会自动把仓库中的 permissions 写入生产数据库，因此生产控制台必须核对一次。
+发布脚本 `scripts/release-cloudbase-apply.ps1` 会读取这两份 manifest，并通过 CloudBase `ModifyDatabaseACL` API 将所有正式集合设置为 `ADMINONLY`（控制台“所有用户不可读写”）；随后 `scripts/release-cloudbase-audit.ps1` 使用 `DescribeDatabaseACL` 逐项读回验证。
 
 ## 三、遗留集合
 
 旧库集合 `couples`、`couple_users`、`ratings` 仅供历史迁移/备份使用，不应由当前小程序客户端直接访问。
 
 若这些集合仍保留在生产环境：
-- 建议客户端权限同样设置为“无权限”。
+- 发布脚本会自动将它们设置为 `ADMINONLY`；若集合已不存在则跳过。
 - 不要删除，直到最终备份与回滚快照完成。
 - 当前正式发布配置不部署 `legacyV2Migration`，不要重新执行旧迁移。
 
@@ -88,12 +88,25 @@ CI 必须保证：
 
 ## 六、生产验收
 
-在 CloudBase 控制台：
-1. 文档型数据库 → 集合管理；
-2. 逐个打开上述 12 个 V2 集合；
-3. 权限管理应全部显示“无权限”，或等价安全规则 `read=false, write=false`；
-4. 保留的三个 legacy 集合也建议设为“无权限”；
-5. 云存储 → 权限设置，确认规则与第 4 节一致；
-6. 真机再次验证：日常文字、图片上传/显示、相册评论、私密备忘录均正常。
+推荐直接运行：
+
+```powershell
+.\scripts\release-cloudbase-apply.ps1 -EnvId cloud1-d1gw3jjv3de5cd7b1
+```
+
+脚本会自动：
+1. 部署并校验正式云函数；
+2. 将 12 个 V2 集合设为 `ADMINONLY`；
+3. 对仍存在的 `couple_users`、`couples`、`ratings` 也设为 `ADMINONLY`；
+4. 运行只读 audit，再通过 `DescribeDatabaseACL` 逐项确认权限；
+5. 任一正式集合不是 `ADMINONLY` 时直接失败，不继续把它当作发布成功。
+
+如只想检查而不修改，运行：
+
+```powershell
+.\scripts\release-cloudbase-audit.ps1 -EnvId cloud1-d1gw3jjv3de5cd7b1
+```
+
+数据库 ACL 自动化后，仍需保留云存储第 4 节的自定义规则，并做一次真机验证：日常文字、图片上传/显示、相册评论、私密备忘录均正常。
 
 全部通过后，第 5 项“数据库 + 云存储最终权限审计”才算完成。
