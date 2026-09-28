@@ -110,7 +110,7 @@ Page({
           }
           this.updateImage(i, item);
         }
-        if (item.prepared && !item.prepared.reviewCloudPath) {
+        if (item.prepared && (!item.prepared.cloudPath || !item.prepared.reviewCloudPath)) {
           delete item.prepared;
           delete item.stagingFileID;
           delete item.fileID;
