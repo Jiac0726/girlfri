@@ -22,6 +22,11 @@ async function uploadAccountAvatar(api, avatarUrl, expectedVersion) {
         name: 'account-avatar',
         size,
       });
+      if (!prepared || !prepared.cloudPath || !prepared.reviewCloudPath) {
+        const error = new Error('图片上传准备结果不完整，请重试');
+        error.code = 'MEDIA_PREPARE_INVALID';
+        throw error;
+      }
       const uploaded = await wx.cloud.uploadFile({
         cloudPath: prepared.cloudPath,
         filePath: localPath,
@@ -42,7 +47,7 @@ async function uploadAccountAvatar(api, avatarUrl, expectedVersion) {
         review = await makeSafetyReviewImage(localPath);
         continue;
       }
-      if (['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'MEDIA_PROCESSING'].includes(error.code) && attempt < 2) continue;
+      if (['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'MEDIA_PROCESSING', 'MEDIA_PREPARE_INVALID'].includes(error.code) && attempt < 2) continue;
       throw error;
     }
   }

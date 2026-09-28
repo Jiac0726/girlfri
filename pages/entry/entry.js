@@ -115,7 +115,7 @@ Page({
           throw mediaError('兼容原图格式', error);
         }
       }
-      if (item.prepared && !item.prepared.reviewCloudPath) {
+      if (item.prepared && (!item.prepared.cloudPath || !item.prepared.reviewCloudPath)) {
         delete item.prepared;
         delete item.stagingFileID;
         delete item.fileID;
@@ -138,6 +138,14 @@ Page({
           if (!item.prepared) {
             item.prepared = await api.prepareMedia({ requestId: item.uploadRequestId, name: 'photo', size: item.size });
             this.replaceImage(i, item);
+          }
+          if (!item.prepared || !item.prepared.cloudPath || !item.prepared.reviewCloudPath) {
+            delete item.prepared; delete item.stagingFileID; delete item.reviewFileID;
+            item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
+            if (attempt < 2) continue;
+            const prepareError = new Error('图片上传准备结果不完整，请重试');
+            prepareError.code = 'MEDIA_PREPARE_INVALID';
+            throw prepareError;
           }
           if (!item.stagingFileID) {
             const uploaded = await wx.cloud.uploadFile({ cloudPath: item.prepared.cloudPath, filePath: item.localPath });

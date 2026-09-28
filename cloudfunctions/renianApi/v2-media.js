@@ -144,7 +144,9 @@ function createMedia(ctx, options = {}, security) {
         return changed;
       });
     }
-    return { id: doc._id, cloudPath: doc.cloudPath, reviewCloudPath: prepared.reviewCloudPath };
+    assert(prepared && prepared.cloudPath && prepared.reviewCloudPath,
+      'MEDIA_PREPARE_INVALID', '图片上传准备结果不完整，请重试');
+    return { id: prepared._id, cloudPath: prepared.cloudPath, reviewCloudPath: prepared.reviewCloudPath };
   }
   async function deleteStaging(doc) {
     if (!doc.stagingFileID) return;

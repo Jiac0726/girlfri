@@ -304,3 +304,30 @@ test('media confirmation cannot publish without its safety review file', async (
   assert.equal(media.fileID || '', '');
   assert.equal([...cloud.__files.keys()].some(id => id.includes('/v2-published/')), false);
 });
+
+
+test('media prepare rehydrates paths from database when idempotency result is incomplete', async () => {
+  await pair();
+  const event = {
+    action: 'media.prepare',
+    apiVersion: 2,
+    requestId: 'legacy_prepare_123',
+    name: 'photo',
+    size: 35,
+  };
+  const first = await handle(event, 'A');
+  assert.ok(first.cloudPath);
+  assert.ok(first.reviewCloudPath);
+
+  const operations = cloud.__colStore('v2_operations');
+  const row = [...operations.entries()].find(([, value]) =>
+    value.action === 'media.prepare' && value.actorOpenid === 'A');
+  assert.ok(row);
+  row[1].result = { _id: first.id, reviewCloudPath: first.reviewCloudPath };
+  operations.set(row[0], row[1]);
+
+  const replay = await handle(event, 'A');
+  assert.equal(replay.id, first.id);
+  assert.equal(replay.cloudPath, first.cloudPath);
+  assert.equal(replay.reviewCloudPath, first.reviewCloudPath);
+});
