@@ -116,6 +116,17 @@ function createMedia(ctx, options = {}, security) {
       assert(latest.stagingFileID, 'MEDIA_PROVISION_BUSY', '图片上传准备仍在进行，请稍后重试');
     }
     let prepared = await get(db, 'media', doc._id);
+    if (!prepared.reviewCloudPath) {
+      const reviewCloudPath = 'v2-review/' + openid + '/' + randomId('review');
+      prepared = await transaction(async tx => {
+        const row = await get(tx, 'media', doc._id);
+        assert(row && ['prepared', 'confirming', 'ready', 'attached'].includes(row.status), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
+        if (row.reviewCloudPath) return row;
+        const changed = Object.assign({}, row, { reviewCloudPath, updatedAt: new Date() });
+        await put(tx, 'media', row._id, changed);
+        return changed;
+      });
+    }
     if (!prepared.reviewStagingFileID) {
       assert(typeof options.getUploadMetadata === 'function', 'MEDIA_ENV_UNAVAILABLE', '图片服务暂时不可用');
       const metadata = await options.getUploadMetadata({ cloudPath: prepared.reviewCloudPath });
@@ -171,17 +182,17 @@ function createMedia(ctx, options = {}, security) {
       const doc = await ownedDocument(tx, 'media', event.id, member.pair._id);
       assert(doc.ownerOpenid === openid, 'FORBIDDEN', '只能确认自己上传的图片');
       parsedFile(event.fileID, doc.cloudPath);
-      assert(doc.reviewCloudPath && doc.reviewStagingFileID, 'CONTENT_IMAGE_REVIEW_REQUIRED', '请重新选择图片以完成安全检查');
-      parsedFile(event.reviewFileID, doc.reviewCloudPath);
       if (doc.stagingFileID) {
         assert(doc.stagingFileID === event.fileID, 'INVALID_MEDIA_FILE', '图片不属于本次上传');
       }
-      assert(doc.reviewStagingFileID === event.reviewFileID, 'INVALID_MEDIA_FILE', '图片审核副本不属于本次上传');
       if (doc.status === 'ready' || doc.status === 'attached') {
         assert(doc.status === 'attached' || new Date(doc.expiresAt).getTime() > Date.now(), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
         assert(doc.stagingFileID === event.fileID, 'INVALID_MEDIA_FILE', '图片不属于本次上传');
         return doc;
       }
+      assert(doc.reviewCloudPath && doc.reviewStagingFileID, 'CONTENT_IMAGE_REVIEW_REQUIRED', '请重新选择图片以完成安全检查');
+      parsedFile(event.reviewFileID, doc.reviewCloudPath);
+      assert(doc.reviewStagingFileID === event.reviewFileID, 'INVALID_MEDIA_FILE', '图片审核副本不属于本次上传');
       assert(doc.status === 'prepared', doc.status === 'confirming' ? 'MEDIA_PROCESSING' : 'MEDIA_UNAVAILABLE', '图片正在处理或已经失效，请稍后重试');
       assert(new Date(doc.expiresAt).getTime() > Date.now(), 'MEDIA_EXPIRED', '上传已过期，请重新选择图片');
       const changed = Object.assign({}, doc, {
