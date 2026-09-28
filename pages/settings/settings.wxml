@@ -145,8 +145,8 @@
     <view class="settings-row" bindtap="showPrivacy">
       <view class="settings-row-icon">♡</view>
       <view class="settings-row-copy">
-        <view class="settings-row-title">隐私说明</view>
-        <view class="settings-row-sub">了解双人空间与私密备忘录的数据范围</view>
+        <view class="settings-row-title">隐私保护指引</view>
+        <view class="settings-row-sub">{{privacyStatusText}}</view>
       </view>
       <view class="settings-row-arrow">›</view>
     </view>
