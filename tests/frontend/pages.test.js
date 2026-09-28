@@ -514,14 +514,19 @@ test('settings opens the official WeChat privacy contract and reflects authoriza
 });
 
 test('settings privacy entry falls back gracefully when official privacy APIs are unavailable', async () => {
-  const { page, events } = loadPage('settings');
+  let modal;
+  const { page } = loadPage('settings', {}, {
+    showModal: options => {
+      modal = options;
+      if (options.success) options.success({ confirm: true });
+    },
+  });
   page.loadPrivacyStatus();
   assert.equal(page.data.privacyNeedAuthorization, false);
   assert.match(page.data.privacyStatusText, /微信隐私保护指引/);
 
   page.showPrivacy();
-  const modal = events.find(x => x.method === 'showModal');
-  assert.equal(modal.value.title, '隐私保护说明');
+  assert.equal(modal.title, '隐私保护说明');
 });
 
 test('settings WeChat avatar chooser uploads and persists the selected avatar', async () => {
