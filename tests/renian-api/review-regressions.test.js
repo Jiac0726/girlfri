@@ -164,3 +164,32 @@ test('account avatar attaches securely and replaces the previous avatar', async 
     error => error.code === 'VERSION_CONFLICT'
   );
 });
+
+
+test('paired avatar view returns only the two active members', async () => {
+  const p = await pair();
+  const media = cloud.__colStore('v2_media');
+  const ready = (id, ownerOpenid) => media.set(id, {
+    coupleId: p.coupleId,
+    ownerOpenid,
+    status: 'ready',
+    entryId: '',
+    expiresAt: new Date(Date.now() + 3600000),
+    fileID: 'cloud://mock-env.bucket/v2-published/' + id + '.png',
+  });
+
+  ready('avatarA', 'A');
+  ready('avatarB', 'B');
+  await call('account.avatar.update', 'A', { mediaId: 'avatarA', expectedVersion: 0 });
+  await call('account.avatar.update', 'B', { mediaId: 'avatarB', expectedVersion: 0 });
+
+  const fromA = await call('account.pair', 'A');
+  assert.match(fromA.me.avatarUrl, /avatarA/);
+  assert.match(fromA.partner.avatarUrl, /avatarB/);
+  assert.equal(fromA.me.avatarVersion, 1);
+  assert.equal(Object.prototype.hasOwnProperty.call(fromA.partner, 'avatarVersion'), false);
+
+  const fromB = await call('account.pair', 'B');
+  assert.match(fromB.me.avatarUrl, /avatarB/);
+  assert.match(fromB.partner.avatarUrl, /avatarA/);
+});
