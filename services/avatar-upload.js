@@ -1,21 +1,7 @@
 'use strict';
 
 const { normalizeLocalImage, makeCompatibleImage } = require('./entry-view');
-
-function localFileSize(path) {
-  return new Promise((resolve, reject) => {
-    try {
-      const fs = wx.getFileSystemManager();
-      fs.stat({
-        path,
-        success: result => resolve(Number(result && result.stats && result.stats.size) || 0),
-        fail: reject,
-      });
-    } catch (error) {
-      reject(error);
-    }
-  });
-}
+const { makeSafetyReviewImage, localFileSize } = require('./media-review');
 
 async function uploadAccountAvatar(api, avatarUrl, expectedVersion) {
   let localPath = avatarUrl;
@@ -24,6 +10,7 @@ async function uploadAccountAvatar(api, avatarUrl, expectedVersion) {
   const normalized = await normalizeLocalImage(localPath);
   localPath = normalized.path;
   let converted = normalized.converted;
+  let review = await makeSafetyReviewImage(localPath);
   let confirmed = null;
 
   for (let attempt = 0; attempt < 3 && !confirmed; attempt++) {
@@ -39,11 +26,20 @@ async function uploadAccountAvatar(api, avatarUrl, expectedVersion) {
         cloudPath: prepared.cloudPath,
         filePath: localPath,
       });
-      confirmed = await api.confirmMedia({ id: prepared.id, fileID: uploaded.fileID });
+      const reviewed = await wx.cloud.uploadFile({
+        cloudPath: prepared.reviewCloudPath,
+        filePath: review.path,
+      });
+      confirmed = await api.confirmMedia({
+        id: prepared.id,
+        fileID: uploaded.fileID,
+        reviewFileID: reviewed.fileID,
+      });
     } catch (error) {
       if (error.code === 'INVALID_MEDIA_TYPE' && !converted) {
         localPath = await makeCompatibleImage(localPath);
         converted = true;
+        review = await makeSafetyReviewImage(localPath);
         continue;
       }
       if (['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'MEDIA_PROCESSING'].includes(error.code) && attempt < 2) continue;
