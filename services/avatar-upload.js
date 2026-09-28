@@ -22,6 +22,11 @@ async function uploadAccountAvatar(api, avatarUrl, expectedVersion) {
         name: 'account-avatar',
         size,
       });
+      if (!prepared || !prepared.cloudPath || !prepared.reviewCloudPath) {
+        const error = new Error('图片上传准备结果不完整，请重试');
+        error.code = 'MEDIA_PREPARE_INVALID';
+        throw error;
+      }
       const uploaded = await wx.cloud.uploadFile({
         cloudPath: prepared.cloudPath,
         filePath: localPath,
