@@ -409,6 +409,28 @@ test('daily reminder subscription rejection in settings never enables server set
   page.setData({bindingStatus:'active',loading:false,reminderReady:true});await page.onReminderToggle({detail:{value:true}});assert.equal(writes,0);
 });
 
+test('settings account section reflects relationship status and opens binding page', async () => {
+  const { page, events } = loadPage('settings', {
+    getSession: async () => ({ bindingStatus: 'waiting' }),
+  });
+  await page.loadSettings();
+  assert.equal(page.data.bindingStatus, 'waiting');
+  assert.equal(page.data.accountStatusText, '正在等待 TA 加入');
+  assert.equal(page.data.accountActionText, '继续绑定');
+
+  page.goAccountBinding();
+  const nav = events.find(x => x.method === 'navigateTo');
+  assert.equal(nav.value.url, '/pages/bind/bind');
+
+  page.applyAccount({ bindingStatus: 'active' });
+  assert.equal(page.data.accountStatusText, '已完成双人绑定');
+  assert.equal(page.data.accountActionText, '查看状态');
+
+  page.applyAccount({ bindingStatus: 'unbound' });
+  assert.equal(page.data.accountStatusText, '尚未绑定双人关系');
+  assert.equal(page.data.accountActionText, '去绑定');
+});
+
 test('settings loads both daily share reminder and miss notification state', async () => {
   let reminderReads=0, missReads=0;
   const {page}=loadPage('settings',{
