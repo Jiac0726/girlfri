@@ -33,7 +33,7 @@ jobs:
       - name: Source and route checks
         run: node scripts/check-source.js
       - name: Backend and frontend regression tests
-        run: node --test tests/renian-api/*.test.js tests/frontend/*.test.js
+        run: node --test tests/renian-api/*.test.js tests/frontend/*.test.js tests/services/*.test.js
   powershell-parse:
     runs-on: windows-latest
     steps:
