@@ -431,10 +431,48 @@ test('settings account section reflects relationship status and opens binding pa
   assert.equal(page.data.accountActionText, '去绑定');
 });
 
+test('settings WeChat avatar chooser uploads and persists the selected avatar', async () => {
+  const updates = [];
+  let uploadedPath = '';
+  const { page, events } = loadPage('settings', {
+    prepareMedia: async data => ({ id: 'avatar-media', cloudPath: 'v2-upload/A/avatar', declaredSize: data.size }),
+    confirmMedia: async data => ({ id: data.id, url: 'https://signed.invalid/avatar' }),
+    updateAccountAvatar: async data => {
+      updates.push(data);
+      return { avatarMediaId: data.mediaId, avatarUrl: 'https://signed.invalid/avatar', avatarVersion: 1 };
+    },
+    getAccountProfile: async () => ({ avatarMediaId: '', avatarUrl: '', avatarVersion: 0 }),
+  }, {
+    getImageInfo: options => options.success({ type: 'jpeg', path: options.src, width: 100, height: 100 }),
+    getFileSystemManager: () => ({
+      stat: options => options.success({ stats: { size: 2048 } }),
+    }),
+    cloud: {
+      uploadFile: async options => {
+        uploadedPath = options.filePath;
+        return { fileID: 'cloud://mock-env.bucket/' + options.cloudPath };
+      },
+    },
+  });
+
+  page.setData({ bindingStatus: 'active', loading: false, avatarReady: true });
+  page._avatarVersion = 0;
+  await page.onChooseAvatar({ detail: { avatarUrl: 'wxfile://avatar.jpg' } });
+
+  assert.equal(uploadedPath, 'wxfile://avatar.jpg');
+  assert.equal(updates.length, 1);
+  assert.equal(updates[0].mediaId, 'avatar-media');
+  assert.equal(updates[0].expectedVersion, 0);
+  assert.equal(page.data.avatarUrl, 'https://signed.invalid/avatar');
+  assert.equal(page._avatarVersion, 1);
+  assert.equal(events.find(x => x.method === 'showToast').value.title, '头像已更新');
+});
+
 test('settings loads both daily share reminder and miss notification state', async () => {
   let reminderReads=0, missReads=0;
   const {page}=loadPage('settings',{
     getSession:async()=>session,
+    getAccountProfile:async()=>({avatarMediaId:'',avatarUrl:'',avatarVersion:0}),
     getReminderSettings:async()=>{reminderReads++;return {enabled:true,time:'22:00',version:4};},
     getMissNotifySettings:async()=>{missReads++;return {quota:1,templateId:'miss-template'};},
   });
