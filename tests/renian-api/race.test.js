@@ -222,6 +222,25 @@ test('miss notification requires recipient authorization and consumes one quota'
   assert.equal(cloud.__subscribeMessages.length,1);
 });
 
+test('miss notification quota can accumulate beyond twenty and decrements once per send', async () => {
+  await pair();
+
+  for (let i = 1; i <= 25; i++) {
+    const settings = await call('miss.notify.authorize','B',{requestId:'miss_auth_many_' + i});
+    assert.equal(settings.quota,i);
+  }
+
+  assert.equal((await call('miss.notify.get','B')).quota,25);
+
+  for (let i = 1; i <= 3; i++) {
+    const result = await call('miss.send','A',{requestId:'miss_many_send_' + i});
+    assert.equal(result.notified,true);
+    assert.equal((await call('miss.notify.get','B')).quota,25 - i);
+  }
+
+  assert.equal(cloud.__subscribeMessages.length,3);
+});
+
 test('reminders default off and settings reject stale updates', async () => {
   await pair(); assert.equal((await call('reminder.get')).enabled,false);
   const on=await call('reminder.update','A',{enabled:true,time:'21:30',expectedVersion:0});

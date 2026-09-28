@@ -384,6 +384,13 @@ test('profile private memo creates an item with attached image ids',async()=>{
   assert.equal(page.data.memoText,'');
   assert.equal(events.find(x=>x.method==='showToast').value.title,'只保存给你自己');
 });
+test('settings displays accumulated miss notification quota',async()=>{
+  const {page}=loadPage('settings');
+  page.applyMissNotify({quota:23});
+  assert.equal(page.data.missNotifyQuota,23);
+  assert.equal(page.data.missNotifyStatusText,'已开启 23 次即时提醒');
+});
+
 test('miss notification authorization stores one accepted one-time quota',async()=>{
   const writes=[];
   const template='RWnfT0dJaUjWh6e1XsFpLzgeI6naPdDE6Yq1VSbHusw';
