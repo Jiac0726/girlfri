@@ -32,6 +32,35 @@ foreach ($name in $functions) {
     Write-Host $detail
 }
 
+Write-Host ""
+Write-Host "---------------- DATABASE CLIENT ACL ----------------"
+
+$releaseCollections = @(Get-RenianReleaseDatabaseCollections)
+foreach ($collection in $releaseCollections) {
+    $acl = Get-DatabaseAclTag -EnvId $EnvId -Collection $collection
+    Write-Host ("  " + $collection + " = " + $acl)
+    if ($acl -ne "ADMINONLY") {
+        throw ("Release database ACL is unsafe for '" + $collection + "': expected ADMINONLY, got " + $acl)
+    }
+}
+
+foreach ($collection in @("couple_users", "couples", "ratings")) {
+    try {
+        $acl = Get-DatabaseAclTag -EnvId $EnvId -Collection $collection
+        Write-Host ("  legacy " + $collection + " = " + $acl)
+        if ($acl -ne "ADMINONLY") {
+            throw ("Legacy database ACL is unsafe for '" + $collection + "': expected ADMINONLY, got " + $acl)
+        }
+    } catch {
+        $message = [string]$_.Exception.Message
+        if ($message -match "ResourceNotFound|NotFound|not exist|does not exist|不存在") {
+            Write-Host ("  legacy collection absent, skipped: " + $collection)
+        } else {
+            throw
+        }
+    }
+}
+
 function Get-IndexList {
     param([Parameter(Mandatory = $true)][string]$Collection)
 
@@ -73,6 +102,10 @@ Write-Host "Expected release function settings:"
 Write-Host "  renianApi     timeout=60s memory=512MB"
 Write-Host "  dailyReminder timeout=60s memory=256MB trigger=dailyRatingReminderTimer"
 Write-Host "  mediaCleanup  timeout=60s memory=256MB trigger=abandonedMediaCleanup"
+Write-Host ""
+Write-Host "Expected database ACL:"
+Write-Host "  all release v2 collections = ADMINONLY"
+Write-Host "  retained legacy collections = ADMINONLY"
 Write-Host ""
 Write-Host "Expected release indexes include:"
 Write-Host "  v2_media.v2_query_15"
