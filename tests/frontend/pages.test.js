@@ -494,6 +494,41 @@ test('settings account section reflects relationship status and opens binding pa
   assert.equal(page.data.accountActionText, '去绑定');
 });
 
+test('settings opens the official WeChat privacy contract and reflects authorization state', async () => {
+  let opened = 0;
+  const { page } = loadPage('settings', {}, {
+    getPrivacySetting: options => options.success({
+      needAuthorization: true,
+      privacyContractName: '《热念隐私保护指引》',
+    }),
+    openPrivacyContract: options => { opened++; if (options.success) options.success({}); },
+  });
+
+  page.loadPrivacyStatus();
+  assert.equal(page.data.privacyNeedAuthorization, true);
+  assert.equal(page.data.privacyContractName, '《热念隐私保护指引》');
+  assert.match(page.data.privacyStatusText, /需要阅读并同意/);
+
+  page.showPrivacy();
+  assert.equal(opened, 1);
+});
+
+test('settings privacy entry falls back gracefully when official privacy APIs are unavailable', async () => {
+  let modal;
+  const { page } = loadPage('settings', {}, {
+    showModal: options => {
+      modal = options;
+      if (options.success) options.success({ confirm: true });
+    },
+  });
+  page.loadPrivacyStatus();
+  assert.equal(page.data.privacyNeedAuthorization, false);
+  assert.match(page.data.privacyStatusText, /微信隐私保护指引/);
+
+  page.showPrivacy();
+  assert.equal(modal.title, '隐私保护说明');
+});
+
 test('settings WeChat avatar chooser uploads and persists the selected avatar', async () => {
   const updates = [];
   let uploadedPath = '', reviewUploadedPath = '';

@@ -26,11 +26,42 @@ Page({
     reminderTimeOptions: TIMES,
     reminderTimeIndex: 3,
     reminderStatusText: '正在读取每日分享提醒',
+    privacyContractName: '《热念用户隐私保护指引》',
+    privacyStatusText: '由微信隐私保护指引统一管理',
+    privacyNeedAuthorization: false,
     error: '',
   },
 
   onShow: function () {
+    this.loadPrivacyStatus();
     this.loadSettings();
+  },
+
+  loadPrivacyStatus: function () {
+    if (typeof wx.getPrivacySetting !== 'function') {
+      this.setData({
+        privacyStatusText: '由微信隐私保护指引统一管理',
+        privacyNeedAuthorization: false,
+      });
+      return;
+    }
+    wx.getPrivacySetting({
+      success: result => {
+        this.setData({
+          privacyContractName: result.privacyContractName || '《热念用户隐私保护指引》',
+          privacyNeedAuthorization: !!result.needAuthorization,
+          privacyStatusText: result.needAuthorization
+            ? '使用头像、照片等功能前需要阅读并同意'
+            : '已按微信隐私保护指引管理',
+        });
+      },
+      fail: () => {
+        this.setData({
+          privacyStatusText: '由微信隐私保护指引统一管理',
+          privacyNeedAuthorization: false,
+        });
+      },
+    });
   },
 
   loadSettings: async function () {
@@ -249,11 +280,22 @@ Page({
     });
   },
 
-  showPrivacy: function () {
+  showPrivacyFallback: function () {
     wx.showModal({
-      title: '隐私说明',
-      content: '“热念”只在必要范围内保存双人空间所需的数据。恋爱备忘录仅对本人可见，不会展示给另一方。',
+      title: '隐私保护说明',
+      content: '“热念”只在必要范围内处理双人空间功能所需的数据。恋爱备忘录仅对本人可见；照片上传会经过内容安全检查。完整隐私保护指引由微信平台统一展示。',
       showCancel: false,
+      success: () => {},
+    });
+  },
+
+  showPrivacy: function () {
+    if (typeof wx.openPrivacyContract !== 'function') {
+      this.showPrivacyFallback();
+      return;
+    }
+    wx.openPrivacyContract({
+      fail: () => this.showPrivacyFallback(),
     });
   },
 
