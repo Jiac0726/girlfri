@@ -295,3 +295,27 @@ button.miss-setting-button[disabled] {
   font-size: 20rpx;
   line-height: 1.65;
 }
+
+
+.account-action {
+  flex-shrink: 0;
+  margin-left: 14rpx;
+  color: #a64d68;
+  font-size: 21rpx;
+  font-weight: 700;
+}
+
+.account-status-pill {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  padding: 8rpx 14rpx;
+  border-radius: 999rpx;
+  background: #fff0f4;
+  color: #a64d68;
+  font-size: 19rpx;
+  line-height: 1.4;
+}
+
+.account-info-row {
+  cursor: default;
+}
