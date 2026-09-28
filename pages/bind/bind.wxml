@@ -44,7 +44,37 @@
     <view class="flow-signature">想和你，收藏每一个普通日子。</view>
   </view>
   <view wx:if="{{bindingStatus === 'active'}}" class="success-stage">
-    <image class="success-pair-art" src="../../assets/success-pair.jpg" mode="aspectFit" />
+    <view class="success-avatar-pair">
+      <view class="success-avatar-person">
+        <button
+          class="success-avatar-button"
+          open-type="chooseAvatar"
+          bindchooseavatar="onChooseAvatar"
+          loading="{{avatarSaving}}"
+          disabled="{{avatarSaving || loading}}"
+          aria-label="设置我的微信头像"
+        >
+          <image wx:if="{{myAvatarUrl}}" class="success-avatar-image" src="{{myAvatarUrl}}" mode="aspectFill" />
+          <view wx:else class="success-avatar-placeholder">我</view>
+        </button>
+        <view class="success-avatar-label">{{myAvatarUrl ? '我' : '设置我的头像'}}</view>
+      </view>
+
+      <view class="success-avatar-heart">♡</view>
+
+      <view class="success-avatar-person">
+        <view class="success-avatar-static">
+          <image wx:if="{{partnerAvatarUrl}}" class="success-avatar-image" src="{{partnerAvatarUrl}}" mode="aspectFill" />
+          <view wx:else class="success-avatar-placeholder">TA</view>
+        </view>
+        <view class="success-avatar-label">{{partnerAvatarUrl ? 'TA' : '等待 TA 设置头像'}}</view>
+      </view>
+    </view>
+
+    <view class="success-avatar-hint" wx:if="{{!myAvatarUrl}}">
+      点击“我”的头像，可直接使用微信头像
+    </view>
+
     <view class="success-title">连接成功</view>
     <view class="invite-sub"><view>从今天开始，</view><view>留下一点属于你们的记录。</view></view>
     <button class="love-btn" bindtap="backHome">开始记录</button>
