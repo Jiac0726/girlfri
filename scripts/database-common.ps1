@@ -73,6 +73,92 @@ function ConvertTo-TcbJsonArgument {
     return $Json
 }
 
+
+function Invoke-TcbCloudApi {
+    param(
+        [Parameter(Mandatory = $true)][string]$EnvId,
+        [Parameter(Mandatory = $true)][string]$Action,
+        [Parameter(Mandatory = $true)]$Body
+    )
+
+    $json = $Body | ConvertTo-Json -Depth 20 -Compress
+    $bodyArg = ConvertTo-TcbJsonArgument -Json $json
+
+    return Invoke-Tcb -Capture -TcbArgs @(
+        "api", "tcb", $Action,
+        "--body", $bodyArg,
+        "--api-version", "2018-06-08",
+        "--json"
+    )
+}
+
+function Get-DatabaseAclTag {
+    param(
+        [Parameter(Mandatory = $true)][string]$EnvId,
+        [Parameter(Mandatory = $true)][string]$Collection
+    )
+
+    $raw = Invoke-TcbCloudApi -EnvId $EnvId -Action "DescribeDatabaseACL" -Body ([ordered]@{
+        EnvId = $EnvId
+        CollectionName = $Collection
+    })
+
+    $match = [regex]::Match($raw, '"AclTag"\s*:\s*"([^"]+)"')
+    if (-not $match.Success) {
+        throw ("Could not read AclTag for collection '" + $Collection + "'." + [Environment]::NewLine + $raw)
+    }
+
+    return $match.Groups[1].Value
+}
+
+function Set-DatabaseAclAdminOnly {
+    param(
+        [Parameter(Mandatory = $true)][string]$EnvId,
+        [Parameter(Mandatory = $true)][string]$Collection
+    )
+
+    Invoke-TcbCloudApi -EnvId $EnvId -Action "ModifyDatabaseACL" -Body ([ordered]@{
+        EnvId = $EnvId
+        CollectionName = $Collection
+        AclTag = "ADMINONLY"
+    }) | Out-Null
+
+    $actual = Get-DatabaseAclTag -EnvId $EnvId -Collection $Collection
+    if ($actual -ne "ADMINONLY") {
+        throw ("Database ACL verification failed for '" + $Collection + "': expected ADMINONLY, got " + $actual)
+    }
+}
+
+function Get-RenianReleaseDatabaseCollections {
+    $schemaFiles = @(
+        (Join-Path $script:RenianRepoRoot "config/database.v2.json"),
+        (Join-Path $script:RenianRepoRoot "config/database.albums.json")
+    )
+
+    $names = New-Object System.Collections.Generic.List[string]
+    foreach ($schemaFile in $schemaFiles) {
+        if (-not (Test-Path -LiteralPath $schemaFile)) {
+            throw ("Missing database schema manifest: " + $schemaFile)
+        }
+
+        $schema = Get-Content -LiteralPath $schemaFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        foreach ($collection in @($schema.collections)) {
+            $name = [string]$collection.name
+            if (-not $name) {
+                throw ("Database schema contains a collection without a name: " + $schemaFile)
+            }
+            if ($collection.permissions.read -ne $false -or $collection.permissions.write -ne $false) {
+                throw ("Release database collection '" + $name + "' must declare read=false and write=false before ADMINONLY can be applied.")
+            }
+            if (-not $names.Contains($name)) {
+                $names.Add($name)
+            }
+        }
+    }
+
+    return $names.ToArray()
+}
+
 function ConvertTo-TcbMgoCommandsJson {
     param([Parameter(Mandatory = $true)][string]$CommandJson)
 
