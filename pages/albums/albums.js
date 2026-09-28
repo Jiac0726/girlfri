@@ -127,6 +127,14 @@ Page({
         for (let attempt = 0; attempt < 3 && !item.id; attempt++) {
           try {
             if (!item.prepared) { item.prepared = await api.prepareMedia({ requestId: item.requestId, name: 'album-photo', size: item.size }); this.updateImage(i, item); }
+            if (!item.prepared || !item.prepared.cloudPath || !item.prepared.reviewCloudPath) {
+              delete item.prepared; delete item.fileID; delete item.reviewFileID;
+              item.requestId = api.newRequestId(); this.updateImage(i, item);
+              if (attempt < 2) continue;
+              const prepareError = new Error('图片上传准备结果不完整，请重试');
+              prepareError.code = 'MEDIA_PREPARE_INVALID';
+              throw prepareError;
+            }
             if (!item.fileID) { item.fileID = (await wx.cloud.uploadFile({ cloudPath: item.prepared.cloudPath, filePath: item.localPath })).fileID; this.updateImage(i, item); }
             if (!item.reviewFileID) { item.reviewFileID = (await wx.cloud.uploadFile({ cloudPath: item.prepared.reviewCloudPath, filePath: item.reviewLocalPath })).fileID; this.updateImage(i, item); }
             const ready = await api.confirmMedia({ id: item.prepared.id, fileID: item.fileID, reviewFileID: item.reviewFileID });
