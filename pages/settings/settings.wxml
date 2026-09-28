@@ -4,12 +4,35 @@
     <view class="settings-header-copy">
       <view class="settings-eyebrow">热念 · 个人</view>
       <view class="settings-title">个人设置</view>
-      <view class="settings-sub">管理提醒、微信权限与使用说明</view>
+      <view class="settings-sub">管理账户、提醒、微信权限与使用说明</view>
     </view>
   </view>
 
   <view class="settings-error" wx:if="{{error}}" bindtap="loadSettings">
     {{error}} · 点击重试
+  </view>
+
+  <view class="settings-card">
+    <view class="settings-section-title">账户设置</view>
+
+    <view class="settings-row" bindtap="goAccountBinding">
+      <view class="settings-row-icon">♡</view>
+      <view class="settings-row-copy">
+        <view class="settings-row-title">双人关系</view>
+        <view class="settings-row-sub">{{accountStatusText}}</view>
+      </view>
+      <view class="account-action">{{accountActionText}}</view>
+      <view class="settings-row-arrow">›</view>
+    </view>
+
+    <view class="settings-row account-info-row">
+      <view class="settings-row-icon">微</view>
+      <view class="settings-row-copy">
+        <view class="settings-row-title">微信身份</view>
+        <view class="settings-row-sub">使用当前微信账号自动识别，无需单独登录。</view>
+      </view>
+      <view class="account-status-pill">当前账号</view>
+    </view>
   </view>
 
   <view class="settings-card">
