@@ -3,7 +3,8 @@
     "openapi": [
       "subscribeMessage.send",
       "subscribeMessage.getTemplateList",
-      "security.msgSecCheck"
+      "security.msgSecCheck",
+      "security.imgSecCheck"
     ]
   }
 }
