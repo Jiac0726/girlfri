@@ -41,7 +41,7 @@ function validateDay(value) {
 function createV2Api(cloud, options = {}) {
   const ctx = createContext(cloud, options.database);
   const security = createSecurity(cloud);
-  const media = createMedia(ctx, options);
+  const media = createMedia(ctx, options, security);
   const albums = createAlbums(ctx, media, security);
   const pairs = createPairs(ctx, {
     onActivated: (tx, member) => albums.ensureDailyAlbumForMember(tx, member),
