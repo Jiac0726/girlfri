@@ -115,6 +115,14 @@ Page({
           throw mediaError('兼容原图格式', error);
         }
       }
+      if (item.prepared && !item.prepared.reviewCloudPath) {
+        delete item.prepared;
+        delete item.stagingFileID;
+        delete item.fileID;
+        delete item.reviewFileID;
+        item.uploadRequestId = api.newRequestId();
+        this.replaceImage(i, item);
+      }
       if (!item.reviewLocalPath && item.localPath) {
         try {
           const review = await makeSafetyReviewImage(item.localPath);
@@ -149,7 +157,7 @@ Page({
           this.replaceImage(i, confirmed);
           break;
         } catch (error) {
-          const staleUpload = ['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE'].includes(error.code);
+          const staleUpload = ['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'CONTENT_IMAGE_REVIEW_REQUIRED'].includes(error.code);
           if (staleUpload && !item.staleRetried) {
             item.staleRetried = true;
             delete item.prepared; delete item.stagingFileID; delete item.reviewFileID; item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
