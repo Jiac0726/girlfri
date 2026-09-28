@@ -2,7 +2,7 @@
 
 const { wxCall } = require('./entry-view');
 
-const MAX_REVIEW_BYTES = 190 * 1024;
+const MAX_REVIEW_BYTES = 950 * 1024;
 
 function localFileSize(path) {
   return new Promise((resolve, reject) => {
@@ -33,10 +33,9 @@ function scaledDimensions(info, maxWidth, maxHeight) {
 async function makeSafetyReviewImage(src) {
   const info = await wxCall('getImageInfo', { src }).catch(() => null);
   const attempts = [
-    { quality: 55, maxWidth: 640, maxHeight: 960 },
-    { quality: 38, maxWidth: 520, maxHeight: 780 },
-    { quality: 28, maxWidth: 420, maxHeight: 640 },
-    { quality: 18, maxWidth: 320, maxHeight: 480 },
+    { quality: 60, maxWidth: 720, maxHeight: 1280 },
+    { quality: 35, maxWidth: 560, maxHeight: 960 },
+    { quality: 20, maxWidth: 420, maxHeight: 720 },
   ];
 
   let lastError = null;
@@ -58,7 +57,7 @@ async function makeSafetyReviewImage(src) {
     }
   }
 
-  const error = new Error('无法将安全审核图压到 200 KB 以内，请换一张图片后重试');
+  const error = new Error('无法生成安全审核图片，请换一张图片后重试');
   error.code = 'CONTENT_IMAGE_REVIEW_INVALID';
   error.cause = lastError;
   throw error;
