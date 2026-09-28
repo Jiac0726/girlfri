@@ -9,6 +9,8 @@ Page({
     version: 'V2',
     loading: false,
     bindingStatus: 'loading',
+    accountStatusText: '正在读取账号状态',
+    accountActionText: '查看',
     missNotifySaving: false,
     missNotifyReady: false,
     missNotifyQuota: 0,
@@ -33,7 +35,7 @@ Page({
     try {
       const session = await api.getSession();
       const bindingStatus = session.bindingStatus;
-      this.setData({ bindingStatus });
+      this.applyAccount(session);
       if (bindingStatus !== 'active') {
         this.setData({
           missNotifyReady: false,
@@ -60,6 +62,8 @@ Page({
       if (api.isBindingError && api.isBindingError(error)) {
         this.setData({
           bindingStatus: 'unbound',
+          accountStatusText: '尚未绑定双人关系',
+          accountActionText: '去绑定',
           missNotifyQuota: 0,
           missNotifyStatusText: '完成双人绑定后可开启想念提醒',
           reminderEnabled: false,
@@ -69,6 +73,29 @@ Page({
     } finally {
       this.setData({ loading: false });
     }
+  },
+
+  applyAccount: function (session) {
+    const status = session && session.bindingStatus || 'unbound';
+    const statusText = status === 'active'
+      ? '已完成双人绑定'
+      : status === 'waiting'
+        ? '正在等待 TA 加入'
+        : '尚未绑定双人关系';
+    const actionText = status === 'active'
+      ? '查看状态'
+      : status === 'waiting'
+        ? '继续绑定'
+        : '去绑定';
+    this.setData({
+      bindingStatus: status,
+      accountStatusText: statusText,
+      accountActionText: actionText,
+    });
+  },
+
+  goAccountBinding: function () {
+    wx.navigateTo({ url: '/pages/bind/bind' });
   },
 
   applyReminder: function (value) {
