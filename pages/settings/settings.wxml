@@ -25,6 +25,27 @@
       <view class="settings-row-arrow">›</view>
     </view>
 
+    <view class="settings-row account-avatar-row">
+      <button
+        class="account-avatar-button"
+        open-type="chooseAvatar"
+        bindchooseavatar="onChooseAvatar"
+        loading="{{avatarSaving}}"
+        disabled="{{avatarSaving || loading || bindingStatus !== 'active'}}"
+        aria-label="选择微信头像"
+      >
+        <image wx:if="{{avatarUrl}}" class="account-avatar-image" src="{{avatarUrl}}" mode="aspectFill" />
+        <view wx:else class="account-avatar-placeholder">♡</view>
+      </button>
+      <view class="settings-row-copy">
+        <view class="settings-row-title">微信头像</view>
+        <view class="settings-row-sub">
+          {{bindingStatus === 'active' ? '点击头像，由微信选择并授权热念使用。' : '完成双人绑定后可设置头像。'}}
+        </view>
+      </view>
+      <view class="account-action">{{avatarUrl ? '更换' : '设置'}}</view>
+    </view>
+
     <view class="settings-row account-info-row">
       <view class="settings-row-icon">微</view>
       <view class="settings-row-copy">
