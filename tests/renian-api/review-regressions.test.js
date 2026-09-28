@@ -331,3 +331,50 @@ test('media prepare rehydrates paths from database when idempotency result is in
   assert.equal(replay.cloudPath, first.cloudPath);
   assert.equal(replay.reviewCloudPath, first.reviewCloudPath);
 });
+
+
+test('media prepare self-heals a legacy media row missing cloudPath', async () => {
+  await pair();
+  const event = {
+    action: 'media.prepare',
+    apiVersion: 2,
+    requestId: 'legacy_missing_cloud_path',
+    name: 'photo',
+    size: 35,
+  };
+  const first = await handle(event, 'A');
+  const media = cloud.__colStore('v2_media');
+  const legacy = media.get(first.id);
+  assert.ok(legacy.stagingFileID);
+  delete legacy.cloudPath;
+  media.set(first.id, legacy);
+
+  const replay = await handle(event, 'A');
+  assert.equal(replay.id, first.id);
+  assert.equal(replay.cloudPath, first.cloudPath);
+  assert.equal(replay.reviewCloudPath, first.reviewCloudPath);
+  assert.equal(media.get(first.id).cloudPath, first.cloudPath);
+});
+
+test('media prepare can rebuild a fresh cloudPath when legacy row has neither path nor staging file', async () => {
+  await pair();
+  const event = {
+    action: 'media.prepare',
+    apiVersion: 2,
+    requestId: 'legacy_missing_path_and_file',
+    name: 'photo',
+    size: 35,
+  };
+  const first = await handle(event, 'A');
+  const media = cloud.__colStore('v2_media');
+  const legacy = media.get(first.id);
+  delete legacy.cloudPath;
+  legacy.stagingFileID = '';
+  media.set(first.id, legacy);
+
+  const replay = await handle(event, 'A');
+  assert.equal(replay.id, first.id);
+  assert.match(replay.cloudPath, /^v2-upload\/A\/upload_/);
+  assert.ok(media.get(first.id).stagingFileID);
+  assert.equal(media.get(first.id).cloudPath, replay.cloudPath);
+});

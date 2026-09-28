@@ -165,7 +165,7 @@ Page({
           this.replaceImage(i, confirmed);
           break;
         } catch (error) {
-          const staleUpload = ['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'CONTENT_IMAGE_REVIEW_REQUIRED'].includes(error.code);
+          const staleUpload = ['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'MEDIA_PREPARE_INVALID', 'CONTENT_IMAGE_REVIEW_REQUIRED'].includes(error.code);
           if (staleUpload && !item.staleRetried) {
             item.staleRetried = true;
             delete item.prepared; delete item.stagingFileID; delete item.reviewFileID; item.uploadRequestId = api.newRequestId(); this.replaceImage(i, item);
