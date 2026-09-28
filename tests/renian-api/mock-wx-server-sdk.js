@@ -107,6 +107,8 @@ function runTransaction(fn) {
 }
 const files = new Map();
 const subscribeMessages = [];
+let msgSecCheckHandler = async () => ({ result: { suggest: 'pass', label: 100 } });
+let imgSecCheckHandler = async () => ({ errCode: 0, errMsg: 'ok' });
 const cloud = {
   init() {}, DYNAMIC_CURRENT_ENV: 'mock-env', _openid: 'A',
   getWXContext: () => ({ OPENID: cloud._openid, ENV: 'mock-env' }),
@@ -116,19 +118,34 @@ const cloud = {
   async uploadFile({cloudPath, fileContent}) { const fileID = 'cloud://mock-env.bucket/' + cloudPath; files.set(fileID, Buffer.from(fileContent)); return { fileID }; },
   async downloadFile({fileID}) { if (!files.has(fileID)) throw new Error('missing file'); return { fileContent: files.get(fileID) }; },
   async deleteFile({fileList}) { return { fileList: fileList.map(fileID => { files.delete(fileID); return { fileID, status: 0 }; }) }; },
-  openapi: { subscribeMessage: {
-    getTemplateList: async () => ({
-      data: [{
-        priTmplId: 'RWnfT0dJaUjWh6e1XsFpLzgeI6naPdDE6Yq1VSbHusw',
-        title: '聊天消息通知',
-        content: '消息时间:{{time7.DATA}}\n消息条数:{{number8.DATA}}',
-        type: 2,
-      }],
-    }),
-    send: async input => { subscribeMessages.push(structuredClone(input)); return {}; },
-  } },
+  openapi: {
+    subscribeMessage: {
+      getTemplateList: async () => ({
+        data: [{
+          priTmplId: 'RWnfT0dJaUjWh6e1XsFpLzgeI6naPdDE6Yq1VSbHusw',
+          title: '聊天消息通知',
+          content: '消息时间:{{time7.DATA}}\n消息条数:{{number8.DATA}}',
+          type: 2,
+        }],
+      }),
+      send: async input => { subscribeMessages.push(structuredClone(input)); return {}; },
+    },
+    security: {
+      msgSecCheck: async input => msgSecCheckHandler(structuredClone(input)),
+      imgSecCheck: async input => imgSecCheckHandler(input),
+    },
+  },
   __store: store, __colStore: colStore, __hooks: hooks, __files: files, __subscribeMessages: subscribeMessages,
   __setOpenid(value) { cloud._openid = value; },
-  __reset() { for (const key of Object.keys(store)) delete store[key]; for (const key of Object.keys(hooks)) delete hooks[key]; files.clear(); subscribeMessages.length = 0; },
+  __setMsgSecCheck(handler) { msgSecCheckHandler = handler; },
+  __setImgSecCheck(handler) { imgSecCheckHandler = handler; },
+  __reset() {
+    for (const key of Object.keys(store)) delete store[key];
+    for (const key of Object.keys(hooks)) delete hooks[key];
+    files.clear();
+    subscribeMessages.length = 0;
+    msgSecCheckHandler = async () => ({ result: { suggest: 'pass', label: 100 } });
+    imgSecCheckHandler = async () => ({ errCode: 0, errMsg: 'ok' });
+  },
 };
 module.exports = cloud;
