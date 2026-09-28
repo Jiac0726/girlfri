@@ -1,23 +1,9 @@
 const api = require('../../services/cloud');
-const { wxCall, normalizeLocalImage, makeCompatibleImage } = require('../../services/entry-view');
+const { wxCall } = require('../../services/entry-view');
+const { uploadAccountAvatar } = require('../../services/avatar-upload');
 const MISS_TEMPLATE = 'RWnfT0dJaUjWh6e1XsFpLzgeI6naPdDE6Yq1VSbHusw';
 const DAILY_TEMPLATE = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
 const TIMES = ['20:00','20:30','21:00','21:30','22:00','22:30'];
-
-function localFileSize(path) {
-  return new Promise((resolve, reject) => {
-    try {
-      const fs = wx.getFileSystemManager();
-      fs.stat({
-        path,
-        success: result => resolve(Number(result && result.stats && result.stats.size) || 0),
-        fail: reject,
-      });
-    } catch (error) {
-      reject(error);
-    }
-  });
-}
 
 Page({
   data: {
@@ -133,42 +119,12 @@ Page({
 
   onChooseAvatar: async function (e) {
     if (this.data.avatarSaving || this.data.loading || this.data.bindingStatus !== 'active') return;
-    let localPath = e && e.detail && e.detail.avatarUrl;
-    if (!localPath) return;
+    const avatarUrl = e && e.detail && e.detail.avatarUrl;
+    if (!avatarUrl) return;
 
     this.setData({ avatarSaving: true, error: '' });
     try {
-      const normalized = await normalizeLocalImage(localPath);
-      localPath = normalized.path;
-      let converted = normalized.converted;
-
-      let confirmed = null;
-      for (let attempt = 0; attempt < 3 && !confirmed; attempt++) {
-        try {
-          const size = await localFileSize(localPath);
-          if (!size || size > 20 * 1024 * 1024) throw new Error('头像不能超过 20 MB');
-          const requestId = api.newRequestId();
-          const prepared = await api.prepareMedia({ requestId, name: 'account-avatar', size });
-          const uploaded = await wx.cloud.uploadFile({ cloudPath: prepared.cloudPath, filePath: localPath });
-          confirmed = await api.confirmMedia({ id: prepared.id, fileID: uploaded.fileID });
-        } catch (error) {
-          if (error.code === 'INVALID_MEDIA_TYPE' && !converted) {
-            localPath = await makeCompatibleImage(localPath);
-            converted = true;
-            continue;
-          }
-          if (['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'MEDIA_PROCESSING'].includes(error.code) && attempt < 2) continue;
-          throw error;
-        }
-      }
-      if (!confirmed || !confirmed.id) throw new Error('头像上传未完成，请重试');
-
-      const account = await api.updateAccountAvatar({
-        requestId: api.newRequestId(),
-        mediaId: confirmed.id,
-        expectedVersion: this._avatarVersion || 0,
-      });
-      this.applyAvatar(account);
+      this.applyAvatar(await uploadAccountAvatar(api, avatarUrl, this._avatarVersion || 0));
       wx.showToast({ title: '头像已更新', icon: 'success' });
     } catch (error) {
       wx.showToast({ title: error.message || '头像更新失败，请重试', icon: 'none' });
