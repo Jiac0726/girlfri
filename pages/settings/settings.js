@@ -1,8 +1,23 @@
 const api = require('../../services/cloud');
-const { wxCall } = require('../../services/entry-view');
+const { wxCall, normalizeLocalImage, makeCompatibleImage } = require('../../services/entry-view');
 const MISS_TEMPLATE = 'RWnfT0dJaUjWh6e1XsFpLzgeI6naPdDE6Yq1VSbHusw';
 const DAILY_TEMPLATE = 'tb0gjEGNaTQfOvLVKNdWKekwa3fSTdyCQkkTSpuNjtk';
 const TIMES = ['20:00','20:30','21:00','21:30','22:00','22:30'];
+
+function localFileSize(path) {
+  return new Promise((resolve, reject) => {
+    try {
+      const fs = wx.getFileSystemManager();
+      fs.stat({
+        path,
+        success: result => resolve(Number(result && result.stats && result.stats.size) || 0),
+        fail: reject,
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
 
 Page({
   data: {
@@ -11,6 +26,9 @@ Page({
     bindingStatus: 'loading',
     accountStatusText: '正在读取账号状态',
     accountActionText: '查看',
+    avatarUrl: '',
+    avatarSaving: false,
+    avatarReady: false,
     missNotifySaving: false,
     missNotifyReady: false,
     missNotifyQuota: 0,
@@ -30,7 +48,7 @@ Page({
   },
 
   loadSettings: async function () {
-    if (this.data.loading || this.data.missNotifySaving || this.data.reminderSaving) return;
+    if (this.data.loading || this.data.missNotifySaving || this.data.reminderSaving || this.data.avatarSaving) return;
     this.setData({ loading: true, error: '' });
     try {
       const session = await api.getSession();
@@ -41,21 +59,26 @@ Page({
           missNotifyReady: false,
           missNotifyQuota: 0,
           missNotifyStatusText: '完成双人绑定后可开启想念提醒',
+          avatarReady: false,
+          avatarUrl: '',
           reminderReady: false,
           reminderEnabled: false,
           reminderStatusText: '完成双人绑定后可设置每日分享提醒',
         });
         return;
       }
-      const [missNotify, reminder] = await Promise.all([
+      const [account, missNotify, reminder] = await Promise.all([
+        api.getAccountProfile(),
         api.getMissNotifySettings(),
         api.getReminderSettings(),
       ]);
+      this.applyAvatar(account);
       this.applyMissNotify(missNotify);
       this.applyReminder(reminder);
     } catch (error) {
       this.setData({
         error: error.message || '设置加载失败，请重试',
+        avatarReady: false,
         missNotifyReady: false,
         reminderReady: false,
       });
@@ -64,6 +87,8 @@ Page({
           bindingStatus: 'unbound',
           accountStatusText: '尚未绑定双人关系',
           accountActionText: '去绑定',
+          avatarReady: false,
+          avatarUrl: '',
           missNotifyQuota: 0,
           missNotifyStatusText: '完成双人绑定后可开启想念提醒',
           reminderEnabled: false,
@@ -96,6 +121,61 @@ Page({
 
   goAccountBinding: function () {
     wx.navigateTo({ url: '/pages/bind/bind' });
+  },
+
+  applyAvatar: function (value) {
+    this._avatarVersion = Number(value && value.avatarVersion) || 0;
+    this.setData({
+      avatarReady: true,
+      avatarUrl: value && value.avatarUrl || '',
+    });
+  },
+
+  onChooseAvatar: async function (e) {
+    if (this.data.avatarSaving || this.data.loading || this.data.bindingStatus !== 'active') return;
+    let localPath = e && e.detail && e.detail.avatarUrl;
+    if (!localPath) return;
+
+    this.setData({ avatarSaving: true, error: '' });
+    try {
+      const normalized = await normalizeLocalImage(localPath);
+      localPath = normalized.path;
+      let converted = normalized.converted;
+
+      let confirmed = null;
+      for (let attempt = 0; attempt < 3 && !confirmed; attempt++) {
+        try {
+          const size = await localFileSize(localPath);
+          if (!size || size > 20 * 1024 * 1024) throw new Error('头像不能超过 20 MB');
+          const requestId = api.newRequestId();
+          const prepared = await api.prepareMedia({ requestId, name: 'account-avatar', size });
+          const uploaded = await wx.cloud.uploadFile({ cloudPath: prepared.cloudPath, filePath: localPath });
+          confirmed = await api.confirmMedia({ id: prepared.id, fileID: uploaded.fileID });
+        } catch (error) {
+          if (error.code === 'INVALID_MEDIA_TYPE' && !converted) {
+            localPath = await makeCompatibleImage(localPath);
+            converted = true;
+            continue;
+          }
+          if (['MEDIA_EXPIRED', 'MEDIA_UNAVAILABLE', 'MEDIA_PROCESSING'].includes(error.code) && attempt < 2) continue;
+          throw error;
+        }
+      }
+      if (!confirmed || !confirmed.id) throw new Error('头像上传未完成，请重试');
+
+      const account = await api.updateAccountAvatar({
+        requestId: api.newRequestId(),
+        mediaId: confirmed.id,
+        expectedVersion: this._avatarVersion || 0,
+      });
+      this.applyAvatar(account);
+      wx.showToast({ title: '头像已更新', icon: 'success' });
+    } catch (error) {
+      wx.showToast({ title: error.message || '头像更新失败，请重试', icon: 'none' });
+      try { this.applyAvatar(await api.getAccountProfile()); } catch (_) {}
+    } finally {
+      this.setData({ avatarSaving: false });
+    }
   },
 
   applyReminder: function (value) {
