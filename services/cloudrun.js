@@ -97,12 +97,18 @@ async function callContainer(opts) {
   return res && res.data;
 }
 
-/** 便捷方法：把模板的 /api/count 计数器包一层，便于联调验证链路通不通 */
+/**
+ * 便捷方法：把模板的 /api/count 计数器包一层，便于联调验证链路通不通
+ *
+ * ⚠️ action 取值以 CounterController 源码为准：只有 "inc"（自增）与
+ * "clear"（清零），没有 "dec"。此前写成 inc/dec 是未对照真实接口
+ * 而想当然，靠 mock 测试发现不了，是实测线上才暴露的。
+ */
 function pingCounter(action) {
   return callContainer({
     path: '/api/count',
     method: 'POST',
-    data: { action: action === 'dec' ? 'dec' : 'inc' },
+    data: { action: action === 'clear' ? 'clear' : 'inc' },
   });
 }
 

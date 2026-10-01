@@ -120,15 +120,20 @@ test('2xx 放行并返回 res.data', async () => {
   assert.deepEqual(await api.callContainer({ path: '/api/count' }), { n: 3 });
 });
 
-test('pingCounter 走 /api/count 并归一 action', async () => {
+test('pingCounter 走 /api/count，action 只认 inc/clear', async () => {
   const { api, calls } = load();
   await api.pingCounter('inc');
-  await api.pingCounter('dec');
-  await api.pingCounter('随便什么');   // 非 dec 一律归一为 inc
+  await api.pingCounter('clear');
+  await api.pingCounter('随便什么');   // 非 clear 一律归一为 inc
   assert.equal(calls.length, 3);
   // 跨 realm：逐条比，不用 deepEqual
-  assert.deepEqual(calls.map((c) => String(c.data.action)), ['inc', 'dec', 'inc']);
+  assert.deepEqual(calls.map((c) => String(c.data.action)), ['inc', 'clear', 'inc']);
   assert.ok(calls.every((c) => c.path === '/api/count' && c.method === 'POST'));
+  // 反向断言：真实 CounterController 只认 inc / clear，没有 dec
+  assert.ok(
+    calls.every((c) => ['inc', 'clear'].includes(String(c.data.action))),
+    'action 只能是 inc 或 clear（模板源码 CounterController 无 dec 分支）'
+  );
 });
 
 test('未配 service 时 configured 为 false（来自 config/cloudrun.js）', () => {
